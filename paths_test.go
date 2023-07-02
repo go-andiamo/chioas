@@ -28,7 +28,6 @@ func TestPaths_WriteYaml(t *testing.T) {
     description: "this is a test"
     tags:
       - "tests"
-"/foo":
 `
 	assert.Equal(t, expected, string(data))
 }

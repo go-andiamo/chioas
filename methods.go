@@ -50,7 +50,7 @@ var MethodsOrder = []string{
 	http.MethodDelete,
 }
 
-func (m Methods) writeYaml(parentTag string, w *yamlWriter) {
+func (m Methods) writeYaml(path string, knownParams PathParams, parentTag string, w *yamlWriter) {
 	type sortMethod struct {
 		name   string
 		method Method
@@ -72,19 +72,24 @@ func (m Methods) writeYaml(parentTag string, w *yamlWriter) {
 		return sortedMethods[i].order < sortedMethods[j].order
 	})
 	for _, mn := range sortedMethods {
-		mn.method.writeYaml(parentTag, mn.name, w)
+		mn.method.writeYaml(path, knownParams, parentTag, mn.name, w)
 	}
 }
 
-func (m Method) writeYaml(parentTag string, method string, w *yamlWriter) {
+func (m Method) writeYaml(path string, knownParams PathParams, parentTag string, method string, w *yamlWriter) {
 	w.writeTagStart(strings.ToLower(method))
-	w.writeTagValue("summary", m.Summary)
-	w.writeTagValue("description", m.Description)
-	w.writeTagValue("operationId", m.OperationId)
+	w.writeTagValue(tagNameSummary, m.Summary)
+	w.writeTagValue(tagNameDescription, m.Description)
+	w.writeTagValue(tagNameOperationId, m.OperationId)
 	if tag := defaultTag(parentTag, m.Tag); tag != "" {
-		w.writeTagStart("tags")
+		w.writeTagStart(tagNameTags)
 		w.writeItem(tag)
 		w.writeTagEnd()
+	}
+	if knownParams != nil {
+		knownParams.writeYaml(path, w)
+	} else {
+		(PathParams{}).writeYaml(path, w)
 	}
 	// TODO more?
 	w.writeTagEnd()

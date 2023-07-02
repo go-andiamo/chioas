@@ -60,23 +60,23 @@ func (d *Definition) AsYaml() ([]byte, error) {
 }
 
 func (d *Definition) writeYaml(w *yamlWriter) error {
-	w.writeTagValue("openapi", "3.0.3")
-	w.writeTagStart("info")
-	w.writeTagValue("title", d.Title)
-	w.writeTagValue("description", d.Description)
-	w.writeTagValue("version", d.Version)
+	w.writeTagValue(tagNameOpenApi, OasVersion)
+	w.writeTagStart(tagNameInfo)
+	w.writeTagValue(tagNameTitle, d.Title)
+	w.writeTagValue(tagNameDescription, d.Description)
+	w.writeTagValue(tagNameVersion, d.Version)
 	w.writeTagEnd()
 	if d.Tags != nil && len(d.Tags) > 0 {
-		w.writeTagStart("tags")
+		w.writeTagStart(tagNameTags)
 		for _, t := range d.Tags {
 			t.writeYaml(w)
 		}
 		w.writeTagEnd()
 	}
-	w.writeTagStart("paths")
+	w.writeTagStart(tagNamePaths)
 	if d.Methods != nil && len(d.Methods) > 0 {
 		w.writePathStart(d.Context, "/")
-		d.Methods.writeYaml("", w)
+		d.Methods.writeYaml("", nil, "", w)
 		w.writeTagEnd()
 	}
 	if d.Paths != nil {

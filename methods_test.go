@@ -69,7 +69,7 @@ func TestMethods_WriteYaml(t *testing.T) {
 		http.MethodGet:     {},
 	}
 	w := newYamlWriter(nil)
-	ms.writeYaml("", w)
+	ms.writeYaml("", nil, "", w)
 	data, err := w.bytes()
 	require.NoError(t, err)
 	const expect = `get:
@@ -92,7 +92,7 @@ func TestMethod_WriteYaml(t *testing.T) {
 		Tag:         "",
 	}
 	w := newYamlWriter(nil)
-	m.writeYaml("foo", http.MethodGet, w)
+	m.writeYaml("", nil, "foo", http.MethodGet, w)
 	data, err := w.bytes()
 	require.NoError(t, err)
 	const expect = `get:
