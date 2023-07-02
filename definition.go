@@ -9,6 +9,7 @@ import (
 
 type Definition struct {
 	This        any
+	DocOptions  DocOptions
 	Context     string
 	Title       string
 	Description string
@@ -20,6 +21,7 @@ type Definition struct {
 
 func (d *Definition) SetupRoutes(router chi.Router) {
 	router.Route("/", func(r chi.Router) {
+		d.DocOptions.setupRoutes(d, r)
 		d.setupMethods(d.Methods, r)
 		d.setupPaths(d.Paths, r)
 	})
@@ -50,7 +52,11 @@ func (d *Definition) getHandler(method Method) http.HandlerFunc {
 
 func (d *Definition) WriteYaml(w io.Writer) error {
 	yw := newYamlWriter(bufio.NewWriter(w))
-	return d.writeYaml(yw)
+	err := d.writeYaml(yw)
+	if err == nil {
+		err = yw.w.Flush()
+	}
+	return err
 }
 
 func (d *Definition) AsYaml() ([]byte, error) {
