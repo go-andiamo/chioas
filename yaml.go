@@ -8,6 +8,25 @@ import (
 	"strings"
 )
 
+var OasVersion = "3.0.3"
+
+const (
+	tagNameOpenApi     = "openapi"
+	tagNameInfo        = "info"
+	tagNameTitle       = "title"
+	tagNameDescription = "description"
+	tagNameVersion     = "version"
+	tagNameTags        = "tags"
+	tagNamePaths       = "paths"
+	tagNameSummary     = "summary"
+	tagNameOperationId = "operationId"
+	tagNameParameters  = "parameters"
+	tagNameName        = "name"
+	tagNameIn          = "in"
+	tagNameRequired    = "required"
+	tagNameExample     = "example"
+)
+
 type yamlWriter struct {
 	buffer bytes.Buffer
 	w      *bufio.Writer
@@ -26,6 +45,9 @@ func newYamlWriter(w *bufio.Writer) *yamlWriter {
 }
 
 func (y *yamlWriter) bytes() ([]byte, error) {
+	if y.err != nil {
+		return nil, y.err
+	}
 	y.err = y.w.Flush()
 	return y.buffer.Bytes(), y.err
 }

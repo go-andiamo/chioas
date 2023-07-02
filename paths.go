@@ -28,11 +28,30 @@ type flatPath struct {
 }
 
 func (p flatPath) writeYaml(context string, w *yamlWriter) {
-	w.writePathStart(context, p.path)
-	if p.def.Methods != nil {
-		p.def.Methods.writeYaml(p.tag, w)
+	if p.def.Methods != nil && len(p.def.Methods) > 0 {
+		w.writePathStart(context, p.path)
+		if p.def.Methods != nil {
+			p.def.Methods.writeYaml(p.path, p.getPathParams(), p.tag, w)
+		}
+		w.writeTagEnd()
 	}
-	w.writeTagEnd()
+}
+
+func (p flatPath) getPathParams() PathParams {
+	result := PathParams{}
+	for _, a := range p.ancestry {
+		if a.PathParams != nil {
+			for k, pp := range a.PathParams {
+				result[k] = pp
+			}
+		}
+	}
+	if p.def.PathParams != nil {
+		for k, pp := range p.def.PathParams {
+			result[k] = pp
+		}
+	}
+	return result
 }
 
 func (ps Paths) flattenAndSort() []flatPath {

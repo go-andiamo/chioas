@@ -8,8 +8,8 @@ type Tag struct {
 }
 
 func (t Tag) writeYaml(w *yamlWriter) {
-	w.writeItemStart("name", t.Name)
-	w.writeTagValue("description", t.Description)
+	w.writeItemStart(tagNameName, t.Name)
+	w.writeTagValue(tagNameDescription, t.Description)
 	w.writeTagEnd()
 }
 

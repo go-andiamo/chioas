@@ -112,10 +112,28 @@ func TestDefinition_writeYaml(t *testing.T) {
 					},
 				},
 				Paths: Paths{
-					"/subsubs": {
+					"/{subId: [a-z]*}": {
+						PathParams: PathParams{
+							"subId": {
+								Description: "id of sub",
+							},
+						},
 						Methods: Methods{
 							http.MethodGet: {
-								Description: "get subs subs desc",
+								Description: "get specific sub",
+							},
+						},
+						Paths: Paths{
+							"/subitems": {
+								Paths: Paths{
+									"/{subitemId}": {
+										Methods: Methods{
+											http.MethodGet: {
+												Description: "get specific sub-item of sub",
+											},
+										},
+									},
+								},
 							},
 						},
 					},
@@ -147,11 +165,29 @@ paths:
       description: "get subs desc"
       tags:
         - "Subs"
-  "/svc/subs/subsubs":
+  "/svc/subs/{subId: [a-z]*}":
     get:
-      description: "get subs subs desc"
+      description: "get specific sub"
       tags:
         - "Subs"
+      parameters:
+        - name: "subId"
+          description: "id of sub"
+          in: "path"
+          required: true
+  "/svc/subs/{subId: [a-z]*}/subitems/{subitemId}":
+    get:
+      description: "get specific sub-item of sub"
+      tags:
+        - "Subs"
+      parameters:
+        - name: "subId"
+          description: "id of sub"
+          in: "path"
+          required: true
+        - name: "subitemId"
+          in: "path"
+          required: true
 `
 	assert.Equal(t, expect, string(data))
 
