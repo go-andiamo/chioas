@@ -28,7 +28,7 @@ import (
 
 func main() {
     router := chi.NewRouter()
-    if err := myApi.SetupRoutes(router); err != nil {
+    if err := myApi.SetupRoutes(router, myApi); err != nil {
         panic(err)
     }
     _ = http.ListenAndServe(":8080", router)
