@@ -2,92 +2,119 @@ package chioas
 
 import (
 	"bufio"
+	"github.com/go-andiamo/chioas/yaml"
 	"github.com/go-chi/chi/v5"
 	"io"
-	"net/http"
+	"strings"
 )
 
+// Definition is the overall definition of an api
 type Definition struct {
-	This        any
-	DocOptions  DocOptions
-	Context     string
-	Title       string
-	Description string
-	Version     string
+	DocOptions DocOptions
+	//Context     string
+	Info        Info
+	Servers     Servers
 	Tags        Tags
-	Methods     Methods
-	Paths       Paths
+	Methods     Methods         // methods on api root
+	Middlewares chi.Middlewares // chi middlewares for api root
+	Paths       Paths           // descendant paths
+	Components  *Components
+	Additional  Additional
 }
 
-func (d *Definition) SetupRoutes(router chi.Router) {
-	router.Route("/", func(r chi.Router) {
-		d.DocOptions.setupRoutes(d, r)
-		d.setupMethods(d.Methods, r)
-		d.setupPaths(d.Paths, r)
-	})
+// SetupRoutes sets up the API routes on the supplied chi.Router
+//
+// Pass the thisApi arg if any of the methods use method by name
+func (d *Definition) SetupRoutes(router chi.Router, thisApi any) error {
+	subRoute := chi.NewRouter()
+	subRoute.Use(d.Middlewares...)
+	if err := d.DocOptions.setupRoutes(d, subRoute); err != nil {
+		return err
+	}
+	if err := d.setupMethods(root, d.Methods, subRoute, thisApi); err != nil {
+		return err
+	}
+	if err := d.setupPaths(nil, d.Paths, subRoute, thisApi); err != nil {
+		return err
+	}
+	router.Mount(root, subRoute)
+	return nil
 }
 
-func (d *Definition) setupPaths(paths Paths, route chi.Router) {
+func (d *Definition) setupPaths(ancestry []string, paths Paths, route chi.Router, thisApi any) error {
 	if paths != nil {
 		for p, pDef := range paths {
-			route.Route(p, func(r chi.Router) {
-				d.setupMethods(pDef.Methods, r)
-				d.setupPaths(pDef.Paths, r)
-			})
+			newAncestry := append(ancestry, p)
+			subRoute := chi.NewRouter()
+			subRoute.Use(pDef.Middlewares...)
+			if err := d.setupMethods(strings.Join(newAncestry, ""), pDef.Methods, subRoute, thisApi); err != nil {
+				return err
+			}
+			if err := d.setupPaths(newAncestry, pDef.Paths, subRoute, thisApi); err != nil {
+				return err
+			}
+			route.Mount(p, subRoute)
 		}
 	}
+	return nil
 }
 
-func (d *Definition) setupMethods(methods Methods, route chi.Router) {
+func (d *Definition) setupMethods(path string, methods Methods, route chi.Router, thisApi any) error {
 	if methods != nil {
 		for m, mDef := range methods {
-			route.MethodFunc(m, "/", d.getHandler(mDef))
+			if h, err := mDef.getHandler(path, m, thisApi); err == nil {
+				route.MethodFunc(m, root, h)
+			} else {
+				return err
+			}
 		}
 	}
-}
-
-func (d *Definition) getHandler(method Method) http.HandlerFunc {
-	return method.getHandler(d.This)
+	return nil
 }
 
 func (d *Definition) WriteYaml(w io.Writer) error {
-	yw := newYamlWriter(bufio.NewWriter(w))
+	yw := yaml.NewWriter(bufio.NewWriter(w))
 	err := d.writeYaml(yw)
 	if err == nil {
-		err = yw.w.Flush()
+		err = yw.Flush()
 	}
 	return err
 }
 
 func (d *Definition) AsYaml() ([]byte, error) {
-	w := newYamlWriter(nil)
+	w := yaml.NewWriter(nil)
 	_ = d.writeYaml(w)
-	return w.bytes()
+	return w.Bytes()
 }
 
-func (d *Definition) writeYaml(w *yamlWriter) error {
-	w.writeTagValue(tagNameOpenApi, OasVersion)
-	w.writeTagStart(tagNameInfo)
-	w.writeTagValue(tagNameTitle, d.Title)
-	w.writeTagValue(tagNameDescription, d.Description)
-	w.writeTagValue(tagNameVersion, d.Version)
-	w.writeTagEnd()
+func (d *Definition) writeYaml(w yaml.Writer) error {
+	w.WriteTagValue(tagNameOpenApi, OasVersion)
+	d.Info.writeYaml(w)
+	if d.Servers != nil {
+		d.Servers.writeYaml(w)
+	}
 	if d.Tags != nil && len(d.Tags) > 0 {
-		w.writeTagStart(tagNameTags)
+		w.WriteTagStart(tagNameTags)
 		for _, t := range d.Tags {
 			t.writeYaml(w)
 		}
-		w.writeTagEnd()
+		w.WriteTagEnd()
 	}
-	w.writeTagStart(tagNamePaths)
+	w.WriteTagStart(tagNamePaths)
 	if d.Methods != nil && len(d.Methods) > 0 {
-		w.writePathStart(d.Context, "/")
-		d.Methods.writeYaml("", nil, "", w)
-		w.writeTagEnd()
+		w.WritePathStart(d.DocOptions.Context, root)
+		d.Methods.writeYaml(&d.DocOptions, nil, nil, "", w)
+		w.WriteTagEnd()
 	}
 	if d.Paths != nil {
-		d.Paths.writeYaml(d.Context, w)
+		d.Paths.writeYaml(&d.DocOptions, d.DocOptions.Context, w)
 	}
-	w.writeTagEnd()
-	return w.err
+	w.WriteTagEnd()
+	if d.Components != nil {
+		d.Components.writeYaml(w)
+	}
+	if d.Additional != nil {
+		d.Additional.Write(d, w)
+	}
+	return w.Errored()
 }
