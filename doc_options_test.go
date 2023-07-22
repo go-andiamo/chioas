@@ -35,8 +35,10 @@ var spec = &apiSpec{
 }
 
 func (a *apiSpec) SetupRoutes(r chi.Router) {
-	a.Definition.This = a
-	a.Definition.SetupRoutes(r)
+	err := a.Definition.SetupRoutes(r, a)
+	if err != nil {
+		panic(err)
+	}
 }
 
 var apiDef = Definition{
@@ -101,20 +103,76 @@ func TestDocOptions(t *testing.T) {
 	require.NoError(t, err)
 	const expectYaml = `openapi: "3.0.3"
 info:
+  title: "API Documentation"
+  version: "1.0.0"
 paths:
   "/foo":
     get:
+      responses:
+        200:
+          description: "OK"
+          content:
+            application/json:
+              schema:
+                type: "object"
 `
 	assert.Equal(t, expectYaml, string(body))
 }
 
-func TestDocOptions_PanicsWithBadTemplate(t *testing.T) {
+func TestDocOptions_NoCache(t *testing.T) {
+	d := &DocOptions{
+		ServeDocs:    true,
+		NoCache:      true,
+		DocIndexPage: "docs.htm",
+	}
+	router := chi.NewRouter()
+	d.setupRoutes(&apiDef, router)
+
+	req, _ := http.NewRequest(http.MethodGet, defaultDocsPath, nil)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusMovedPermanently, res.Code)
+
+	req, _ = http.NewRequest(http.MethodGet, defaultDocsPath+"/docs.htm", nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusOK, res.Code)
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	const expectHtmlStarts = `<html lang="en">`
+	assert.True(t, strings.HasPrefix(string(body), expectHtmlStarts))
+	assert.True(t, strings.Contains(string(body), `openApi: "spec.yaml",`))
+
+	req, _ = http.NewRequest(http.MethodGet, defaultDocsPath+"/"+defaultSpecName, nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusOK, res.Code)
+	body, err = io.ReadAll(res.Body)
+	require.NoError(t, err)
+	const expectYaml = `openapi: "3.0.3"
+info:
+  title: "API Documentation"
+  version: "1.0.0"
+paths:
+  "/foo":
+    get:
+      responses:
+        200:
+          description: "OK"
+          content:
+            application/json:
+              schema:
+                type: "object"
+`
+	assert.Equal(t, expectYaml, string(body))
+}
+
+func TestDocOptions_ErrorsWithBadTemplate(t *testing.T) {
 	d := DocOptions{
 		ServeDocs:   true,
 		DocTemplate: `<html>{{badFunc}}</html>`,
 	}
 	router := chi.NewRouter()
-	assert.Panics(t, func() {
-		d.setupRoutes(nil, router)
-	})
+	err := d.setupRoutes(nil, router)
+	assert.Error(t, err)
 }

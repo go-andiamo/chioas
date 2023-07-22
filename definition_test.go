@@ -3,6 +3,7 @@ package chioas
 import (
 	"bufio"
 	"bytes"
+	"github.com/go-andiamo/chioas/yaml"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,25 +17,27 @@ func TestDefinition_SetupRoutes(t *testing.T) {
 		calls: map[string]int{},
 	}
 	d := Definition{
-		This:    api,
-		Context: "svc",
+		DocOptions: DocOptions{
+			ServeDocs: true,
+			Context:   "svc",
+		},
 		Methods: Methods{
 			http.MethodGet: {
-				MethodName: "GetRoot",
+				Handler: "GetRoot",
 			},
 		},
 		Paths: Paths{
 			"/subs": {
 				Methods: Methods{
 					http.MethodGet: {
-						MethodName: "GetSubs",
+						Handler: "GetSubs",
 					},
 				},
 				Paths: Paths{
 					"/subsubs": {
 						Methods: Methods{
 							http.MethodGet: {
-								MethodName: "GetSubSubs",
+								Handler: "GetSubSubs",
 							},
 						},
 					},
@@ -43,7 +46,8 @@ func TestDefinition_SetupRoutes(t *testing.T) {
 		},
 	}
 	router := chi.NewRouter()
-	d.SetupRoutes(router)
+	err := d.SetupRoutes(router, api)
+	assert.NoError(t, err)
 
 	req, err := http.NewRequest(http.MethodGet, "/", nil)
 	require.NoError(t, err)
@@ -64,6 +68,62 @@ func TestDefinition_SetupRoutes(t *testing.T) {
 	assert.Equal(t, 1, api.calls["/"])
 	assert.Equal(t, 1, api.calls["/subs"])
 	assert.Equal(t, 1, api.calls["/subs/subsubs"])
+
+	req, err = http.NewRequest(http.MethodGet, "/docs", nil)
+	require.NoError(t, err)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusMovedPermanently, res.Code)
+	req, err = http.NewRequest(http.MethodGet, "/docs/index.htm", nil)
+	require.NoError(t, err)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusOK, res.Code)
+	req, err = http.NewRequest(http.MethodGet, "/docs/spec.yaml", nil)
+	require.NoError(t, err)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusOK, res.Code)
+}
+
+func TestDefinition_SetupRoutes_ErrorsWithBadHandlers(t *testing.T) {
+	d := Definition{
+		Methods: Methods{
+			http.MethodGet: {},
+		},
+	}
+	router := chi.NewRouter()
+	err := d.SetupRoutes(router, nil)
+	assert.Error(t, err)
+
+	d = Definition{
+		Paths: Paths{
+			"/sub": {
+				Paths: Paths{
+					"/subsub": {
+						Methods: Methods{
+							http.MethodGet: {},
+						},
+					},
+				},
+			},
+		},
+	}
+	router = chi.NewRouter()
+	err = d.SetupRoutes(router, nil)
+	assert.Error(t, err)
+}
+
+func TestDefinition_SetupRoutes_ErrorsWithBadDocTemplate(t *testing.T) {
+	d := Definition{
+		DocOptions: DocOptions{
+			ServeDocs:   true,
+			DocTemplate: `{{`,
+		},
+	}
+	router := chi.NewRouter()
+	err := d.SetupRoutes(router, nil)
+	assert.Error(t, err)
 }
 
 type dummyApi struct {
@@ -84,10 +144,19 @@ func (d *dummyApi) GetSubSubs(writer http.ResponseWriter, request *http.Request)
 
 func TestDefinition_writeYaml(t *testing.T) {
 	d := Definition{
-		Context:     "svc",
-		Title:       "test title",
-		Description: "test desc",
-		Version:     "1.0.1",
+		DocOptions: DocOptions{
+			Context: "svc",
+		},
+		Servers: Servers{
+			"/api/v1": {
+				Description: "original",
+			},
+		},
+		Info: Info{
+			Title:       "test title",
+			Description: "test desc",
+			Version:     "1.0.1",
+		},
 		Tags: Tags{
 			{
 				Name:        "Foo",
@@ -140,17 +209,34 @@ func TestDefinition_writeYaml(t *testing.T) {
 				},
 			},
 		},
+		Components: &Components{
+			Schemas: Schemas{
+				{
+					Name:               "fooReq",
+					Description:        "foo desc",
+					RequiredProperties: []string{"foo"},
+					Properties: []Property{
+						{
+							Name: "foo",
+						},
+					},
+				},
+			},
+		},
 	}
-	w := newYamlWriter(nil)
+	w := yaml.NewWriter(nil)
 	err := d.writeYaml(w)
-	require.NoError(t, err)
-	data, err := w.bytes()
-	require.NoError(t, err)
+	assert.NoError(t, err)
+	data, err := w.Bytes()
+	assert.NoError(t, err)
 	const expect = `openapi: "3.0.3"
 info:
   title: "test title"
   description: "test desc"
   version: "1.0.1"
+servers:
+  - url: "/api/v1"
+    description: "original"
 tags:
   - name: "Foo"
     description: "foo tag"
@@ -160,12 +246,26 @@ paths:
   "/svc/":
     get:
       description: "Root discovery"
+      responses:
+        200:
+          description: "OK"
+          content:
+            application/json:
+              schema:
+                type: "object"
   "/svc/subs":
     get:
       description: "get subs desc"
       tags:
         - "Subs"
-  "/svc/subs/{subId: [a-z]*}":
+      responses:
+        200:
+          description: "OK"
+          content:
+            application/json:
+              schema:
+                type: "object"
+  "/svc/subs/{subId}":
     get:
       description: "get specific sub"
       tags:
@@ -175,7 +275,14 @@ paths:
           description: "id of sub"
           in: "path"
           required: true
-  "/svc/subs/{subId: [a-z]*}/subitems/{subitemId}":
+      responses:
+        200:
+          description: "OK"
+          content:
+            application/json:
+              schema:
+                type: "object"
+  "/svc/subs/{subId}/subitems/{subitemId}":
     get:
       description: "get specific sub-item of sub"
       tags:
@@ -188,6 +295,23 @@ paths:
         - name: "subitemId"
           in: "path"
           required: true
+      responses:
+        200:
+          description: "OK"
+          content:
+            application/json:
+              schema:
+                type: "object"
+components:
+  schemas:
+    "fooReq":
+      description: "foo desc"
+      type: "object"
+      required:
+        - "foo"
+      properties:
+        "foo":
+          type: "string"
 `
 	assert.Equal(t, expect, string(data))
 
@@ -202,5 +326,31 @@ paths:
 	err = bw.Flush()
 	assert.NoError(t, err)
 	data = buff.Bytes()
+	assert.Equal(t, expect, string(data))
+}
+
+type testAdditional struct {
+}
+
+func (t *testAdditional) Write(on any, w yaml.Writer) {
+	w.WriteTagValue("foo", "bar")
+}
+
+func TestDefinition_writeYaml_WithAdditional(t *testing.T) {
+	d := Definition{
+		Additional: &testAdditional{},
+	}
+	w := yaml.NewWriter(nil)
+	err := d.writeYaml(w)
+	assert.NoError(t, err)
+	data, err := w.Bytes()
+	assert.NoError(t, err)
+	const expect = `openapi: "3.0.3"
+info:
+  title: "API Documentation"
+  version: "1.0.0"
+paths:
+foo: "bar"
+`
 	assert.Equal(t, expect, string(data))
 }
