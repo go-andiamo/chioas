@@ -15,8 +15,10 @@ func main() {
 }
 
 var myApi = chioas.Definition{
+	AutoHeadMethods: true,
 	DocOptions: chioas.DocOptions{
-		ServeDocs: true,
+		ServeDocs:       true,
+		HideHeadMethods: true,
 	},
 	Paths: map[string]chioas.Path{
 		"/foos": {
@@ -26,6 +28,9 @@ var myApi = chioas.Definition{
 				},
 				http.MethodPost: {
 					Handler: postFoos,
+				},
+				http.MethodHead: {
+					Handler: getFoos,
 				},
 			},
 			Paths: map[string]chioas.Path{

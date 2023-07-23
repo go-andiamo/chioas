@@ -27,6 +27,7 @@ type Method struct {
 	Request     *Request
 	Responses   Responses
 	Additional  Additional
+	HideDocs    bool // hides this method from docs
 }
 
 func (m Method) getHandler(path string, method string, thisApi any) (http.HandlerFunc, error) {
@@ -50,6 +51,7 @@ func (m Method) getHandler(path string, method string, thisApi any) (http.Handle
 	return nil, fmt.Errorf("invalid handler type (path: %s, method: %s)", path, method)
 }
 
+// MethodsOrder defines the order in which methods appear in docs
 var MethodsOrder = []string{
 	http.MethodGet,
 	http.MethodHead,
@@ -60,23 +62,57 @@ var MethodsOrder = []string{
 	http.MethodDelete,
 }
 
-func (m Methods) writeYaml(opts *DocOptions, template urit.Template, knownParams PathParams, parentTag string, w yaml.Writer) {
+func methodOrder(m string) int {
+	order := slices.Index(MethodsOrder, m)
+	if order == -1 {
+		order = len(MethodsOrder)
+	}
+	return order
+}
+
+func (m Methods) hasVisibleMethods(opts *DocOptions) bool {
+	result := false
+	for n, mDef := range m {
+		if result = !mDef.HideDocs && (n != http.MethodHead || !opts.HideHeadMethods); result {
+			break
+		}
+	}
+	return result
+}
+
+func (m Methods) getWithoutHead() (getM Method, has bool) {
+	if getM, has = m[http.MethodGet]; has {
+		if _, hasHd := m[http.MethodHead]; hasHd {
+			has = false
+		}
+	}
+	return
+}
+
+func (m Methods) writeYaml(opts *DocOptions, autoHeads bool, template urit.Template, knownParams PathParams, parentTag string, w yaml.Writer) {
 	type sortMethod struct {
 		name   string
 		method Method
 		order  int
 	}
 	sortedMethods := make([]sortMethod, 0, len(m))
-	for n, me := range m {
-		order := slices.Index(MethodsOrder, n)
-		if order == -1 {
-			order = len(MethodsOrder)
+	for n, mDef := range m {
+		if !mDef.HideDocs && (n != http.MethodHead || !opts.HideHeadMethods) {
+			sortedMethods = append(sortedMethods, sortMethod{
+				name:   n,
+				method: mDef,
+				order:  methodOrder(n),
+			})
 		}
-		sortedMethods = append(sortedMethods, sortMethod{
-			name:   n,
-			method: me,
-			order:  order,
-		})
+	}
+	if !opts.HideHeadMethods && autoHeads {
+		if getM, has := m.getWithoutHead(); has {
+			sortedMethods = append(sortedMethods, sortMethod{
+				name:   http.MethodHead,
+				method: getM,
+				order:  methodOrder(http.MethodHead),
+			})
+		}
 	}
 	sort.Slice(sortedMethods, func(i, j int) bool {
 		return sortedMethods[i].order < sortedMethods[j].order

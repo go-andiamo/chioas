@@ -10,9 +10,9 @@ import (
 
 type Paths map[string]Path
 
-func (ps Paths) writeYaml(opts *DocOptions, context string, w yaml.Writer) {
+func (ps Paths) writeYaml(opts *DocOptions, autoHeads bool, context string, w yaml.Writer) {
 	for _, p := range ps.flattenAndSort() {
-		p.writeYaml(opts, context, w)
+		p.writeYaml(opts, autoHeads, context, w)
 	}
 }
 
@@ -22,6 +22,7 @@ type Path struct {
 	Middlewares chi.Middlewares // chi middlewares for path
 	Tag         string
 	PathParams  PathParams
+	HideDocs    bool // hides this path (and descendants) from docs
 }
 
 type flatPath struct {
@@ -31,8 +32,8 @@ type flatPath struct {
 	tag      string
 }
 
-func (p flatPath) writeYaml(opts *DocOptions, context string, w yaml.Writer) {
-	if p.def.Methods != nil && len(p.def.Methods) > 0 {
+func (p flatPath) writeYaml(opts *DocOptions, autoHeads bool, context string, w yaml.Writer) {
+	if p.def.Methods != nil && p.def.Methods.hasVisibleMethods(opts) {
 		template, err := urit.NewTemplate(p.path)
 		if err != nil {
 			w.SetError(err)
@@ -40,7 +41,7 @@ func (p flatPath) writeYaml(opts *DocOptions, context string, w yaml.Writer) {
 		}
 		w.WritePathStart(context, template.Template(true))
 		if p.def.Methods != nil {
-			p.def.Methods.writeYaml(opts, template, p.getPathParams(), p.tag, w)
+			p.def.Methods.writeYaml(opts, autoHeads, template, p.getPathParams(), p.tag, w)
 		}
 		w.WriteTagEnd()
 	}
@@ -74,16 +75,18 @@ func (ps Paths) flattenAndSort() []flatPath {
 func pathsTraverse(collected []flatPath, parentPaths []string, ancestry []Path, tag string, paths Paths) []flatPath {
 	if paths != nil {
 		for path, def := range paths {
-			pps := append(parentPaths, path)
-			useTag := defaultTag(tag, def.Tag)
-			fp := flatPath{
-				path:     strings.Join(pps, ""),
-				ancestry: ancestry,
-				def:      def,
-				tag:      useTag,
+			if !def.HideDocs {
+				pps := append(parentPaths, path)
+				useTag := defaultTag(tag, def.Tag)
+				fp := flatPath{
+					path:     strings.Join(pps, ""),
+					ancestry: ancestry,
+					def:      def,
+					tag:      useTag,
+				}
+				collected = append(collected, fp)
+				collected = pathsTraverse(collected, pps, append(ancestry, def), useTag, def.Paths)
 			}
-			collected = append(collected, fp)
-			collected = pathsTraverse(collected, pps, append(ancestry, def), useTag, def.Paths)
 		}
 	}
 	return collected
