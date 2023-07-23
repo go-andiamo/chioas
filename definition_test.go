@@ -408,3 +408,104 @@ foo: "bar"
 `
 	assert.Equal(t, expect, string(data))
 }
+
+func TestDefinition_Middlewares(t *testing.T) {
+	d := Definition{
+		Middlewares: []func(http.Handler) http.Handler{testUnAuthPostMiddleware},
+		Methods: Methods{
+			http.MethodGet: {
+				Handler: func(writer http.ResponseWriter, request *http.Request) {},
+			},
+			http.MethodPost: {
+				Handler: func(writer http.ResponseWriter, request *http.Request) {},
+			},
+		},
+	}
+	router := chi.NewRouter()
+	err := d.SetupRoutes(router, nil)
+	require.NoError(t, err)
+
+	req, err := http.NewRequest(http.MethodGet, "/", nil)
+	assert.NoError(t, err)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusOK, res.Code)
+	req, err = http.NewRequest(http.MethodPost, "/", nil)
+	assert.NoError(t, err)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusUnauthorized, res.Code)
+}
+
+func TestDefinition_ApplyMiddlewares(t *testing.T) {
+	d := Definition{
+		ApplyMiddlewares: func(thisApi any) chi.Middlewares {
+			return chi.Middlewares{testUnAuthPostMiddleware}
+		},
+		Methods: Methods{
+			http.MethodGet: {
+				Handler: func(writer http.ResponseWriter, request *http.Request) {},
+			},
+			http.MethodPost: {
+				Handler: func(writer http.ResponseWriter, request *http.Request) {},
+			},
+		},
+	}
+	router := chi.NewRouter()
+	err := d.SetupRoutes(router, nil)
+	require.NoError(t, err)
+
+	req, err := http.NewRequest(http.MethodGet, "/", nil)
+	assert.NoError(t, err)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusOK, res.Code)
+	req, err = http.NewRequest(http.MethodPost, "/", nil)
+	assert.NoError(t, err)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusUnauthorized, res.Code)
+}
+
+func TestDefinition_Path_ApplyMiddlewares(t *testing.T) {
+	d := Definition{
+		Paths: Paths{
+			"/foo": {
+				ApplyMiddlewares: func(thisApi any) chi.Middlewares {
+					return chi.Middlewares{testUnAuthPostMiddleware}
+				},
+				Methods: Methods{
+					http.MethodGet: {
+						Handler: func(writer http.ResponseWriter, request *http.Request) {},
+					},
+					http.MethodPost: {
+						Handler: func(writer http.ResponseWriter, request *http.Request) {},
+					},
+				},
+			},
+		},
+	}
+	router := chi.NewRouter()
+	err := d.SetupRoutes(router, nil)
+	require.NoError(t, err)
+
+	req, err := http.NewRequest(http.MethodGet, "/foo", nil)
+	assert.NoError(t, err)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusOK, res.Code)
+	req, err = http.NewRequest(http.MethodPost, "/foo", nil)
+	assert.NoError(t, err)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusUnauthorized, res.Code)
+}
+
+func testUnAuthPostMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			w.WriteHeader(http.StatusUnauthorized)
+		}
+		next.ServeHTTP(w, r)
+	})
+}

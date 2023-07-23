@@ -11,16 +11,17 @@ import (
 
 // Definition is the overall definition of an api
 type Definition struct {
-	DocOptions      DocOptions
-	AutoHeadMethods bool // set to true to automatically add HEAD methods for GET methods (and where HEAD method not explicitly specified)
-	Info            Info
-	Servers         Servers
-	Tags            Tags
-	Methods         Methods         // methods on api root
-	Middlewares     chi.Middlewares // chi middlewares for api root
-	Paths           Paths           // descendant paths
-	Components      *Components
-	Additional      Additional
+	DocOptions       DocOptions
+	AutoHeadMethods  bool // set to true to automatically add HEAD methods for GET methods (and where HEAD method not explicitly specified)
+	Info             Info
+	Servers          Servers
+	Tags             Tags
+	Methods          Methods         // methods on api root
+	Middlewares      chi.Middlewares // chi middlewares for api root
+	ApplyMiddlewares ApplyMiddlewares
+	Paths            Paths // descendant paths
+	Components       *Components
+	Additional       Additional
 }
 
 // SetupRoutes sets up the API routes on the supplied chi.Router
@@ -28,7 +29,11 @@ type Definition struct {
 // Pass the thisApi arg if any of the methods use method by name
 func (d *Definition) SetupRoutes(router chi.Router, thisApi any) error {
 	subRoute := chi.NewRouter()
-	subRoute.Use(d.Middlewares...)
+	middlewares := d.Middlewares
+	if d.ApplyMiddlewares != nil {
+		middlewares = append(middlewares, d.ApplyMiddlewares(thisApi)...)
+	}
+	subRoute.Use(middlewares...)
 	if err := d.DocOptions.setupRoutes(d, subRoute); err != nil {
 		return err
 	}
@@ -47,7 +52,11 @@ func (d *Definition) setupPaths(ancestry []string, paths Paths, route chi.Router
 		for p, pDef := range paths {
 			newAncestry := append(ancestry, p)
 			subRoute := chi.NewRouter()
-			subRoute.Use(pDef.Middlewares...)
+			middlewares := pDef.Middlewares
+			if pDef.ApplyMiddlewares != nil {
+				middlewares = append(middlewares, pDef.ApplyMiddlewares(thisApi)...)
+			}
+			subRoute.Use(middlewares...)
 			if err := d.setupMethods(strings.Join(newAncestry, ""), pDef.Methods, subRoute, thisApi); err != nil {
 				return err
 			}
