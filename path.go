@@ -16,13 +16,16 @@ func (ps Paths) writeYaml(opts *DocOptions, autoHeads bool, context string, w ya
 	}
 }
 
+type ApplyMiddlewares func(thisApi any) chi.Middlewares
+
 type Path struct {
-	Methods     Methods
-	Paths       Paths
-	Middlewares chi.Middlewares // chi middlewares for path
-	Tag         string
-	PathParams  PathParams
-	HideDocs    bool // hides this path (and descendants) from docs
+	Methods          Methods
+	Paths            Paths
+	Middlewares      chi.Middlewares // chi middlewares for path
+	ApplyMiddlewares ApplyMiddlewares
+	Tag              string
+	PathParams       PathParams
+	HideDocs         bool // hides this path (and descendants) from docs
 }
 
 type flatPath struct {
