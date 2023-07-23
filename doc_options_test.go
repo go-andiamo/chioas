@@ -140,7 +140,7 @@ func TestDocOptions_NoCache(t *testing.T) {
 	assert.Equal(t, http.StatusOK, res.Code)
 	body, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
-	const expectHtmlStarts = `<html lang="en">`
+	const expectHtmlStarts = `<html>`
 	assert.True(t, strings.HasPrefix(string(body), expectHtmlStarts))
 	assert.True(t, strings.Contains(string(body), `openApi: "spec.yaml",`))
 
@@ -176,4 +176,51 @@ func TestDocOptions_ErrorsWithBadTemplate(t *testing.T) {
 	router := chi.NewRouter()
 	err := d.setupRoutes(nil, router)
 	assert.Error(t, err)
+}
+
+func TestDocOptions_RedocOptions(t *testing.T) {
+	def := Definition{
+		DocOptions: DocOptions{
+			ServeDocs: true,
+			DocTemplate: `<html>
+<body>
+  <script>
+    initTry({
+      openApi: {{.specName}},
+      redocOptions: {{.redocopts}}
+    })
+  </script>
+</body>
+</html>`,
+			RedocOptions: RedocOptions{
+				ScrollYOffset: "200px",
+				Theme: &RedocTheme{
+					Typography: &RedocTypography{
+						FontFamily: "times",
+					},
+				},
+			},
+		},
+	}
+	router := chi.NewRouter()
+	err := def.SetupRoutes(router, nil)
+	assert.NoError(t, err)
+
+	req, err := http.NewRequest(http.MethodGet, "/docs/index.html", nil)
+	assert.NoError(t, err)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusOK, res.Code)
+	data := res.Body.Bytes()
+	const expect = `<html>
+<body>
+  <script>
+    initTry({
+      openApi: "spec.yaml",
+      redocOptions: {"scrollYOffset":"200px","theme":{"typography":{"fontFamily":"times","optimizeSpeed":false}}}
+    })
+  </script>
+</body>
+</html>`
+	assert.Equal(t, expect, string(data))
 }
