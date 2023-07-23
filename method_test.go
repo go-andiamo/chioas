@@ -74,6 +74,7 @@ func TestMethod_GetHandler_NoHandlerOrMethodNameSet(t *testing.T) {
 }
 
 func TestMethods_WriteYaml(t *testing.T) {
+	opts := &DocOptions{}
 	ms := Methods{
 		http.MethodHead:    {},
 		http.MethodPost:    {},
@@ -85,7 +86,7 @@ func TestMethods_WriteYaml(t *testing.T) {
 		http.MethodGet:     {},
 	}
 	w := yaml.NewWriter(nil)
-	ms.writeYaml(nil, nil, nil, "", w)
+	ms.writeYaml(opts, false, nil, nil, "", w)
 	data, err := w.Bytes()
 	require.NoError(t, err)
 	const expect = `get:
@@ -145,6 +146,82 @@ delete:
           schema:
             type: "object"
 trace:
+  responses:
+    200:
+      description: "OK"
+      content:
+        application/json:
+          schema:
+            type: "object"
+`
+	assert.Equal(t, expect, string(data))
+}
+
+func TestMethods_HasVisibleMethods(t *testing.T) {
+	opts := &DocOptions{
+		HideHeadMethods: true,
+	}
+	ms := Methods{}
+	assert.False(t, ms.hasVisibleMethods(opts))
+
+	ms = Methods{
+		http.MethodHead: {},
+	}
+	assert.False(t, ms.hasVisibleMethods(opts))
+
+	ms = Methods{
+		http.MethodHead: {},
+		http.MethodGet:  {},
+	}
+	assert.True(t, ms.hasVisibleMethods(opts))
+
+	ms = Methods{
+		http.MethodHead: {},
+		http.MethodGet:  {HideDocs: true},
+	}
+	assert.False(t, ms.hasVisibleMethods(opts))
+}
+
+func TestMethods_WriteYaml_HideMethod(t *testing.T) {
+	opts := &DocOptions{}
+	ms := Methods{
+		http.MethodHead: {HideDocs: true},
+		http.MethodGet:  {},
+	}
+	w := yaml.NewWriter(nil)
+	ms.writeYaml(opts, false, nil, nil, "", w)
+	data, err := w.Bytes()
+	require.NoError(t, err)
+	const expect = `get:
+  responses:
+    200:
+      description: "OK"
+      content:
+        application/json:
+          schema:
+            type: "object"
+`
+	assert.Equal(t, expect, string(data))
+}
+
+func TestMethods_WriteYaml_AutoHead(t *testing.T) {
+	opts := &DocOptions{}
+	ms := Methods{
+		http.MethodGet: {},
+	}
+	w := yaml.NewWriter(nil)
+	ms.writeYaml(opts, true, nil, nil, "", w)
+	data, err := w.Bytes()
+	require.NoError(t, err)
+	const expect = `get:
+  responses:
+    200:
+      description: "OK"
+      content:
+        application/json:
+          schema:
+            type: "object"
+head:
   responses:
     200:
       description: "OK"

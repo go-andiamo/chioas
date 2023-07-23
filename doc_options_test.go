@@ -81,7 +81,7 @@ func TestDocOptions(t *testing.T) {
 	router.ServeHTTP(res, req)
 	assert.Equal(t, http.StatusMovedPermanently, res.Code)
 
-	req, _ = http.NewRequest(http.MethodGet, "/apidocs/index.htm", nil)
+	req, _ = http.NewRequest(http.MethodGet, "/apidocs/index.html", nil)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
 	assert.Equal(t, http.StatusOK, res.Code)
@@ -126,7 +126,8 @@ func TestDocOptions_NoCache(t *testing.T) {
 		DocIndexPage: "docs.htm",
 	}
 	router := chi.NewRouter()
-	d.setupRoutes(&apiDef, router)
+	err := d.setupRoutes(&apiDef, router)
+	require.NoError(t, err)
 
 	req, _ := http.NewRequest(http.MethodGet, defaultDocsPath, nil)
 	res := httptest.NewRecorder()

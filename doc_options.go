@@ -18,7 +18,7 @@ type DocOptions struct {
 	NoCache bool
 	// Path the path on which to serve api docs page and spec (defaults to "/docs")
 	Path string
-	// DocIndexPage the name of the docs index page (defaults to "index.htm")
+	// DocIndexPage the name of the docs index page (defaults to "index.html")
 	DocIndexPage string
 	// Title the title in the docs index page (defaults to "API Documentation")
 	Title string
@@ -34,11 +34,13 @@ type DocOptions struct {
 	//
 	// is a map of http status code and response
 	DefaultResponses Responses
+	// HideHeadMethods indicates that all HEAD methods should be hidden from docs
+	HideHeadMethods bool
 }
 
 const (
 	defaultDocsPath  = "/docs"
-	defaultIndexName = "index.htm"
+	defaultIndexName = "index.html"
 	defaultSpecName  = "spec.yaml"
 	defaultTitle     = "API Documentation"
 )

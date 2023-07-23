@@ -74,7 +74,7 @@ func TestDefinition_SetupRoutes(t *testing.T) {
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
 	assert.Equal(t, http.StatusMovedPermanently, res.Code)
-	req, err = http.NewRequest(http.MethodGet, "/docs/index.htm", nil)
+	req, err = http.NewRequest(http.MethodGet, "/docs/index.html", nil)
 	require.NoError(t, err)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
@@ -84,6 +84,60 @@ func TestDefinition_SetupRoutes(t *testing.T) {
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
 	assert.Equal(t, http.StatusOK, res.Code)
+}
+
+func TestDefinition_SetupRoutes_AutoHeads(t *testing.T) {
+	d := Definition{
+		AutoHeadMethods: true,
+		Methods: Methods{
+			http.MethodGet: {
+				Handler: func(writer http.ResponseWriter, request *http.Request) {
+					writer.WriteHeader(http.StatusNotFound)
+				},
+			},
+			http.MethodHead: {
+				Handler: func(writer http.ResponseWriter, request *http.Request) {
+					writer.WriteHeader(http.StatusConflict)
+				},
+			},
+		},
+		Paths: Paths{
+			"/subs": {
+				Methods: Methods{
+					http.MethodGet: {
+						Handler: func(writer http.ResponseWriter, request *http.Request) {
+							writer.WriteHeader(http.StatusConflict)
+						},
+					},
+				},
+			},
+		},
+	}
+	router := chi.NewRouter()
+	err := d.SetupRoutes(router, nil)
+	assert.NoError(t, err)
+
+	req, err := http.NewRequest(http.MethodGet, "/", nil)
+	require.NoError(t, err)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusNotFound, res.Code)
+	req, err = http.NewRequest(http.MethodHead, "/", nil)
+	require.NoError(t, err)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusConflict, res.Code)
+
+	req, err = http.NewRequest(http.MethodGet, "/subs", nil)
+	require.NoError(t, err)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusConflict, res.Code)
+	req, err = http.NewRequest(http.MethodHead, "/subs", nil)
+	require.NoError(t, err)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusConflict, res.Code)
 }
 
 func TestDefinition_SetupRoutes_ErrorsWithBadHandlers(t *testing.T) {

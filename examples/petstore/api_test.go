@@ -32,9 +32,9 @@ func TestDocs(t *testing.T) {
 	res := httptest.NewRecorder()
 	router.ServeHTTP(res, req)
 	assert.Equal(t, http.StatusMovedPermanently, res.Code)
-	assert.Equal(t, "/docs/index.htm", res.Header().Get("Location"))
+	assert.Equal(t, "/docs/index.html", res.Header().Get("Location"))
 
-	req, _ = http.NewRequest(http.MethodGet, "/docs/index.htm", nil)
+	req, _ = http.NewRequest(http.MethodGet, "/docs/index.html", nil)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
 	assert.Equal(t, http.StatusOK, res.Code)

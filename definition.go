@@ -5,21 +5,22 @@ import (
 	"github.com/go-andiamo/chioas/yaml"
 	"github.com/go-chi/chi/v5"
 	"io"
+	"net/http"
 	"strings"
 )
 
 // Definition is the overall definition of an api
 type Definition struct {
-	DocOptions DocOptions
-	//Context     string
-	Info        Info
-	Servers     Servers
-	Tags        Tags
-	Methods     Methods         // methods on api root
-	Middlewares chi.Middlewares // chi middlewares for api root
-	Paths       Paths           // descendant paths
-	Components  *Components
-	Additional  Additional
+	DocOptions      DocOptions
+	AutoHeadMethods bool // set to true to automatically add HEAD methods for GET methods (and where HEAD method not explicitly specified)
+	Info            Info
+	Servers         Servers
+	Tags            Tags
+	Methods         Methods         // methods on api root
+	Middlewares     chi.Middlewares // chi middlewares for api root
+	Paths           Paths           // descendant paths
+	Components      *Components
+	Additional      Additional
 }
 
 // SetupRoutes sets up the API routes on the supplied chi.Router
@@ -68,6 +69,12 @@ func (d *Definition) setupMethods(path string, methods Methods, route chi.Router
 				return err
 			}
 		}
+		if d.AutoHeadMethods {
+			if getM, ok := methods.getWithoutHead(); ok {
+				h, _ := getM.getHandler(path, http.MethodHead, thisApi)
+				route.MethodFunc(http.MethodHead, root, h)
+			}
+		}
 	}
 	return nil
 }
@@ -103,11 +110,11 @@ func (d *Definition) writeYaml(w yaml.Writer) error {
 	w.WriteTagStart(tagNamePaths)
 	if d.Methods != nil && len(d.Methods) > 0 {
 		w.WritePathStart(d.DocOptions.Context, root)
-		d.Methods.writeYaml(&d.DocOptions, nil, nil, "", w)
+		d.Methods.writeYaml(&d.DocOptions, d.AutoHeadMethods, nil, nil, "", w)
 		w.WriteTagEnd()
 	}
 	if d.Paths != nil {
-		d.Paths.writeYaml(&d.DocOptions, d.DocOptions.Context, w)
+		d.Paths.writeYaml(&d.DocOptions, d.AutoHeadMethods, d.DocOptions.Context, w)
 	}
 	w.WriteTagEnd()
 	if d.Components != nil {
