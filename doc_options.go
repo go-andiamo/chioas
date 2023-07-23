@@ -3,6 +3,7 @@ package chioas
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"github.com/go-chi/chi/v5"
 	"html/template"
 	"net/http"
@@ -23,7 +24,9 @@ type DocOptions struct {
 	// Title the title in the docs index page (defaults to "API Documentation")
 	Title string
 	// RedocOptions redoc options to be used (see https://github.com/Redocly/redoc#redoc-options-object)
-	RedocOptions map[string]any
+	//
+	// use map[string]any or &RedocOptions (or anything that can be marshalled and then unmarshalled to map[string]any)
+	RedocOptions any
 	// SpecName the name of the OAS spec (defaults to "spec.yaml")
 	SpecName string
 	// DocTemplate template for the docs page (defaults to internal template if an empty string)
@@ -59,7 +62,7 @@ func (d *DocOptions) setupRoutes(def *Definition, route chi.Router) error {
 			htmlTagTitle:          defValue(d.Title, defaultTitle),
 			htmlTagStylesOverride: template.CSS(defValue(d.StylesOverride, defaultStylesOverride)),
 			htmlTagSpecName:       specName,
-			htmlTagRedocOpts:      d.RedocOptions,
+			htmlTagRedocOpts:      d.getRedocOptions(),
 		}
 		redirectPath := path + root + indexPage
 		docsRoute := chi.NewRouter()
@@ -92,6 +95,23 @@ func (d *DocOptions) setupRoutes(def *Definition, route chi.Router) error {
 	return nil
 }
 
+func (d *DocOptions) getRedocOptions() map[string]any {
+	if d.RedocOptions != nil {
+		switch opt := d.RedocOptions.(type) {
+		case map[string]any:
+			return opt
+		default:
+			if data, err := json.Marshal(d.RedocOptions); err == nil {
+				var res map[string]any
+				if json.Unmarshal(data, &res) == nil {
+					return res
+				}
+			}
+		}
+	}
+	return map[string]any{}
+}
+
 func (d *DocOptions) buildIndexData(tmp *template.Template, inData map[string]any) (data []byte, err error) {
 	var buffer bytes.Buffer
 	w := bufio.NewWriter(&buffer)
@@ -114,7 +134,7 @@ const (
 	htmlTagRedocOpts      = "redocopts"
 )
 
-const defaultTemplate = `<html lang="en">
+const defaultTemplate = `<html>
     <head>
         <title>{{.title}}</title>
         <meta charset="utf-8" />
