@@ -23,7 +23,7 @@ type Method struct {
 	Handler     any // can be a http.HandlerFunc or a string method name
 	OperationId string
 	Tag         string
-	QueryParams QueryParams
+	QueryParams QueryParams // can also have header params (see QueryParam.In)
 	Request     *Request
 	Responses   Responses
 	Additional  Additional
@@ -122,15 +122,15 @@ func (m Methods) writeYaml(opts *DocOptions, autoHeads bool, template urit.Templ
 		pathVars = template.Vars()
 	}
 	for _, mn := range sortedMethods {
-		mn.method.writeYaml(opts, pathVars, knownParams, parentTag, mn.name, w)
+		mn.method.writeYaml(opts, template, pathVars, knownParams, parentTag, mn.name, w)
 	}
 }
 
-func (m Method) writeYaml(opts *DocOptions, pathVars []urit.PathVar, knownParams PathParams, parentTag string, method string, w yaml.Writer) {
+func (m Method) writeYaml(opts *DocOptions, template urit.Template, pathVars []urit.PathVar, knownParams PathParams, parentTag string, method string, w yaml.Writer) {
 	w.WriteTagStart(strings.ToLower(method)).
 		WriteTagValue(tagNameSummary, m.Summary).
 		WriteTagValue(tagNameDescription, m.Description).
-		WriteTagValue(tagNameOperationId, m.OperationId)
+		WriteTagValue(tagNameOperationId, m.getOperationId(opts, method, template, parentTag))
 	if tag := defaultTag(parentTag, m.Tag); tag != "" {
 		w.WriteTagStart(tagNameTags).
 			WriteItem(tag).
@@ -152,6 +152,18 @@ func (m Method) writeYaml(opts *DocOptions, pathVars []urit.PathVar, knownParams
 		m.Additional.Write(m, w)
 	}
 	w.WriteTagEnd()
+}
+
+func (m Method) getOperationId(opts *DocOptions, method string, template urit.Template, parentTag string) string {
+	if opts.OperationIdentifier != nil {
+		path := "/"
+		if template != nil {
+			path = template.OriginalTemplate()
+		}
+		return defValue(opts.OperationIdentifier(m, method, path, parentTag), m.OperationId)
+	} else {
+		return m.OperationId
+	}
 }
 
 func (m Method) writeParams(pathVars []urit.PathVar, knownParams PathParams, w yaml.Writer) {

@@ -2,10 +2,12 @@ package chioas
 
 import (
 	"github.com/go-andiamo/chioas/yaml"
+	"github.com/go-andiamo/urit"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -234,6 +236,7 @@ head:
 }
 
 func TestMethod_WriteYaml(t *testing.T) {
+	opts := &DocOptions{}
 	m := Method{
 		Description: "test desc",
 		Summary:     "test summary",
@@ -250,7 +253,7 @@ func TestMethod_WriteYaml(t *testing.T) {
 		Additional: &testAdditional{},
 	}
 	w := yaml.NewWriter(nil)
-	m.writeYaml(nil, nil, nil, "foo", http.MethodPost, w)
+	m.writeYaml(opts, nil, nil, nil, "foo", http.MethodPost, w)
 	data, err := w.Bytes()
 	require.NoError(t, err)
 	const expect = `post:
@@ -289,13 +292,49 @@ func TestMethod_WriteYaml_WithDefaultResponses(t *testing.T) {
 		OperationId: "testOp",
 	}
 	w := yaml.NewWriter(nil)
-	m.writeYaml(opts, nil, nil, "foo", http.MethodGet, w)
+	m.writeYaml(opts, nil, nil, nil, "foo", http.MethodGet, w)
 	data, err := w.Bytes()
 	require.NoError(t, err)
 	const expect = `get:
   summary: "test summary"
   description: "test desc"
   operationId: "testOp"
+  tags:
+    - "foo"
+  responses:
+    200:
+      description: "OK"
+      content:
+        application/json:
+          schema:
+            type: "object"
+`
+	assert.Equal(t, expect, string(data))
+}
+
+func TestMethod_WriteYaml_WithOperationIdentifier(t *testing.T) {
+	opts := &DocOptions{
+		OperationIdentifier: func(method Method, methodName string, path string, parentTag string) string {
+			return methodName + strings.ReplaceAll(path, "/", "_")
+		},
+		DefaultResponses: Responses{
+			http.StatusOK: {},
+		},
+	}
+	m := Method{
+		Description: "test desc",
+		Summary:     "test summary",
+		OperationId: "testOp",
+	}
+	pathTemplate := urit.MustCreateTemplate("/root/foo")
+	w := yaml.NewWriter(nil)
+	m.writeYaml(opts, pathTemplate, nil, nil, "foo", http.MethodGet, w)
+	data, err := w.Bytes()
+	require.NoError(t, err)
+	const expect = `get:
+  summary: "test summary"
+  description: "test desc"
+  operationId: "GET_root_foo"
   tags:
     - "foo"
   responses:

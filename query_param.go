@@ -8,6 +8,7 @@ type QueryParam struct {
 	Name        string
 	Description string
 	Required    bool
+	In          string // defaults to "query" (use "query" or "header")
 	Example     any
 	Schema      *Schema
 	SchemaRef   string
@@ -23,7 +24,7 @@ func (qp QueryParams) writeYaml(w yaml.Writer) {
 func (p QueryParam) writeYaml(w yaml.Writer) {
 	w.WriteItemStart(tagNameName, p.Name).
 		WriteTagValue(tagNameDescription, p.Description).
-		WriteTagValue(tagNameIn, tagValueQuery).
+		WriteTagValue(tagNameIn, defValue(p.In, tagValueQuery)).
 		WriteTagValue(tagNameRequired, p.Required).
 		WriteTagValue(tagNameExample, p.Example)
 	if p.Schema != nil {

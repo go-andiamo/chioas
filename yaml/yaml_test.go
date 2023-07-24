@@ -89,6 +89,48 @@ func TestWriter_WriteIndent(t *testing.T) {
 	assert.False(t, w.writeIndent())
 }
 
+func TestWriter_WriteLines(t *testing.T) {
+	w := newWriter(nil)
+	w.WriteTagStart("foo")
+	w.WriteLines("bar: 1", "", "baz: true", "")
+	data, err := w.Bytes()
+	assert.NoError(t, err)
+	const expect = `foo:
+  bar: 1
+  
+  baz: true
+  
+`
+	assert.Equal(t, expect, string(data))
+}
+
+func TestWriter_Write(t *testing.T) {
+	w := newWriter(nil)
+	w.WriteTagStart("foo")
+	w.Write([]byte("this\nthen this\nand this\n"))
+	data, err := w.Bytes()
+	assert.NoError(t, err)
+	const expect = `foo:
+this
+then this
+and this
+`
+	assert.Equal(t, expect, string(data))
+}
+
+func TestWriter_CurrentIndent(t *testing.T) {
+	w := newWriter(nil)
+	assert.Equal(t, "", w.CurrentIndent())
+	w.WriteTagStart("foo")
+	assert.Equal(t, "  ", w.CurrentIndent())
+	w.WriteTagStart("bar")
+	assert.Equal(t, "    ", w.CurrentIndent())
+	w.WriteTagEnd()
+	assert.Equal(t, "  ", w.CurrentIndent())
+	w.WriteTagEnd()
+	assert.Equal(t, "", w.CurrentIndent())
+}
+
 func TestYamlValue(t *testing.T) {
 	pstr := "foo"
 	pbool := true
