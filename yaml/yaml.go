@@ -17,6 +17,11 @@ type Writer interface {
 	WritePathStart(context string, path string) Writer
 	WriteItem(value any) Writer
 	WriteItemStart(name string, value any) Writer
+	// WriteLines writes the provided lines (current indent is added to each line)
+	WriteLines(lines ...string) Writer
+	// Write writes the provided data (no indent is added - and data must include indents!)
+	Write(data []byte) Writer
+	CurrentIndent() string
 	SetError(err error)
 	Errored() error
 }
@@ -234,6 +239,24 @@ func (y *writer) WriteItemStart(name string, value any) Writer {
 		}
 	}
 	return y
+}
+
+func (y *writer) WriteLines(lines ...string) Writer {
+	for _, ln := range lines {
+		if y.writeIndent() {
+			_, y.err = y.w.WriteString(ln + "\n")
+		}
+	}
+	return y
+}
+
+func (y *writer) Write(data []byte) Writer {
+	_, y.err = y.w.Write(data)
+	return y
+}
+
+func (y *writer) CurrentIndent() string {
+	return string(y.indent)
 }
 
 func (y *writer) SetError(err error) {

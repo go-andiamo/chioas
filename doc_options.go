@@ -33,19 +33,35 @@ type DocOptions struct {
 	DocTemplate string
 	// StylesOverride css styling overrides (injected into docs index page)
 	StylesOverride string
+	// RedocJsUrl is the URL for the Redoc JS
+	//
+	// defaults to:
+	// https://cdn.jsdelivr.net/npm/redoc@2.0.0-rc.77/bundles/redoc.standalone.min.js
+	RedocJsUrl string
+	// TryJsUrl is the URL for the Try Redoc JS
+	//
+	// defaults to:
+	// https://cdn.jsdelivr.net/gh/wll8/redoc-try@1.4.7/dist/try.js
+	TryJsUrl string
 	// DefaultResponses is the default responses for methods that don't have any responses defined
 	//
 	// is a map of http status code and response
 	DefaultResponses Responses
 	// HideHeadMethods indicates that all HEAD methods should be hidden from docs
 	HideHeadMethods bool
+	// OperationIdentifier is an optional function called by Method to generate `operationId` tag value
+	OperationIdentifier OperationIdentifier
 }
 
+type OperationIdentifier func(method Method, methodName string, path string, parentTag string) string
+
 const (
-	defaultDocsPath  = "/docs"
-	defaultIndexName = "index.html"
-	defaultSpecName  = "spec.yaml"
-	defaultTitle     = "API Documentation"
+	defaultDocsPath   = "/docs"
+	defaultIndexName  = "index.html"
+	defaultSpecName   = "spec.yaml"
+	defaultTitle      = "API Documentation"
+	defaultRedocJsUrl = "https://cdn.jsdelivr.net/npm/redoc@2.0.0-rc.77/bundles/redoc.standalone.min.js"
+	defaultTryJsUrl   = "https://cdn.jsdelivr.net/gh/wll8/redoc-try@1.4.7/dist/try.js"
 )
 
 func (d *DocOptions) setupRoutes(def *Definition, route chi.Router) error {
@@ -63,6 +79,8 @@ func (d *DocOptions) setupRoutes(def *Definition, route chi.Router) error {
 			htmlTagStylesOverride: template.CSS(defValue(d.StylesOverride, defaultStylesOverride)),
 			htmlTagSpecName:       specName,
 			htmlTagRedocOpts:      d.getRedocOptions(),
+			htmlTagRedocUrl:       defValue(d.RedocJsUrl, defaultRedocJsUrl),
+			htmlTagTryUrl:         defValue(d.TryJsUrl, defaultTryJsUrl),
 		}
 		redirectPath := path + root + indexPage
 		docsRoute := chi.NewRouter()
@@ -132,6 +150,8 @@ const (
 	htmlTagStylesOverride = "stylesOverride"
 	htmlTagSpecName       = "specName"
 	htmlTagRedocOpts      = "redocopts"
+	htmlTagRedocUrl       = "redocurl"
+	htmlTagTryUrl         = "tryurl"
 )
 
 const defaultTemplate = `<html>
@@ -144,8 +164,8 @@ const defaultTemplate = `<html>
     </head>
     <body>
         <div id="redoc-container"></div>
-        <script src="https://cdn.jsdelivr.net/npm/redoc@2.0.0-rc.55/bundles/redoc.standalone.min.js" integrity="sha256-JMQl1CS8zo2BXvovJJTJ0arp2sSpWYHT1ex/x9V2MVc= sha384-MGNhtF9OCmViLJZUa8VTjfh9rQntvAEtDw/8mWiqdTDRl/or6C8/UaCMTw6RVpai sha512-a0TxgNGlrfEEIsYkUi4bPES53uI+t/hnGkBDRKEdPT9p5R8tKTnY5nuMLLkC7FYn78Ha/40H3Pf8NQ9qtT8vUg==" crossorigin="anonymous"></script>
-        <script src="https://cdn.jsdelivr.net/gh/wll8/redoc-try@1.4.0/dist/try.js" integrity="sha256-HfA6qJrDb3S0Vl7Jmf7vyKtuwpZlYt9k5nnP9dEHqok= sha384-tPALRNTmr7jwIcQsUqoLIqTxTiBM08yLWuEzqZT5QW0O3okj1exfVcqeFHIXcWjJ sha512-NW9V3GQ+LBvpT6ygUD/YtjdKWbafrCyYysVcbFHW6BusHw2Wwgr460z8XZiR1wmfLEJ42kFXiZ4o1jC0HHWdjQ==" crossorigin="anonymous"></script>
+        <script src="{{.redocurl}}" crossorigin="anonymous"></script>
+        <script src="{{.tryurl}}" crossorigin="anonymous"></script>
         <script>
             initTry({
                 openApi: {{.specName}},
