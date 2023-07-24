@@ -28,6 +28,7 @@ func (r Responses) writeYaml(w yaml.Writer) {
 
 type Response struct {
 	Description string
+	NoContent   bool   // indicates that this response has not content (don't need to set this when status code is http.StatusNoContent)
 	ContentType string // defaults to "application/json"
 	Schema      any
 	SchemaRef   string
@@ -42,7 +43,9 @@ func (r Response) writeYaml(statusCode int, w yaml.Writer) {
 		desc = http.StatusText(statusCode)
 	}
 	w.WriteTagValue(tagNameDescription, desc)
-	writeContent(r.ContentType, r.Schema, r.SchemaRef, r.IsArray, w)
+	if !r.NoContent && statusCode != http.StatusNoContent {
+		writeContent(r.ContentType, r.Schema, r.SchemaRef, r.IsArray, w)
+	}
 	if r.Additional != nil {
 		r.Additional.Write(r, w)
 	}

@@ -66,6 +66,25 @@ func TestResponse_WriteYaml_Basic(t *testing.T) {
 	assert.Equal(t, expect, string(data))
 }
 
+func TestResponse_WriteYaml_NoContent(t *testing.T) {
+	w := yaml.NewWriter(nil)
+	r := Response{
+		Description: "req desc",
+		NoContent:   true,
+		Additional:  &testAdditional{},
+	}
+
+	r.writeYaml(http.StatusOK, w)
+
+	data, err := w.Bytes()
+	assert.NoError(t, err)
+	const expect = `200:
+  description: "req desc"
+  foo: "bar"
+`
+	assert.Equal(t, expect, string(data))
+}
+
 func TestResponse_WriteYaml_TypeAndSchemaRefAndArray(t *testing.T) {
 	w := yaml.NewWriter(nil)
 	r := Response{
