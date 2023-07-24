@@ -141,6 +141,24 @@ type RedocLogo struct {
 }
 
 type RedocRightPanel struct {
+	BackgroundColor string                  `json:"backgroundColor,omitempty"` // '#263238'
+	Width           string                  `json:"width,omitempty"`           // '40%'
+	TextColor       string                  `json:"textColor,omitempty"`       // '#ffffff'
+	Servers         *RedocRightPanelServers `json:"servers,omitempty"`
+}
+
+type RedocRightPanelServers struct {
+	Overlay *RedocRightPanelServersOverlay `json:"overlay,omitempty"`
+	Url     *RedocRightPanelServersUrl     `json:"url,omitempty"`
+}
+
+type RedocRightPanelServersOverlay struct {
+	BackgroundColor string `json:"backgroundColor,omitempty"` // '#fafafa'
+	TextColor       string `json:"textColor,omitempty"`       // '#263238'
+}
+
+type RedocRightPanelServersUrl struct {
+	BackgroundColor string `json:"backgroundColor,omitempty"` // '#fff'
 }
 
 type RedocFab struct {
