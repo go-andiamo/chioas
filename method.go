@@ -18,16 +18,19 @@ var defaultResponses = Responses{
 type Methods map[string]Method
 
 type Method struct {
-	Description string
-	Summary     string
-	Handler     any // can be a http.HandlerFunc or a string method name
-	OperationId string
-	Tag         string
-	QueryParams QueryParams // can also have header params (see QueryParam.In)
-	Request     *Request
-	Responses   Responses
-	Additional  Additional
-	HideDocs    bool // hides this method from docs
+	Description      string
+	Summary          string
+	Handler          any // can be a http.HandlerFunc or a string method name
+	OperationId      string
+	Tag              string
+	QueryParams      QueryParams // can also have header params (see QueryParam.In)
+	Request          *Request
+	Responses        Responses
+	Deprecated       bool
+	Security         SecuritySchemes
+	OptionalSecurity bool
+	Additional       Additional
+	HideDocs         bool // hides this method from docs
 }
 
 func (m Method) getHandler(path string, method string, thisApi any) (http.HandlerFunc, error) {
@@ -131,6 +134,17 @@ func (m Method) writeYaml(opts *DocOptions, template urit.Template, pathVars []u
 		WriteTagValue(tagNameSummary, m.Summary).
 		WriteTagValue(tagNameDescription, m.Description).
 		WriteTagValue(tagNameOperationId, m.getOperationId(opts, method, template, parentTag))
+	if m.Deprecated {
+		w.WriteTagValue(tagNameDeprecated, true)
+	}
+	if m.OptionalSecurity || len(m.Security) > 0 {
+		w.WriteTagStart(tagNameSecurity)
+		if m.OptionalSecurity {
+			w.WriteLines("- {}")
+		}
+		m.Security.writeYaml(w, true)
+		w.WriteTagEnd()
+	}
 	if tag := defaultTag(parentTag, m.Tag); tag != "" {
 		w.WriteTagStart(tagNameTags).
 			WriteItem(tag).

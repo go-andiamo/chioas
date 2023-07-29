@@ -347,3 +347,54 @@ func TestMethod_WriteYaml_WithOperationIdentifier(t *testing.T) {
 `
 	assert.Equal(t, expect, string(data))
 }
+
+func TestMethod_WriteYaml_Deprecated(t *testing.T) {
+	opts := &DocOptions{}
+	m := Method{
+		Description: "test desc",
+		Deprecated:  true,
+	}
+	pathTemplate := urit.MustCreateTemplate("/root/foo")
+	w := yaml.NewWriter(nil)
+	m.writeYaml(opts, pathTemplate, nil, nil, "", http.MethodGet, w)
+	data, err := w.Bytes()
+	require.NoError(t, err)
+	const expect = `get:
+  description: "test desc"
+  deprecated: true
+  responses:
+    200:
+      description: "OK"
+      content:
+        application/json:
+          schema:
+            type: "object"
+`
+	assert.Equal(t, expect, string(data))
+}
+
+func TestMethod_WriteYaml_OptionalSecurity(t *testing.T) {
+	opts := &DocOptions{}
+	m := Method{
+		Description:      "test desc",
+		OptionalSecurity: true,
+	}
+	pathTemplate := urit.MustCreateTemplate("/root/foo")
+	w := yaml.NewWriter(nil)
+	m.writeYaml(opts, pathTemplate, nil, nil, "", http.MethodGet, w)
+	data, err := w.Bytes()
+	require.NoError(t, err)
+	const expect = `get:
+  description: "test desc"
+  security:
+    - {}
+  responses:
+    200:
+      description: "OK"
+      content:
+        application/json:
+          schema:
+            type: "object"
+`
+	assert.Equal(t, expect, string(data))
+}

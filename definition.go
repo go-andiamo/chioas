@@ -21,6 +21,7 @@ type Definition struct {
 	ApplyMiddlewares ApplyMiddlewares
 	Paths            Paths // descendant paths
 	Components       *Components
+	Security         SecuritySchemes
 	Additional       Additional
 }
 
@@ -128,6 +129,11 @@ func (d *Definition) writeYaml(w yaml.Writer) error {
 	w.WriteTagEnd()
 	if d.Components != nil {
 		d.Components.writeYaml(w)
+	}
+	if len(d.Security) > 0 {
+		w.WriteTagStart(tagNameSecurity)
+		d.Security.writeYaml(w, true)
+		w.WriteTagEnd()
 	}
 	if d.Additional != nil {
 		d.Additional.Write(d, w)
