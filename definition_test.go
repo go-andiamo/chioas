@@ -197,6 +197,20 @@ func (d *dummyApi) GetSubSubs(writer http.ResponseWriter, request *http.Request)
 }
 
 func TestDefinition_writeYaml(t *testing.T) {
+	sec := SecuritySchemes{
+		{
+			Name:        "ApiKey",
+			Description: "foo",
+			Type:        "apiKey",
+			In:          "header",
+			ParamName:   "X-API-KEY",
+		},
+		{
+			Name:   "MyOauth",
+			Type:   "oauth2",
+			Scopes: []string{"write:foo", "read:foo"},
+		},
+	}
 	d := Definition{
 		DocOptions: DocOptions{
 			Context: "svc",
@@ -276,7 +290,9 @@ func TestDefinition_writeYaml(t *testing.T) {
 					},
 				},
 			},
+			SecuritySchemes: sec,
 		},
+		Security: sec,
 	}
 	w := yaml.NewWriter(nil)
 	err := d.writeYaml(w)
@@ -366,6 +382,19 @@ components:
       properties:
         "foo":
           type: "string"
+  securitySchemes:
+    ApiKey:
+      description: "foo"
+      type: "apiKey"
+      in: "header"
+      name: "X-API-KEY"
+    MyOauth:
+      type: "oauth2"
+security:
+  - ApiKey: []
+  - MyOauth:
+    - "write:foo"
+    - "read:foo"
 `
 	assert.Equal(t, expect, string(data))
 
