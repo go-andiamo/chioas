@@ -1,6 +1,8 @@
 package chioas
 
 import (
+	"errors"
+	"github.com/go-andiamo/chioas/yaml"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -176,6 +178,36 @@ func TestDocOptions_ErrorsWithBadTemplate(t *testing.T) {
 	router := chi.NewRouter()
 	err := d.setupRoutes(nil, router)
 	assert.Error(t, err)
+}
+
+func TestDocOptions_ErrorsWithCache_BadTemplate(t *testing.T) {
+	d := DocOptions{
+		ServeDocs:   true,
+		DocTemplate: `<input type="text"</input>`,
+	}
+	def := &Definition{}
+	router := chi.NewRouter()
+	err := d.setupRoutes(def, router)
+	assert.Error(t, err)
+}
+
+func TestDocOptions_ErrorsWithCache_BadYaml(t *testing.T) {
+	d := DocOptions{
+		ServeDocs: true,
+	}
+	def := &Definition{
+		Additional: &errorAdditional{},
+	}
+	router := chi.NewRouter()
+	err := d.setupRoutes(def, router)
+	assert.Error(t, err)
+}
+
+type errorAdditional struct {
+}
+
+func (e errorAdditional) Write(on any, w yaml.Writer) {
+	w.SetError(errors.New("foo"))
 }
 
 func TestDocOptions_RedocOptions(t *testing.T) {

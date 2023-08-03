@@ -2,6 +2,15 @@ package chioas
 
 import "github.com/go-andiamo/chioas/yaml"
 
+// SecuritySchemes is an ordered collection of SecurityScheme
+//
+// Used by:
+//
+// * Components.SecuritySchemes to define the security schemes used by the api
+//
+// * Definition.Security to define the security requirements across the entire api
+//
+// * Method.Security to define the security requirement for a particular method
 type SecuritySchemes []SecurityScheme
 
 func (ss SecuritySchemes) writeYaml(w yaml.Writer, asSecurity bool) {
@@ -20,14 +29,33 @@ func (ss SecuritySchemes) writeYaml(w yaml.Writer, asSecurity bool) {
 	}
 }
 
+// SecurityScheme represents the OAS definition of a security scheme
 type SecurityScheme struct {
-	Name        string
+	// Name is the OAS name of the security scheme
+	Name string
+	// Description is the OAS description
 	Description string
-	Type        string
-	Scheme      string
-	ParamName   string
-	In          string
-	Scopes      []string
+	// Type is the OAS security scheme type
+	//
+	// Valid values are: "apiKey", "http", "mutualTLS", "oauth2", "openIdConnect"
+	Type string
+	// Scheme is the OAS HTTP Authorization scheme
+	Scheme string
+	// ParamName is the OAS param name (in query, header or cookie)
+	ParamName string
+	// In is the OAS definition of where the API key param is found
+	//
+	// Valid values are: "query", "header" or "cookie"
+	In string
+	// Scopes is the security requirement scopes
+	//
+	// Only used when the SecurityScheme is part of Definition.Security and the
+	// Type is either "oauth2" or "openIdConnect"
+	Scopes []string
+	// Extensions is extension OAS yaml properties
+	Extensions Extensions
+	// Additional is any additional OAS spec yaml to be written
+	Additional Additional
 }
 
 func (s SecurityScheme) writeYaml(w yaml.Writer, asSecurity bool) {
@@ -46,7 +74,9 @@ func (s SecurityScheme) writeYaml(w yaml.Writer, asSecurity bool) {
 			WriteTagValue(tagNameType, s.Type).
 			WriteTagValue(tagNameScheme, s.Scheme).
 			WriteTagValue(tagNameIn, s.In).
-			WriteTagValue(tagNameName, s.ParamName).
-			WriteTagEnd()
+			WriteTagValue(tagNameName, s.ParamName)
+		writeExtensions(s.Extensions, w)
+		writeAdditional(s.Additional, s, w)
+		w.WriteTagEnd()
 	}
 }

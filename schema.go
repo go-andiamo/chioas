@@ -14,15 +14,28 @@ func (ss Schemas) writeYaml(w yaml.Writer) {
 	}
 }
 
+// Schema represents the OAS definition of a schema
 type Schema struct {
-	Name               string
-	Description        string
-	Type               string
+	// Name is the OAS name of the schema
+	Name string
+	// Description is the OAS description
+	Description string
+	// Type is the OAS type
+	//
+	// Should be one of "string", "object", "array", "boolean", "integer", "number" or "null"
+	Type string
+	// RequiredProperties is the ordered collection of required properties
 	RequiredProperties []string
-	Properties         []Property
-	Default            any
-	Enum               []any
-	Additional         Additional
+	// Properties is the ordered collection of properties
+	Properties []Property
+	// Default is the OAS default
+	Default any
+	// Enum is the OAS enum
+	Enum []any
+	// Extensions is extension OAS yaml properties
+	Extensions Extensions
+	// Additional is any additional OAS spec yaml to be written
+	Additional Additional
 }
 
 func (s Schema) writeYaml(withName bool, w yaml.Writer) {
@@ -57,9 +70,8 @@ func (s Schema) writeYaml(withName bool, w yaml.Writer) {
 		}
 		w.WriteTagEnd()
 	}
-	if s.Additional != nil {
-		s.Additional.Write(s, w)
-	}
+	writeExtensions(s.Extensions, w)
+	writeAdditional(s.Additional, s, w)
 	if withName {
 		w.WriteTagEnd()
 	}

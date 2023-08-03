@@ -7,3 +7,9 @@ import "github.com/go-andiamo/chioas/yaml"
 type Additional interface {
 	Write(on any, w yaml.Writer)
 }
+
+func writeAdditional(a Additional, on any, w yaml.Writer) {
+	if a != nil {
+		a.Write(on, w)
+	}
+}

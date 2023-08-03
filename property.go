@@ -2,14 +2,36 @@ package chioas
 
 import "github.com/go-andiamo/chioas/yaml"
 
+// Property represents the OAS definition of a property
 type Property struct {
-	Name        string
+	// Name is the OAS name of the property
+	Name string
+	// Description is the OAS description of the property
 	Description string
-	Type        string
-	ItemType    string // only used if Type = "array"
-	Example     any
-	SchemaRef   string
-	Additional  Additional
+	// Type is the OAS type of the property
+	//
+	// Should be one of "string", "object", "array", "boolean", "integer", "number" or "null"
+	Type string
+	// ItemType is the OAS type of array items
+	//
+	// only used if Type = "array"
+	ItemType string
+	// Example is the OAS example for the property
+	Example any
+	// SchemaRef is the OAS schema reference
+	//
+	// Only used if value is a non-empty string
+	//
+	// If the value does not contain a path (i.e. does not contain any "/") then the ref
+	// path will be the value prefixed with components schemas path.  For example, specifying "foo"
+	// will result in a schema ref:
+	//   schema:
+	//     $ref: "#/components/schemas/foo"
+	SchemaRef string
+	// Extensions is extension OAS yaml properties
+	Extensions Extensions
+	// Additional is any additional OAS spec yaml to be written
+	Additional Additional
 }
 
 func (p Property) writeYaml(w yaml.Writer) {
@@ -28,8 +50,7 @@ func (p Property) writeYaml(w yaml.Writer) {
 			WriteTagValue(tagNameType, defValue(p.Type, tagValueTypeString)).
 			WriteTagValue(tagNameExample, p.Example)
 	}
-	if p.Additional != nil {
-		p.Additional.Write(p, w)
-	}
+	writeExtensions(p.Extensions, w)
+	writeAdditional(p.Additional, p, w)
 	w.WriteTagEnd()
 }

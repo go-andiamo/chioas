@@ -14,16 +14,20 @@ func (s Servers) writeYaml(w yaml.Writer) {
 	}
 }
 
+// Server represents the OAS definition of a server
 type Server struct {
+	// Description is the OAS description
 	Description string
-	Additional  Additional
+	// Extensions is extension OAS yaml properties
+	Extensions Extensions
+	// Additional is any additional OAS spec yaml to be written
+	Additional Additional
 }
 
 func (s Server) writeYaml(url string, w yaml.Writer) {
 	w.WriteItemStart(tagNameUrl, url).
 		WriteTagValue(tagNameDescription, s.Description)
-	if s.Additional != nil {
-		s.Additional.Write(s, w)
-	}
+	writeExtensions(s.Extensions, w)
+	writeAdditional(s.Additional, s, w)
 	w.WriteTagEnd()
 }

@@ -2,17 +2,39 @@ package chioas
 
 import "github.com/go-andiamo/chioas/yaml"
 
+// QueryParams represents an ordered collection of QueryParam
 type QueryParams []QueryParam
 
+// QueryParam represents the OAS definition of a query param (or header param)
 type QueryParam struct {
-	Name        string
+	// Name is the name of the param
+	Name string
+	// Description is the OAS description
 	Description string
-	Required    bool
-	In          string // defaults to "query" (use "query" or "header")
-	Example     any
-	Schema      *Schema
-	SchemaRef   string
-	Additional  Additional
+	// Required is the OAS required flag
+	Required bool
+	// In is the OAS field defining whether the param is a "query" or "header" param
+	//
+	// Defaults to "query"
+	In string
+	// Example is the OAS example for the param
+	Example any
+	// Schema is the optional OAS Schema
+	Schema *Schema
+	// SchemaRef is the OAS schema reference
+	//
+	// Only used if value is a non-empty string
+	//
+	// If the value does not contain a path (i.e. does not contain any "/") then the ref
+	// path will be the value prefixed with components schemas path.  For example, specifying "foo"
+	// will result in a schema ref:
+	//   schema:
+	//     $ref: "#/components/schemas/foo"
+	SchemaRef string
+	// Extensions is extension OAS yaml properties
+	Extensions Extensions
+	// Additional is any additional OAS spec yaml to be written
+	Additional Additional
 }
 
 func (qp QueryParams) writeYaml(w yaml.Writer) {
@@ -36,8 +58,7 @@ func (p QueryParam) writeYaml(w yaml.Writer) {
 		writeSchemaRef(p.SchemaRef, false, w)
 		w.WriteTagEnd()
 	}
-	if p.Additional != nil {
-		p.Additional.Write(p, w)
-	}
+	writeExtensions(p.Extensions, w)
+	writeAdditional(p.Additional, p, w)
 	w.WriteTagEnd()
 }

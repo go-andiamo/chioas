@@ -2,13 +2,21 @@ package chioas
 
 import "github.com/go-andiamo/chioas/yaml"
 
+// Tags is an ordered collection of Tag
 type Tags []Tag
 
+// Tag represents the OAS definition of a tag
 type Tag struct {
-	Name         string
-	Description  string
+	// Name is the OAS name of the tag
+	Name string
+	// Description is the OAS description
+	Description string
+	// ExternalDocs is the optional OAS external docs
 	ExternalDocs *ExternalDocs
-	Additional   Additional
+	// Extensions is extension OAS yaml properties
+	Extensions Extensions
+	// Additional is any additional OAS spec yaml to be written
+	Additional Additional
 }
 
 func (t Tag) writeYaml(w yaml.Writer) {
@@ -17,9 +25,8 @@ func (t Tag) writeYaml(w yaml.Writer) {
 	if t.ExternalDocs != nil {
 		t.ExternalDocs.writeYaml(w)
 	}
-	if t.Additional != nil {
-		t.Additional.Write(t, w)
-	}
+	writeExtensions(t.Extensions, w)
+	writeAdditional(t.Additional, t, w)
 	w.WriteTagEnd()
 }
 

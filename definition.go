@@ -11,18 +11,32 @@ import (
 
 // Definition is the overall definition of an api
 type Definition struct {
-	DocOptions       DocOptions
-	AutoHeadMethods  bool // set to true to automatically add HEAD methods for GET methods (and where HEAD method not explicitly specified)
-	Info             Info
-	Servers          Servers
-	Tags             Tags
-	Methods          Methods         // methods on api root
-	Middlewares      chi.Middlewares // chi middlewares for api root
+	// DocOptions is the documentation options for the spec
+	DocOptions DocOptions
+	// AutoHeadMethods when set to true, automatically adds HEAD methods for GET methods (where HEAD method not explicitly specified)
+	AutoHeadMethods bool
+	// Info is the OAS info for the spec
+	Info Info
+	// Servers is the OAS servers for the spec
+	Servers Servers
+	// Tags is the OAS tags for the spec
+	Tags Tags
+	// Methods is any methods on the root api
+	Methods Methods
+	// Middlewares is any chi.Middlewares for api root
+	Middlewares chi.Middlewares
+	// ApplyMiddlewares is an optional function that returns chi.Middlewares for api root
 	ApplyMiddlewares ApplyMiddlewares
-	Paths            Paths // descendant paths
-	Components       *Components
-	Security         SecuritySchemes
-	Additional       Additional
+	// Paths is the api paths to be setup (each path can have sub-paths)
+	Paths Paths // descendant paths
+	// Components is the OAS components
+	Components *Components
+	// Security is the OAS security for the api
+	Security SecuritySchemes
+	// Extensions is extension OAS yaml properties
+	Extensions Extensions
+	// Additional is any additional OAS spec yaml to be written
+	Additional Additional
 }
 
 // SetupRoutes sets up the API routes on the supplied chi.Router
@@ -135,8 +149,7 @@ func (d *Definition) writeYaml(w yaml.Writer) error {
 		d.Security.writeYaml(w, true)
 		w.WriteTagEnd()
 	}
-	if d.Additional != nil {
-		d.Additional.Write(d, w)
-	}
+	writeExtensions(d.Extensions, w)
+	writeAdditional(d.Additional, d, w)
 	return w.Errored()
 }

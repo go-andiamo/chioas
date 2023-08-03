@@ -9,6 +9,7 @@ import (
 	"strings"
 )
 
+// Responses is a map of Response where the key is the http status code
 type Responses map[int]Response
 
 func (r Responses) writeYaml(w yaml.Writer) {
@@ -26,14 +27,36 @@ func (r Responses) writeYaml(w yaml.Writer) {
 	}
 }
 
+// Response is the OAS definition of a response
 type Response struct {
+	// Description is the OAS description
 	Description string
-	NoContent   bool   // indicates that this response has not content (don't need to set this when status code is http.StatusNoContent)
-	ContentType string // defaults to "application/json"
-	Schema      any
-	SchemaRef   string
-	IsArray     bool // indicates that Schema or SchemaRef is an array of items
-	Additional  Additional
+	// NoContent indicates that this response has not content
+	//
+	// This does not eed to set this when status code is http.StatusNoContent
+	NoContent bool
+	// ContentType is the OAS content type
+	//
+	// defaults to "application/json"
+	ContentType string
+	// Schema is the optional OAS Schema
+	Schema any
+	// SchemaRef is the OAS schema reference
+	//
+	// Only used if value is a non-empty string
+	//
+	// If the value does not contain a path (i.e. does not contain any "/") then the ref
+	// path will be the value prefixed with components schemas path.  For example, specifying "foo"
+	// will result in a schema ref:
+	//   schema:
+	//     $ref: "#/components/schemas/foo"
+	SchemaRef string
+	// IsArray indicates that request is an array of items
+	IsArray bool
+	// Extensions is extension OAS yaml properties
+	Extensions Extensions
+	// Additional is any additional OAS spec yaml to be written
+	Additional Additional
 }
 
 func (r Response) writeYaml(statusCode int, w yaml.Writer) {
@@ -46,9 +69,8 @@ func (r Response) writeYaml(statusCode int, w yaml.Writer) {
 	if !r.NoContent && statusCode != http.StatusNoContent {
 		writeContent(r.ContentType, r.Schema, r.SchemaRef, r.IsArray, w)
 	}
-	if r.Additional != nil {
-		r.Additional.Write(r, w)
-	}
+	writeExtensions(r.Extensions, w)
+	writeAdditional(r.Additional, r, w)
 	w.WriteTagEnd()
 }
 

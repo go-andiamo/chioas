@@ -20,9 +20,9 @@ var myApi = chioas.Definition{
 		ServeDocs:       true,
 		HideHeadMethods: true,
 	},
-	Paths: map[string]chioas.Path{
+	Paths: chioas.Paths{
 		"/foos": {
-			Methods: map[string]chioas.Method{
+			Methods: chioas.Methods{
 				http.MethodGet: {
 					Handler: getFoos,
 				},
@@ -33,9 +33,9 @@ var myApi = chioas.Definition{
 					Handler: getFoos,
 				},
 			},
-			Paths: map[string]chioas.Path{
+			Paths: chioas.Paths{
 				"/{fooId}": {
-					Methods: map[string]chioas.Method{
+					Methods: chioas.Methods{
 						http.MethodGet: {
 							Handler: getFoo,
 						},
