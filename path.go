@@ -18,14 +18,33 @@ func (ps Paths) writeYaml(opts *DocOptions, autoHeads bool, context string, w ya
 
 type ApplyMiddlewares func(thisApi any) chi.Middlewares
 
+// Path represents a path for both the router and the OAS spec
 type Path struct {
-	Methods          Methods
-	Paths            Paths
-	Middlewares      chi.Middlewares // chi middlewares for path
+	// Methods is the methods on the path
+	Methods Methods
+	// Paths is the sub-paths of the path
+	Paths Paths
+	// Middlewares is any chi.Middlewares for the path
+	Middlewares chi.Middlewares
+	// ApplyMiddlewares is an optional function that returns chi.Middlewares for the path
 	ApplyMiddlewares ApplyMiddlewares
-	Tag              string
-	PathParams       PathParams
-	HideDocs         bool // hides this path (and descendants) from docs
+	// Tag is the OAS tag of the path
+	//
+	// If this is an empty string and any ancestor Path.Tag is set then that ancestor tag is used
+	//
+	// The final tag is used by Method
+	Tag string
+	// PathParams is the OAS information about path params on this path
+	//
+	// Any path params introduced in the path are descended down the sub-paths and methods - any
+	// path params that are not documented will still be seen in the OAS spec for methods
+	PathParams PathParams
+	// HideDocs if set to true, hides this path (and descendants) from docs
+	HideDocs bool
+	// Extensions is extension OAS yaml properties
+	Extensions Extensions
+	// Additional is any additional OAS spec yaml to be written
+	Additional Additional
 }
 
 type flatPath struct {
@@ -46,6 +65,8 @@ func (p flatPath) writeYaml(opts *DocOptions, autoHeads bool, context string, w 
 		if p.def.Methods != nil {
 			p.def.Methods.writeYaml(opts, autoHeads, template, p.getPathParams(), p.tag, w)
 		}
+		writeExtensions(p.def.Extensions, w)
+		writeAdditional(p.def.Additional, p.def, w)
 		w.WriteTagEnd()
 	}
 }

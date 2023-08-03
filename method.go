@@ -15,29 +15,67 @@ var defaultResponses = Responses{
 	http.StatusOK: {},
 }
 
+// Methods is a map of Method (where the key is a http.Method)
 type Methods map[string]Method
 
+// Method represents the definition of a method (as used by Path and, for root methods, Definition)
 type Method struct {
-	Description      string
-	Summary          string
-	Handler          any // can be a http.HandlerFunc or a string method name
-	OperationId      string
-	Tag              string
-	QueryParams      QueryParams // can also have header params (see QueryParam.In)
-	Request          *Request
-	Responses        Responses
-	Deprecated       bool
-	Security         SecuritySchemes
+	// Description is the OAS description of the method
+	Description string
+	// Summary is the OAS summary of the method
+	Summary string
+	// Handler is the http.HandlerFunc to be used by Chi
+	//
+	// Can also be specified as a string - which must be a public method on the interface passed to Definition.SetupRoutes
+	//
+	// Can also be specified as a GetHandler func - which is called to acquire the http.HandlerFunc
+	Handler any
+	// OperationId is the OAS operation id of the method
+	//
+	// This can be overridden by providing a DocOptions.OperationIdentifier
+	OperationId string
+	// Tag is the OAS tag of the method
+	//
+	// If this is an empty string and any ancestor Path.Tag is set then that ancestor tag is used
+	Tag string
+	// QueryParams is the OAS query params for the method
+	//
+	// Can also be used to specify header params (see QueryParam.In)
+	QueryParams QueryParams
+	// Request is the optional OAS request body for the method
+	Request *Request
+	// Responses is the OAS responses for the method
+	//
+	// If no responses are specified, the DocOptions.DefaultResponses is used
+	//
+	// If there are no DocOptions.DefaultResponses specified, then a http.StatusOK response is used
+	Responses Responses
+	// Deprecated is the OAS deprecated flag for the method
+	Deprecated bool
+	// Security is the OAS security schemes used by the method
+	Security SecuritySchemes
+	// OptionalSecurity if set to true, adds an entry to the OAS method security e.g.
+	//  security:
+	//   - {}
 	OptionalSecurity bool
-	Additional       Additional
-	HideDocs         bool // hides this method from docs
+	// Extensions is extension OAS yaml properties
+	Extensions Extensions
+	// Additional is any additional OAS spec yaml to be written
+	Additional Additional
+	// HideDocs if set to true, hides this method from the OAS docs
+	HideDocs bool
 }
+
+// GetHandler is a function that can be set on Method.Handler - and is called to obtain the http.HandlerFunc
+type GetHandler func(path string, method string, thisApi any) (http.HandlerFunc, error)
 
 func (m Method) getHandler(path string, method string, thisApi any) (http.HandlerFunc, error) {
 	if m.Handler == nil {
 		return nil, fmt.Errorf("handler not set (path: %s, method: %s)", path, method)
 	} else if hf, ok := m.Handler.(func(http.ResponseWriter, *http.Request)); ok {
 		return hf, nil
+	} else if gh, ok := m.Handler.(func(string, string, any) (http.HandlerFunc, error)); ok {
+		return gh(path, method, thisApi)
 	} else if mn, ok := m.Handler.(string); ok {
 		if thisApi == nil {
 			return nil, fmt.Errorf("method by name '%s' can only be used when 'thisApi' arg is passed to Definition.SetupRoutes (path: %s, method: %s)", mn, path, method)
@@ -162,9 +200,8 @@ func (m Method) writeYaml(opts *DocOptions, template urit.Template, pathVars []u
 		// no responses - needs something...
 		defaultResponses.writeYaml(w)
 	}
-	if m.Additional != nil {
-		m.Additional.Write(m, w)
-	}
+	writeExtensions(m.Extensions, w)
+	writeAdditional(m.Additional, m, w)
 	w.WriteTagEnd()
 }
 

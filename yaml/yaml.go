@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 )
 
@@ -113,11 +114,20 @@ func (y *writer) yamlValue(value any, allowEmpty bool) string {
 			}
 		}
 	case *string:
-		if vt == nil && allowEmpty {
-			result = `""`
-		} else if vt != nil && (*vt != "" || allowEmpty) {
-			result = `"` + strings.ReplaceAll(*vt, `"`, `\"`) + `"`
+		vo := reflect.ValueOf(vt)
+		if !vo.IsZero() {
+			result = y.yamlValue(vo.Elem().Interface(), allowEmpty)
+		} else if allowEmpty {
+			return `""`
 		}
+		/*
+			case *string:
+				if vt == nil && allowEmpty {
+					result = `""`
+				} else if vt != nil && (*vt != "" || allowEmpty) {
+					result = `"` + strings.ReplaceAll(*vt, `"`, `\"`) + `"`
+				}
+		*/
 	case bool:
 		result = fmt.Sprintf("%t", vt)
 	case *bool:
@@ -132,53 +142,10 @@ func (y *writer) yamlValue(value any, allowEmpty bool) string {
 		result = fmt.Sprintf("%d", vt)
 	case float32, float64:
 		result = fmt.Sprintf("%f", vt)
-	case *int:
-		if vt != nil {
-			result = fmt.Sprintf("%d", *vt)
-		}
-	case *int8:
-		if vt != nil {
-			result = fmt.Sprintf("%d", *vt)
-		}
-	case *int16:
-		if vt != nil {
-			result = fmt.Sprintf("%d", *vt)
-		}
-	case *int32:
-		if vt != nil {
-			result = fmt.Sprintf("%d", *vt)
-		}
-	case *int64:
-		if vt != nil {
-			result = fmt.Sprintf("%d", *vt)
-		}
-	case *uint:
-		if vt != nil {
-			result = fmt.Sprintf("%d", *vt)
-		}
-	case *uint8:
-		if vt != nil {
-			result = fmt.Sprintf("%d", *vt)
-		}
-	case *uint16:
-		if vt != nil {
-			result = fmt.Sprintf("%d", *vt)
-		}
-	case *uint32:
-		if vt != nil {
-			result = fmt.Sprintf("%d", *vt)
-		}
-	case *uint64:
-		if vt != nil {
-			result = fmt.Sprintf("%d", *vt)
-		}
-	case *float32:
-		if vt != nil {
-			result = fmt.Sprintf("%f", *vt)
-		}
-	case *float64:
-		if vt != nil {
-			result = fmt.Sprintf("%f", *vt)
+	case *int, *int8, *int16, *int32, *int64, *uint, *uint8, *uint16, *uint32, *uint64, *float32, *float64:
+		vo := reflect.ValueOf(vt)
+		if !vo.IsZero() {
+			result = y.yamlValue(vo.Elem().Interface(), allowEmpty)
 		}
 	}
 	return result

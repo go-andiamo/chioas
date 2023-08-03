@@ -53,6 +53,7 @@ type DocOptions struct {
 	OperationIdentifier OperationIdentifier
 }
 
+// OperationIdentifier is a function that can be provided to DocOptions
 type OperationIdentifier func(method Method, methodName string, path string, parentTag string) string
 
 const (

@@ -148,6 +148,7 @@ func TestYamlValue(t *testing.T) {
 	pf64 := float64(16.16)
 	var nilstr *string
 	var nilbool *bool
+	var nilint *int
 	testCases := []struct {
 		value      any
 		allowEmpty bool
@@ -207,6 +208,10 @@ func TestYamlValue(t *testing.T) {
 		{
 			value:  uint8(1),
 			expect: `1`,
+		},
+		{
+			value:  nilint,
+			expect: ``,
 		},
 		{
 			value:  &pint,

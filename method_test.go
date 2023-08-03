@@ -1,6 +1,7 @@
 package chioas
 
 import (
+	"errors"
 	"github.com/go-andiamo/chioas/yaml"
 	"github.com/go-andiamo/urit"
 	"github.com/stretchr/testify/assert"
@@ -20,6 +21,17 @@ func TestMethod_GetHandler_WithHandlerSet(t *testing.T) {
 	mh, err := m.getHandler(root, http.MethodGet, nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, mh)
+}
+
+func TestMethod_GetHandler_WithGetHandler(t *testing.T) {
+	m := Method{
+		Handler: func(path string, method string, thisApi any) (http.HandlerFunc, error) {
+			return nil, errors.New("foo")
+		},
+	}
+	mh, err := m.getHandler(root, http.MethodGet, nil)
+	assert.Error(t, err)
+	assert.Nil(t, mh)
 }
 
 func TestMethod_GetHandler_WithMethodNameSet(t *testing.T) {
