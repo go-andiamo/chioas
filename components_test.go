@@ -23,6 +23,9 @@ func TestComponents_WriteYaml(t *testing.T) {
 				Description: "bar response",
 			},
 		},
+		Parameters: CommonParameters{
+			"baz": {},
+		},
 		Additional: &testAdditional{},
 		Extensions: Extensions{
 			"foo": "bar",
@@ -52,6 +55,11 @@ func TestComponents_WriteYaml(t *testing.T) {
         application/json:
           schema:
             type: "object"
+  parameters:
+    baz:
+      name: "baz"
+      in: "query"
+      required: false
   x-foo: "bar"
   foo: "bar"
 `

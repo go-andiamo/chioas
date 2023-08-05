@@ -15,15 +15,23 @@ type PathParam struct {
 	Extensions Extensions
 	// Additional is any additional OAS spec yaml to be written
 	Additional Additional
+	// Ref is the OAS $ref name for the parameter
+	//
+	// If this is a non-empty string, then a $ref to "#/components/parameters/" is used
+	Ref string
 }
 
 func (pp PathParam) writeYaml(name string, w yaml.Writer) {
-	w.WriteItemStart(tagNameName, name).
-		WriteTagValue(tagNameDescription, pp.Description).
-		WriteTagValue(tagNameIn, tagValuePath).
-		WriteTagValue(tagNameRequired, true).
-		WriteTagValue(tagNameExample, pp.Example)
-	writeExtensions(pp.Extensions, w)
-	writeAdditional(pp.Additional, pp, w)
-	w.WriteTagEnd()
+	if pp.Ref == "" {
+		w.WriteItemStart(tagNameName, name).
+			WriteTagValue(tagNameDescription, pp.Description).
+			WriteTagValue(tagNameIn, tagValuePath).
+			WriteTagValue(tagNameRequired, true).
+			WriteTagValue(tagNameExample, pp.Example)
+		writeExtensions(pp.Extensions, w)
+		writeAdditional(pp.Additional, pp, w)
+		w.WriteTagEnd()
+	} else {
+		w.WriteItemValue(tagNameRef, refPathParameters+pp.Ref)
+	}
 }

@@ -277,6 +277,18 @@ ccc
 `,
 			expect: []string{`>-`, `aaa`, ``, `bbb`, ``, `ccc`, ``, ``},
 		},
+		{
+			value: LiteralValue{
+				Value: "[]",
+			},
+			expect: []string{`[]`},
+		},
+		{
+			value: &LiteralValue{
+				Value: "[]",
+			},
+			expect: []string{`[]`},
+		},
 	}
 	for i, tc := range testCases {
 		t.Run(fmt.Sprintf("[%d]", i+1), func(t *testing.T) {
@@ -419,6 +431,33 @@ func TestWriter_WriteItem(t *testing.T) {
   bbb
   ccc
 `, string(data))
+}
+
+func TestWriter_WriteItemValue(t *testing.T) {
+	w := newWriter(nil)
+	w.WriteItemValue("foo", "bar")
+	data, err := w.Bytes()
+	require.NoError(t, err)
+	assert.Equal(t, "- foo: \"bar\"\n", string(data))
+	assert.Equal(t, 0, len(w.indent))
+
+	w = newWriter(nil)
+	w.WriteItemValue("foo", nil)
+	data, err = w.Bytes()
+	require.NoError(t, err)
+	assert.Equal(t, "- foo:\n", string(data))
+	assert.Equal(t, 0, len(w.indent))
+
+	w = newWriter(nil)
+	w.WriteItemValue("foo", "aaa\nbbb\nccc")
+	data, err = w.Bytes()
+	require.NoError(t, err)
+	assert.Equal(t, `- foo: >-
+  aaa
+  bbb
+  ccc
+`, string(data))
+	assert.Equal(t, 0, len(w.indent))
 }
 
 func TestWriter_WriteItemStart(t *testing.T) {
