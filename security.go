@@ -61,12 +61,13 @@ type SecurityScheme struct {
 func (s SecurityScheme) writeYaml(w yaml.Writer, asSecurity bool) {
 	if asSecurity {
 		if (s.Type == "oauth2" || s.Type == "openIdConnect") && len(s.Scopes) > 0 {
-			w.WriteLines("- " + s.Name + ":")
+			w.WriteItemStart(s.Name, nil)
 			for _, l := range s.Scopes {
-				w.WriteLines(`  - "` + l + `"`)
+				w.WriteItem(l)
 			}
+			w.WriteTagEnd()
 		} else {
-			w.WriteLines("- " + s.Name + ": []")
+			w.WriteItemValue(s.Name, yaml.LiteralValue{Value: "[]"})
 		}
 	} else {
 		w.WriteTagStart(s.Name).

@@ -45,9 +45,10 @@ const (
 	tagNameUrl             = "url"
 	tagNameVersion         = "version"
 
-	refPathSchemas   = "#/" + tagNameComponents + "/" + tagNameSchemas + "/"
-	refPathRequests  = "#/" + tagNameComponents + "/" + tagNameRequestBodies + "/"
-	refPathResponses = "#/" + tagNameComponents + "/" + tagNameResponses + "/"
+	refPathSchemas    = "#/" + tagNameComponents + "/" + tagNameSchemas + "/"
+	refPathRequests   = "#/" + tagNameComponents + "/" + tagNameRequestBodies + "/"
+	refPathResponses  = "#/" + tagNameComponents + "/" + tagNameResponses + "/"
+	refPathParameters = "#/" + tagNameComponents + "/" + tagNameParameters + "/"
 
 	tagValuePath        = "path"
 	tagValueQuery       = "query"

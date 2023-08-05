@@ -26,3 +26,19 @@ func TestPathParam_WriteYaml(t *testing.T) {
 `
 	assert.Equal(t, expect, string(data))
 }
+
+func TestPathParam_WriteYaml_Refd(t *testing.T) {
+	w := yaml.NewWriter(nil)
+	pp := PathParam{
+		Ref:         "foo",
+		Description: "won't see this",
+		Example:     "won't see this either",
+		Additional:  &testAdditional{},
+	}
+	pp.writeYaml("foo", w)
+	data, err := w.Bytes()
+	require.NoError(t, err)
+	const expect = `- $ref: "#/components/parameters/foo"
+`
+	assert.Equal(t, expect, string(data))
+}

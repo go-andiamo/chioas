@@ -17,6 +17,7 @@ type Writer interface {
 	WriteTagEnd() Writer
 	WritePathStart(context string, path string) Writer
 	WriteItem(value any) Writer
+	WriteItemValue(name string, value any) Writer
 	WriteItemStart(name string, value any) Writer
 	// WriteLines writes the provided lines (current indent is added to each line)
 	WriteLines(lines ...string) Writer
@@ -84,9 +85,17 @@ func (y *writer) writeIndent() bool {
 	return y.err == nil
 }
 
+type LiteralValue struct {
+	Value string
+}
+
 func (y *writer) yamlValue(value any, allowEmpty bool) []string {
 	result := make([]string, 0)
 	switch vt := value.(type) {
+	case LiteralValue:
+		result = append(result, vt.Value)
+	case *LiteralValue:
+		result = append(result, vt.Value)
 	case string:
 		if vt != "" || allowEmpty {
 			if strings.Contains(vt, "\n") {
@@ -182,6 +191,25 @@ func (y *writer) WriteItem(value any) Writer {
 			_, y.err = y.w.WriteString("- " + wv[0] + "\n")
 			for i := 1; i < len(wv); i++ {
 				_, y.err = y.w.WriteString(string(y.indent) + "  " + wv[i] + "\n")
+			}
+		}
+	}
+	return y
+}
+
+func (y *writer) WriteItemValue(name string, value any) Writer {
+	if y.err == nil {
+		if value == nil {
+			if y.writeIndent() {
+				_, y.err = y.w.WriteString("- " + name + ":\n")
+			}
+		} else {
+			wv := y.yamlValue(value, true)
+			if len(wv) > 0 && y.writeIndent() {
+				_, y.err = y.w.WriteString("- " + name + ": " + wv[0] + "\n")
+				for i := 1; i < len(wv); i++ {
+					_, y.err = y.w.WriteString(string(y.indent) + "  " + wv[i] + "\n")
+				}
 			}
 		}
 	}

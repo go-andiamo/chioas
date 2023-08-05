@@ -8,75 +8,71 @@ import (
 	"testing"
 )
 
-func TestQueryParams_WriteYaml(t *testing.T) {
+func TestCommonParameters_WriteYaml(t *testing.T) {
 	w := yaml.NewWriter(nil)
-	ps := QueryParams{
-		{
-			Name: "foo",
-		},
-		{
-			Name:     "bar",
+	ps := CommonParameters{
+		"Fooey": {
+			Name:     "foo",
 			Required: true,
 		},
 	}
 	ps.writeYaml(w)
 	data, err := w.Bytes()
 	require.NoError(t, err)
-	const expect = `- name: "foo"
-  in: "query"
-  required: false
-- name: "bar"
-  in: "query"
-  required: true
+	const expect = `parameters:
+  Fooey:
+    name: "foo"
+    in: "query"
+    required: true
 `
 	assert.Equal(t, expect, string(data))
 }
 
-func TestQueryParam_WriteYaml(t *testing.T) {
+func TestCommonParameter_WriteYaml(t *testing.T) {
 	testCases := []struct {
-		queryParam QueryParam
-		expect     string
+		param  CommonParameter
+		expect string
 	}{
 		{
-			queryParam: QueryParam{
+			param: CommonParameter{
 				Name: "foo",
 			},
-			expect: `- name: "foo"
+			expect: `name: "foo"
   in: "query"
   required: false
 `,
 		},
 		{
-			queryParam: QueryParam{
+			param: CommonParameter{
 				Name:        "foo",
 				Description: "foo param",
 			},
-			expect: `- name: "foo"
+			expect: `name: "foo"
   description: "foo param"
   in: "query"
   required: false
 `,
 		},
 		{
-			queryParam: QueryParam{
+			param: CommonParameter{
 				Name:        "foo",
 				Description: "foo param",
 				Required:    true,
 			},
-			expect: `- name: "foo"
+			expect: `name: "foo"
   description: "foo param"
   in: "query"
   required: true
 `,
 		},
 		{
-			queryParam: QueryParam{
+			param: CommonParameter{
 				Name:        "foo",
 				Description: "foo param",
 				Example:     "foo example",
 				Required:    true,
 			},
-			expect: `- name: "foo"
+			expect: `name: "foo"
   description: "foo param"
   in: "query"
   required: true
@@ -84,11 +80,11 @@ func TestQueryParam_WriteYaml(t *testing.T) {
 `,
 		},
 		{
-			queryParam: QueryParam{
+			param: CommonParameter{
 				Name:      "foo",
 				SchemaRef: "FooRef",
 			},
-			expect: `- name: "foo"
+			expect: `name: "foo"
   in: "query"
   required: false
   schema:
@@ -96,14 +92,14 @@ func TestQueryParam_WriteYaml(t *testing.T) {
 `,
 		},
 		{
-			queryParam: QueryParam{
+			param: CommonParameter{
 				Name: "foo",
 				Schema: &Schema{
 					Name: "won't see this",
 					Type: "string",
 				},
 			},
-			expect: `- name: "foo"
+			expect: `name: "foo"
   in: "query"
   required: false
   schema:
@@ -111,32 +107,24 @@ func TestQueryParam_WriteYaml(t *testing.T) {
 `,
 		},
 		{
-			queryParam: QueryParam{
+			param: CommonParameter{
 				Name:       "foo",
 				Additional: &testAdditional{},
 			},
-			expect: `- name: "foo"
+			expect: `name: "foo"
   in: "query"
   required: false
   foo: "bar"
-`,
-		},
-		{
-			queryParam: QueryParam{
-				Name: "won't see this",
-				Ref:  "foo",
-			},
-			expect: `- $ref: "#/components/parameters/foo"
 `,
 		},
 	}
 	for i, tc := range testCases {
 		t.Run(fmt.Sprintf("[%d]", i+1), func(t *testing.T) {
 			w := yaml.NewWriter(nil)
-			tc.queryParam.writeYaml(w)
+			tc.param.writeYaml("Test", w)
 			data, err := w.Bytes()
 			require.NoError(t, err)
-			assert.Equal(t, tc.expect, string(data))
+			assert.Equal(t, "Test:\n  "+tc.expect, string(data))
 		})
 	}
 }

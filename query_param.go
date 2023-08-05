@@ -38,6 +38,10 @@ type QueryParam struct {
 	Extensions Extensions
 	// Additional is any additional OAS spec yaml to be written
 	Additional Additional
+	// Ref is the OAS $ref name for the parameter
+	//
+	// If this is a non-empty string, then a $ref to "#/components/parameters/" is used
+	Ref string
 }
 
 func (qp QueryParams) writeYaml(w yaml.Writer) {
@@ -47,21 +51,25 @@ func (qp QueryParams) writeYaml(w yaml.Writer) {
 }
 
 func (p QueryParam) writeYaml(w yaml.Writer) {
-	w.WriteItemStart(tagNameName, p.Name).
-		WriteTagValue(tagNameDescription, p.Description).
-		WriteTagValue(tagNameIn, defValue(p.In, tagValueQuery)).
-		WriteTagValue(tagNameRequired, p.Required).
-		WriteTagValue(tagNameExample, p.Example)
-	if p.Schema != nil {
-		w.WriteTagStart(tagNameSchema)
-		p.Schema.writeYaml(false, w)
+	if p.Ref == "" {
+		w.WriteItemStart(tagNameName, p.Name).
+			WriteTagValue(tagNameDescription, p.Description).
+			WriteTagValue(tagNameIn, defValue(p.In, tagValueQuery)).
+			WriteTagValue(tagNameRequired, p.Required).
+			WriteTagValue(tagNameExample, p.Example)
+		if p.Schema != nil {
+			w.WriteTagStart(tagNameSchema)
+			p.Schema.writeYaml(false, w)
+			w.WriteTagEnd()
+		} else if p.SchemaRef != "" {
+			w.WriteTagStart(tagNameSchema)
+			writeSchemaRef(p.SchemaRef, false, w)
+			w.WriteTagEnd()
+		}
+		writeExtensions(p.Extensions, w)
+		writeAdditional(p.Additional, p, w)
 		w.WriteTagEnd()
-	} else if p.SchemaRef != "" {
-		w.WriteTagStart(tagNameSchema)
-		writeSchemaRef(p.SchemaRef, false, w)
-		w.WriteTagEnd()
+	} else {
+		w.WriteItemValue(tagNameRef, refPathParameters+p.Ref)
 	}
-	writeExtensions(p.Extensions, w)
-	writeAdditional(p.Additional, p, w)
-	w.WriteTagEnd()
 }
