@@ -31,6 +31,22 @@ func TestRequest_WriteYaml(t *testing.T) {
 	assert.Equal(t, expect, string(data))
 }
 
+func TestRequest_WriteYaml_Refd(t *testing.T) {
+	w := yaml.NewWriter(nil)
+	r := &Request{
+		Ref: "foo",
+	}
+
+	r.writeYaml(w)
+
+	data, err := w.Bytes()
+	assert.NoError(t, err)
+	const expect = `requestBody:
+  $ref: "#/components/requestBodies/foo"
+`
+	assert.Equal(t, expect, string(data))
+}
+
 func TestRequest_WriteYaml_IsArray(t *testing.T) {
 	w := yaml.NewWriter(nil)
 	r := &Request{

@@ -14,6 +14,14 @@ func (ss Schemas) writeYaml(w yaml.Writer) {
 	}
 }
 
+type SchemaConverter interface {
+	ToSchema() *Schema
+}
+
+type SchemaWriter interface {
+	WriteSchema(w yaml.Writer)
+}
+
 // Schema represents the OAS definition of a schema
 type Schema struct {
 	// Name is the OAS name of the schema
@@ -27,7 +35,7 @@ type Schema struct {
 	// RequiredProperties is the ordered collection of required properties
 	RequiredProperties []string
 	// Properties is the ordered collection of properties
-	Properties []Property
+	Properties Properties
 	// Default is the OAS default
 	Default any
 	// Enum is the OAS enum

@@ -2,6 +2,9 @@ package chioas
 
 import "github.com/go-andiamo/chioas/yaml"
 
+// Properties is an ordered collection of Property
+type Properties []Property
+
 // Property represents the OAS definition of a property
 type Property struct {
 	// Name is the OAS name of the property

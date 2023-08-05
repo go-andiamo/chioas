@@ -13,7 +13,20 @@ func TestComponents_WriteYaml(t *testing.T) {
 				Name: "test",
 			},
 		},
+		Requests: CommonRequests{
+			"foo": {
+				Description: "foo request",
+			},
+		},
+		Responses: CommonResponses{
+			"bar": {
+				Description: "bar response",
+			},
+		},
 		Additional: &testAdditional{},
+		Extensions: Extensions{
+			"foo": "bar",
+		},
 	}
 	w := yaml.NewWriter(nil)
 	c.writeYaml(w)
@@ -24,6 +37,22 @@ func TestComponents_WriteYaml(t *testing.T) {
   schemas:
     "test":
       type: "object"
+  requestBodies:
+    foo:
+      description: "foo request"
+      required: false
+      content:
+        application/json:
+          schema:
+            type: "object"
+  responses:
+    bar:
+      description: "bar response"
+      content:
+        application/json:
+          schema:
+            type: "object"
+  x-foo: "bar"
   foo: "bar"
 `
 	assert.Equal(t, expect, string(data))

@@ -44,6 +44,37 @@ func TestResponses_WriteYaml(t *testing.T) {
 	assert.Equal(t, expect, string(data))
 }
 
+func TestResponses_WriteYaml_Refd(t *testing.T) {
+	w := yaml.NewWriter(nil)
+	rs := Responses{}
+	rs.writeYaml(w)
+	data, err := w.Bytes()
+	assert.NoError(t, err)
+	assert.Equal(t, ``, string(data))
+
+	w = yaml.NewWriter(nil)
+	rs = Responses{
+		http.StatusCreated: {
+			Ref:       "foo",
+			SchemaRef: "test_created",
+		},
+		http.StatusOK: {
+			Ref:       "bar",
+			SchemaRef: "test_ok",
+		},
+	}
+	rs.writeYaml(w)
+	data, err = w.Bytes()
+	assert.NoError(t, err)
+	const expect = `responses:
+  200:
+    $ref: "#/components/responses/bar"
+  201:
+    $ref: "#/components/responses/foo"
+`
+	assert.Equal(t, expect, string(data))
+}
+
 func TestResponse_WriteYaml_Basic(t *testing.T) {
 	w := yaml.NewWriter(nil)
 	r := Response{
@@ -305,6 +336,89 @@ func TestResponse_WriteYaml_StructPtr(t *testing.T) {
                 type: "string"
             "map":
               type: "object"
+`
+	assert.Equal(t, expect, string(data))
+}
+
+type mySchemaConverter struct {
+}
+
+func (m *mySchemaConverter) ToSchema() *Schema {
+	return &Schema{
+		Name:               "test",
+		RequiredProperties: []string{"foo"},
+		Properties: []Property{
+			{
+				Name: "foo",
+				Type: "string",
+			},
+		},
+	}
+}
+
+func TestResponse_WriteYaml_SchemaConverter(t *testing.T) {
+	w := yaml.NewWriter(nil)
+	r := Response{
+		Description: "req desc",
+		IsArray:     true,
+		Schema:      &mySchemaConverter{},
+	}
+
+	r.writeYaml(http.StatusOK, w)
+
+	data, err := w.Bytes()
+	assert.NoError(t, err)
+	const expect = `200:
+  description: "req desc"
+  content:
+    application/json:
+      schema:
+        type: "array"
+        items:
+          type: "object"
+          required:
+            - "foo"
+          properties:
+            "foo":
+              type: "string"
+`
+	assert.Equal(t, expect, string(data))
+}
+
+type mySchemaWriter struct {
+}
+
+func (m *mySchemaWriter) WriteSchema(w yaml.Writer) {
+	w.WriteTagValue(tagNameType, "object").
+		WriteTagStart(tagNameProperties).
+		WriteTagStart(`"foo"`).
+		WriteTagValue(tagNameType, "string").
+		WriteTagEnd().WriteTagEnd()
+}
+
+func TestResponse_WriteYaml_SchemaWriter(t *testing.T) {
+	w := yaml.NewWriter(nil)
+	r := Response{
+		Description: "req desc",
+		IsArray:     true,
+		Schema:      &mySchemaWriter{},
+	}
+
+	r.writeYaml(http.StatusOK, w)
+
+	data, err := w.Bytes()
+	assert.NoError(t, err)
+	const expect = `200:
+  description: "req desc"
+  content:
+    application/json:
+      schema:
+        type: "array"
+        items:
+          type: "object"
+          properties:
+            "foo":
+              type: "string"
 `
 	assert.Equal(t, expect, string(data))
 }

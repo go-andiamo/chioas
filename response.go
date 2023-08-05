@@ -29,6 +29,12 @@ func (r Responses) writeYaml(w yaml.Writer) {
 
 // Response is the OAS definition of a response
 type Response struct {
+	// Ref is the OAS $ref name for the response
+	//
+	// If this is a non-empty string and the response is used by Method.Responses, then a $ref to "#/components/responses/" is used
+	//
+	// If the Response is used by Components.ResponseBodies this value is ignored
+	Ref string
 	// Description is the OAS description
 	Description string
 	// NoContent indicates that this response has not content
@@ -40,10 +46,27 @@ type Response struct {
 	// defaults to "application/json"
 	ContentType string
 	// Schema is the optional OAS Schema
+	//
+	// Only used if the value is non-nil - otherwise uses SchemaRef is used
+	//
+	// The value can be any of the following:
+	//
+	// * chioas.Schema (or *chioas.Schema)
+	//
+	// * a chioas.SchemaConverter
+	//
+	// * a chioas.SchemaWriter
+	//
+	// * a struct or ptr to struct (schema written is determined by examining struct fields)
+	//
+	// * a slice of structs (items schema written is determined by examining struct fields)
 	Schema any
 	// SchemaRef is the OAS schema reference
 	//
-	// Only used if value is a non-empty string
+	// Only used if value is a non-empty string - if both Schema is nil and SchemaRef is empty string, then an
+	// empty object schema is written to the spec yaml, e.g.
+	//   schema:
+	//     type: "object"
 	//
 	// If the value does not contain a path (i.e. does not contain any "/") then the ref
 	// path will be the value prefixed with components schemas path.  For example, specifying "foo"
@@ -61,12 +84,27 @@ type Response struct {
 
 func (r Response) writeYaml(statusCode int, w yaml.Writer) {
 	w.WriteTagStart(strconv.Itoa(statusCode))
-	desc := r.Description
-	if desc == "" {
-		desc = http.StatusText(statusCode)
+	if r.Ref == "" {
+		desc := r.Description
+		if desc == "" {
+			desc = http.StatusText(statusCode)
+		}
+		w.WriteTagValue(tagNameDescription, desc)
+		if !r.NoContent && statusCode != http.StatusNoContent {
+			writeContent(r.ContentType, r.Schema, r.SchemaRef, r.IsArray, w)
+		}
+		writeExtensions(r.Extensions, w)
+		writeAdditional(r.Additional, r, w)
+	} else {
+		w.WriteTagValue(tagNameRef, refPathResponses+r.Ref)
 	}
-	w.WriteTagValue(tagNameDescription, desc)
-	if !r.NoContent && statusCode != http.StatusNoContent {
+	w.WriteTagEnd()
+}
+
+func (r Response) componentsWriteYaml(name string, w yaml.Writer) {
+	w.WriteTagStart(name)
+	w.WriteTagValue(tagNameDescription, r.Description)
+	if !r.NoContent {
 		writeContent(r.ContentType, r.Schema, r.SchemaRef, r.IsArray, w)
 	}
 	writeExtensions(r.Extensions, w)
@@ -110,8 +148,8 @@ func writeSchemaRef(ref string, isArray bool, w yaml.Writer) {
 }
 
 func writeSchema(schema any, isArray bool, w yaml.Writer) {
-	actual := isActualSchema(schema)
-	if actual == nil {
+	actual, writer := isActualSchema(schema)
+	if actual == nil && writer == nil {
 		actual, isArray = extractSchema(schema, isArray)
 	}
 	if actual != nil {
@@ -123,19 +161,33 @@ func writeSchema(schema any, isArray bool, w yaml.Writer) {
 		if isArray {
 			w.WriteTagEnd()
 		}
+	} else if writer != nil {
+		if isArray {
+			w.WriteTagValue(tagNameType, tagValueTypeArray).
+				WriteTagStart(tagNameItems)
+		}
+		writer.WriteSchema(w)
+		if isArray {
+			w.WriteTagEnd()
+		}
 	} else {
 		w.WriteTagValue(tagNameType, tagValueTypeNull)
 	}
 }
 
-func isActualSchema(schema any) *Schema {
+func isActualSchema(schema any) (*Schema, SchemaWriter) {
+	if conv, ok := schema.(SchemaConverter); ok {
+		return conv.ToSchema(), nil
+	} else if writer, ok := schema.(SchemaWriter); ok {
+		return nil, writer
+	}
 	switch ts := schema.(type) {
 	case Schema:
-		return &ts
+		return &ts, nil
 	case *Schema:
-		return ts
+		return ts, nil
 	}
-	return nil
+	return nil, nil
 }
 
 func extractSchema(example any, isArray bool) (*Schema, bool) {
