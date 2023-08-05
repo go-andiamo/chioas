@@ -27,6 +27,7 @@ const (
 	tagNamePaths           = "paths"
 	tagNameProperties      = "properties"
 	tagNameRef             = "$ref"
+	tagNameRequestBodies   = "requestBodies"
 	tagNameRequestBody     = "requestBody"
 	tagNameRequired        = "required"
 	tagNameResponses       = "responses"
@@ -44,7 +45,9 @@ const (
 	tagNameUrl             = "url"
 	tagNameVersion         = "version"
 
-	refPathSchemas = "#/" + tagNameComponents + "/" + tagNameSchemas + "/"
+	refPathSchemas   = "#/" + tagNameComponents + "/" + tagNameSchemas + "/"
+	refPathRequests  = "#/" + tagNameComponents + "/" + tagNameRequestBodies + "/"
+	refPathResponses = "#/" + tagNameComponents + "/" + tagNameResponses + "/"
 
 	tagValuePath        = "path"
 	tagValueQuery       = "query"

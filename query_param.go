@@ -23,7 +23,10 @@ type QueryParam struct {
 	Schema *Schema
 	// SchemaRef is the OAS schema reference
 	//
-	// Only used if value is a non-empty string
+	// Only used if value is a non-empty string - if both Schema is nil and SchemaRef is empty string, then an
+	// empty object schema is written to the spec yaml, e.g.
+	//   schema:
+	//     type: "object"
 	//
 	// If the value does not contain a path (i.e. does not contain any "/") then the ref
 	// path will be the value prefixed with components schemas path.  For example, specifying "foo"

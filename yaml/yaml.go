@@ -84,33 +84,15 @@ func (y *writer) writeIndent() bool {
 	return y.err == nil
 }
 
-func (y *writer) formattedString(s string) string {
-	var builder strings.Builder
-	lines := strings.Split(s, "\n")
-	l := len(lines)
-	indent := append(y.indent, ' ', ' ')
-	builder.Grow(3 + len(s) + (l * (len(indent) + 1)))
-	builder.WriteString(">-\n")
-	l--
-	for i, line := range lines {
-		builder.Write(indent)
-		builder.WriteString(line)
-		if i < l {
-			builder.WriteByte('\n')
-		}
-	}
-	return builder.String()
-}
-
-func (y *writer) yamlValue(value any, allowEmpty bool) string {
-	result := ""
+func (y *writer) yamlValue(value any, allowEmpty bool) []string {
+	result := make([]string, 0)
 	switch vt := value.(type) {
 	case string:
 		if vt != "" || allowEmpty {
 			if strings.Contains(vt, "\n") {
-				result = y.formattedString(vt)
+				result = append(result, y.formattedString(vt)...)
 			} else {
-				result = `"` + strings.ReplaceAll(vt, `"`, `\"`) + `"`
+				result = append(result, `"`+strings.ReplaceAll(vt, `"`, `\"`)+`"`)
 			}
 		}
 	case *string:
@@ -118,30 +100,22 @@ func (y *writer) yamlValue(value any, allowEmpty bool) string {
 		if !vo.IsZero() {
 			result = y.yamlValue(vo.Elem().Interface(), allowEmpty)
 		} else if allowEmpty {
-			return `""`
+			result = append(result, `""`)
 		}
-		/*
-			case *string:
-				if vt == nil && allowEmpty {
-					result = `""`
-				} else if vt != nil && (*vt != "" || allowEmpty) {
-					result = `"` + strings.ReplaceAll(*vt, `"`, `\"`) + `"`
-				}
-		*/
 	case bool:
-		result = fmt.Sprintf("%t", vt)
+		result = append(result, fmt.Sprintf("%t", vt))
 	case *bool:
 		if vt == nil && allowEmpty {
-			result = "false"
+			result = append(result, "false")
 		} else if vt != nil {
-			result = fmt.Sprintf("%t", *vt)
+			result = append(result, fmt.Sprintf("%t", *vt))
 		}
 	case int, int8, int16, int32, int64:
-		result = fmt.Sprintf("%d", vt)
+		result = append(result, fmt.Sprintf("%d", vt))
 	case uint, uint8, uint16, uint32, uint64:
-		result = fmt.Sprintf("%d", vt)
+		result = append(result, fmt.Sprintf("%d", vt))
 	case float32, float64:
-		result = fmt.Sprintf("%f", vt)
+		result = append(result, fmt.Sprintf("%f", vt))
 	case *int, *int8, *int16, *int32, *int64, *uint, *uint8, *uint16, *uint32, *uint64, *float32, *float64:
 		vo := reflect.ValueOf(vt)
 		if !vo.IsZero() {
@@ -151,11 +125,24 @@ func (y *writer) yamlValue(value any, allowEmpty bool) string {
 	return result
 }
 
+func (y *writer) formattedString(s string) []string {
+	lines := strings.Split(s, "\n")
+	result := make([]string, len(lines)+1)
+	result[0] = `>-`
+	for i, line := range lines {
+		result[i+1] = line
+	}
+	return result
+}
+
 func (y *writer) WriteTagValue(name string, value any) Writer {
 	if y.err == nil && value != nil {
 		wv := y.yamlValue(value, false)
-		if wv != "" && y.writeIndent() {
-			_, y.err = y.w.WriteString(name + ": " + wv + "\n")
+		if len(wv) > 0 && y.writeIndent() {
+			_, y.err = y.w.WriteString(name + ": " + wv[0] + "\n")
+			for i := 1; i < len(wv); i++ {
+				_, y.err = y.w.WriteString(string(y.indent) + "  " + wv[i] + "\n")
+			}
 		}
 	}
 	return y
@@ -191,8 +178,11 @@ func (y *writer) WritePathStart(context string, path string) Writer {
 func (y *writer) WriteItem(value any) Writer {
 	if y.err == nil && value != nil {
 		wv := y.yamlValue(value, false)
-		if wv != "" && y.writeIndent() {
-			_, y.err = y.w.WriteString("- " + wv + "\n")
+		if len(wv) > 0 && y.writeIndent() {
+			_, y.err = y.w.WriteString("- " + wv[0] + "\n")
+			for i := 1; i < len(wv); i++ {
+				_, y.err = y.w.WriteString(string(y.indent) + "  " + wv[i] + "\n")
+			}
 		}
 	}
 	return y
@@ -201,7 +191,15 @@ func (y *writer) WriteItem(value any) Writer {
 func (y *writer) WriteItemStart(name string, value any) Writer {
 	if y.err == nil {
 		if y.writeIndent() {
-			_, y.err = y.w.WriteString(`- ` + name + `: ` + y.yamlValue(value, true) + "\n")
+			wv := y.yamlValue(value, true)
+			if len(wv) > 0 {
+				_, y.err = y.w.WriteString(`- ` + name + `: ` + wv[0] + "\n")
+				for i := 1; i < len(wv); i++ {
+					_, y.err = y.w.WriteString(string(y.indent) + "  " + wv[i] + "\n")
+				}
+			} else {
+				_, y.err = y.w.WriteString(`- ` + name + ":\n")
+			}
 			y.incIndent()
 		}
 	}

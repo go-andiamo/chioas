@@ -12,20 +12,6 @@ func TestExtensions_WriteYaml(t *testing.T) {
 		"x-bar": 1,
 	}
 	w := yaml.NewWriter(nil)
-	e.writeYaml(w)
-	data, err := w.Bytes()
-	assert.NoError(t, err)
-	assert.Equal(t, `x-foo: "bar"
-x-bar: 1
-`, string(data))
-}
-
-func Test_WriteExtensions(t *testing.T) {
-	e := Extensions{
-		"foo":   "bar",
-		"x-bar": 1,
-	}
-	w := yaml.NewWriter(nil)
 	writeExtensions(e, w)
 	data, err := w.Bytes()
 	assert.NoError(t, err)

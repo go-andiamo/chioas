@@ -152,123 +152,120 @@ func TestYamlValue(t *testing.T) {
 	testCases := []struct {
 		value      any
 		allowEmpty bool
-		expect     string
+		expect     []string
 	}{
 		{
 			value:  "foo",
-			expect: `"foo"`,
+			expect: []string{`"foo"`},
 		},
 		{
 			value:  "",
-			expect: ``,
+			expect: []string{},
 		},
 		{
 			value:      "",
 			allowEmpty: true,
-			expect:     `""`,
+			expect:     []string{`""`},
 		},
 		{
 			value:  1,
-			expect: `1`,
+			expect: []string{`1`},
 		},
 		{
 			value:  1.1,
-			expect: `1.100000`,
+			expect: []string{`1.100000`},
 		},
 		{
 			value:  true,
-			expect: `true`,
+			expect: []string{`true`},
 		},
 		{
 			value:  &pstr,
-			expect: `"foo"`,
+			expect: []string{`"foo"`},
 		},
 		{
 			value:  nilstr,
-			expect: ``,
+			expect: []string{},
 		},
 		{
 			value:      nilstr,
 			allowEmpty: true,
-			expect:     `""`,
+			expect:     []string{`""`},
 		},
 		{
 			value:  &pbool,
-			expect: `true`,
+			expect: []string{`true`},
 		},
 		{
 			value:  nilbool,
-			expect: ``,
+			expect: []string{},
 		},
 		{
 			value:      nilbool,
 			allowEmpty: true,
-			expect:     `false`,
+			expect:     []string{`false`},
 		},
 		{
 			value:  uint8(1),
-			expect: `1`,
+			expect: []string{`1`},
 		},
 		{
 			value:  nilint,
-			expect: ``,
+			expect: []string{},
 		},
 		{
 			value:  &pint,
-			expect: `16`,
+			expect: []string{`16`},
 		},
 		{
 			value:  &pint8,
-			expect: `16`,
+			expect: []string{`16`},
 		},
 		{
 			value:  &pint16,
-			expect: `16`,
+			expect: []string{`16`},
 		},
 		{
 			value:  &pint32,
-			expect: `16`,
+			expect: []string{`16`},
 		},
 		{
 			value:  &pint64,
-			expect: `16`,
+			expect: []string{`16`},
 		},
 		{
 			value:  &puint,
-			expect: `16`,
+			expect: []string{`16`},
 		},
 		{
 			value:  &puint8,
-			expect: `16`,
+			expect: []string{`16`},
 		},
 		{
 			value:  &puint16,
-			expect: `16`,
+			expect: []string{`16`},
 		},
 		{
 			value:  &puint32,
-			expect: `16`,
+			expect: []string{`16`},
 		},
 		{
 			value:  &puint64,
-			expect: `16`,
+			expect: []string{`16`},
 		},
 		{
 			value:  &pf32,
-			expect: `16.160000`,
+			expect: []string{`16.160000`},
 		},
 		{
 			value:  &pf64,
-			expect: `16.160000`,
+			expect: []string{`16.160000`},
 		},
 		{
 			value: `aaa
 bbb
 ccc`,
-			expect: `>-
-  aaa
-  bbb
-  ccc`,
+			expect: []string{`>-`, `aaa`, `bbb`, `ccc`},
 		},
 		{
 			value: `aaa
@@ -278,14 +275,7 @@ bbb
 ccc
 
 `,
-			expect: `>-
-  aaa
-  
-  bbb
-  
-  ccc
-  
-  `,
+			expect: []string{`>-`, `aaa`, ``, `bbb`, ``, `ccc`, ``, ``},
 		},
 	}
 	for i, tc := range testCases {
@@ -322,6 +312,15 @@ func TestWriter_WriteTagValue(t *testing.T) {
 			tag:    "foo",
 			value:  nil,
 			expect: "",
+		},
+		{
+			tag:   "foo",
+			value: "aaa\nbbb\nccc",
+			expect: `foo: >-
+  aaa
+  bbb
+  ccc
+`,
 		},
 	}
 	for i, tc := range testCases {
@@ -410,6 +409,16 @@ func TestWriter_WriteItem(t *testing.T) {
 	data, err = w.Bytes()
 	require.NoError(t, err)
 	assert.Equal(t, "", string(data))
+
+	w = newWriter(nil)
+	w.WriteItem("aaa\nbbb\nccc")
+	data, err = w.Bytes()
+	require.NoError(t, err)
+	assert.Equal(t, `- >-
+  aaa
+  bbb
+  ccc
+`, string(data))
 }
 
 func TestWriter_WriteItemStart(t *testing.T) {
@@ -418,6 +427,24 @@ func TestWriter_WriteItemStart(t *testing.T) {
 	data, err := w.Bytes()
 	require.NoError(t, err)
 	assert.Equal(t, "- foo: \"bar\"\n", string(data))
+	assert.Equal(t, 2, len(w.indent))
+
+	w = newWriter(nil)
+	w.WriteItemStart("foo", nil)
+	data, err = w.Bytes()
+	require.NoError(t, err)
+	assert.Equal(t, "- foo:\n", string(data))
+	assert.Equal(t, 2, len(w.indent))
+
+	w = newWriter(nil)
+	w.WriteItemStart("foo", "aaa\nbbb\nccc")
+	data, err = w.Bytes()
+	require.NoError(t, err)
+	assert.Equal(t, `- foo: >-
+  aaa
+  bbb
+  ccc
+`, string(data))
 	assert.Equal(t, 2, len(w.indent))
 }
 
