@@ -80,11 +80,14 @@ type Response struct {
 	Extensions Extensions
 	// Additional is any additional OAS spec yaml to be written
 	Additional Additional
+	// Comment is any comment(s) to appear in the OAS spec yaml (not used with Ref)
+	Comment string
 }
 
 func (r Response) writeYaml(statusCode int, w yaml.Writer) {
 	w.WriteTagStart(strconv.Itoa(statusCode))
 	if r.Ref == "" {
+		w.WriteComments(r.Comment)
 		desc := r.Description
 		if desc == "" {
 			desc = http.StatusText(statusCode)

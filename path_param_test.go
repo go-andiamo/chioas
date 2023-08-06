@@ -13,11 +13,13 @@ func TestPathParam_WriteYaml(t *testing.T) {
 		Description: "test desc",
 		Example:     "fooey",
 		Additional:  &testAdditional{},
+		Comment:     "test comment",
 	}
 	pp.writeYaml("foo", w)
 	data, err := w.Bytes()
 	require.NoError(t, err)
 	const expect = `- name: "foo"
+  #test comment
   description: "test desc"
   in: "path"
   required: true
@@ -34,6 +36,7 @@ func TestPathParam_WriteYaml_Refd(t *testing.T) {
 		Description: "won't see this",
 		Example:     "won't see this either",
 		Additional:  &testAdditional{},
+		Comment:     "won't see",
 	}
 	pp.writeYaml("foo", w)
 	data, err := w.Bytes()

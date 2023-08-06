@@ -22,10 +22,13 @@ type Server struct {
 	Extensions Extensions
 	// Additional is any additional OAS spec yaml to be written
 	Additional Additional
+	// Comment is any comment(s) to appear in the OAS spec yaml
+	Comment string
 }
 
 func (s Server) writeYaml(url string, w yaml.Writer) {
 	w.WriteItemStart(tagNameUrl, url).
+		WriteComments(s.Comment).
 		WriteTagValue(tagNameDescription, s.Description)
 	writeExtensions(s.Extensions, w)
 	writeAdditional(s.Additional, s, w)

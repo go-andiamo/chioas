@@ -23,6 +23,7 @@ type Writer interface {
 	WriteLines(lines ...string) Writer
 	// Write writes the provided data (no indent is added - and data must include indents!)
 	Write(data []byte) Writer
+	WriteComments(lines ...string) Writer
 	CurrentIndent() string
 	SetError(err error)
 	Errored() error
@@ -236,7 +237,9 @@ func (y *writer) WriteItemStart(name string, value any) Writer {
 
 func (y *writer) WriteLines(lines ...string) Writer {
 	for _, ln := range lines {
-		if y.writeIndent() {
+		if strings.Contains(ln, "\n") {
+			y.WriteLines(strings.Split(ln, "\n")...)
+		} else if y.writeIndent() {
 			_, y.err = y.w.WriteString(ln + "\n")
 		}
 	}
@@ -245,6 +248,19 @@ func (y *writer) WriteLines(lines ...string) Writer {
 
 func (y *writer) Write(data []byte) Writer {
 	_, y.err = y.w.Write(data)
+	return y
+}
+
+func (y *writer) WriteComments(lines ...string) Writer {
+	if len(lines) > 1 || (len(lines) == 1 && lines[0] != "") {
+		for _, ln := range lines {
+			if strings.Contains(ln, "\n") {
+				y.WriteComments(strings.Split(ln, "\n")...)
+			} else if y.writeIndent() {
+				_, y.err = y.w.WriteString("#" + ln + "\n")
+			}
+		}
+	}
 	return y
 }
 

@@ -44,13 +44,16 @@ type Schema struct {
 	Extensions Extensions
 	// Additional is any additional OAS spec yaml to be written
 	Additional Additional
+	// Comment is any comment(s) to appear in the OAS spec yaml
+	Comment string
 }
 
 func (s Schema) writeYaml(withName bool, w yaml.Writer) {
 	if withName {
 		w.WriteTagStart("\"" + s.Name + "\"")
 	}
-	w.WriteTagValue(tagNameDescription, s.Description)
+	w.WriteComments(s.Comment).
+		WriteTagValue(tagNameDescription, s.Description)
 	if s.Type != "" {
 		w.WriteTagValue(tagNameType, s.Type)
 	} else {

@@ -13,12 +13,16 @@ func TestTag_WriteYaml(t *testing.T) {
 		Name:        "foo",
 		Description: "test",
 		Additional:  &testAdditional{},
+		Extensions:  Extensions{"foo": "bar"},
+		Comment:     "test comment",
 	}
 	tag.writeYaml(w)
 	data, err := w.Bytes()
 	require.NoError(t, err)
 	const expect = `- name: "foo"
+  #test comment
   description: "test"
+  x-foo: "bar"
   foo: "bar"
 `
 	assert.Equal(t, expect, string(data))

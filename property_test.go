@@ -13,6 +13,7 @@ func TestProperty_WriteYaml(t *testing.T) {
 		Type:        "number",
 		Example:     1,
 		Additional:  &testAdditional{},
+		Comment:     "test comment",
 	}
 	w := yaml.NewWriter(nil)
 	p.writeYaml(w)
@@ -20,6 +21,7 @@ func TestProperty_WriteYaml(t *testing.T) {
 	data, err := w.Bytes()
 	assert.NoError(t, err)
 	const expect = `"foo":
+  #test comment
   description: "foo desc"
   type: "number"
   example: 1

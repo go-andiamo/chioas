@@ -128,3 +128,21 @@ func TestCommonParameter_WriteYaml(t *testing.T) {
 		})
 	}
 }
+
+func TestCommonParameter_WriteYaml_WithComment(t *testing.T) {
+	p := CommonParameter{
+		Name:    "foo",
+		Comment: "test comment",
+	}
+	w := yaml.NewWriter(nil)
+	p.writeYaml("Test", w)
+	data, err := w.Bytes()
+	require.NoError(t, err)
+	const expect = `#test comment
+Test:
+  name: "foo"
+  in: "query"
+  required: false
+`
+	assert.Equal(t, expect, string(data))
+}

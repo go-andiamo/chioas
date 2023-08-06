@@ -38,6 +38,8 @@ type QueryParam struct {
 	Extensions Extensions
 	// Additional is any additional OAS spec yaml to be written
 	Additional Additional
+	// Comment is any comment(s) to appear in the OAS spec yaml (not used with Ref)
+	Comment string
 	// Ref is the OAS $ref name for the parameter
 	//
 	// If this is a non-empty string, then a $ref to "#/components/parameters/" is used
@@ -53,6 +55,7 @@ func (qp QueryParams) writeYaml(w yaml.Writer) {
 func (p QueryParam) writeYaml(w yaml.Writer) {
 	if p.Ref == "" {
 		w.WriteItemStart(tagNameName, p.Name).
+			WriteComments(p.Comment).
 			WriteTagValue(tagNameDescription, p.Description).
 			WriteTagValue(tagNameIn, defValue(p.In, tagValueQuery)).
 			WriteTagValue(tagNameRequired, p.Required).

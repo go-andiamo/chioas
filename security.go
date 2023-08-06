@@ -38,6 +38,8 @@ type SecurityScheme struct {
 	// Type is the OAS security scheme type
 	//
 	// Valid values are: "apiKey", "http", "mutualTLS", "oauth2", "openIdConnect"
+	//
+	// Defaults to "http"
 	Type string
 	// Scheme is the OAS HTTP Authorization scheme
 	Scheme string
@@ -56,6 +58,8 @@ type SecurityScheme struct {
 	Extensions Extensions
 	// Additional is any additional OAS spec yaml to be written
 	Additional Additional
+	// Comment is any comment(s) to appear in the OAS spec yaml
+	Comment string
 }
 
 func (s SecurityScheme) writeYaml(w yaml.Writer, asSecurity bool) {
@@ -71,8 +75,9 @@ func (s SecurityScheme) writeYaml(w yaml.Writer, asSecurity bool) {
 		}
 	} else {
 		w.WriteTagStart(s.Name).
+			WriteComments(s.Comment).
 			WriteTagValue(tagNameDescription, s.Description).
-			WriteTagValue(tagNameType, s.Type).
+			WriteTagValue(tagNameType, defValue(s.Type, "http")).
 			WriteTagValue(tagNameScheme, s.Scheme).
 			WriteTagValue(tagNameIn, s.In).
 			WriteTagValue(tagNameName, s.ParamName)

@@ -62,6 +62,8 @@ type Method struct {
 	Extensions Extensions
 	// Additional is any additional OAS spec yaml to be written
 	Additional Additional
+	// Comment is any comment(s) to appear in the OAS spec yaml
+	Comment string
 	// HideDocs if set to true, hides this method from the OAS docs
 	HideDocs bool
 }
@@ -169,6 +171,7 @@ func (m Methods) writeYaml(opts *DocOptions, autoHeads bool, template urit.Templ
 
 func (m Method) writeYaml(opts *DocOptions, template urit.Template, pathVars []urit.PathVar, knownParams PathParams, parentTag string, method string, w yaml.Writer) {
 	w.WriteTagStart(strings.ToLower(method)).
+		WriteComments(m.Comment).
 		WriteTagValue(tagNameSummary, m.Summary).
 		WriteTagValue(tagNameDescription, m.Description).
 		WriteTagValue(tagNameOperationId, m.getOperationId(opts, method, template, parentTag))

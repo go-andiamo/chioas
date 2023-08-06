@@ -45,6 +45,8 @@ type Path struct {
 	Extensions Extensions
 	// Additional is any additional OAS spec yaml to be written
 	Additional Additional
+	// Comment is any comment(s) to appear in the OAS spec yaml
+	Comment string
 }
 
 type flatPath struct {
@@ -61,7 +63,8 @@ func (p flatPath) writeYaml(opts *DocOptions, autoHeads bool, context string, w 
 			w.SetError(err)
 			return
 		}
-		w.WritePathStart(context, template.Template(true))
+		w.WritePathStart(context, template.Template(true)).
+			WriteComments(p.def.Comment)
 		if p.def.Methods != nil {
 			p.def.Methods.writeYaml(opts, autoHeads, template, p.getPathParams(), p.tag, w)
 		}

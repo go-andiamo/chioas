@@ -17,10 +17,13 @@ type Tag struct {
 	Extensions Extensions
 	// Additional is any additional OAS spec yaml to be written
 	Additional Additional
+	// Comment is any comment(s) to appear in the OAS spec yaml
+	Comment string
 }
 
 func (t Tag) writeYaml(w yaml.Writer) {
 	w.WriteItemStart(tagNameName, t.Name).
+		WriteComments(t.Comment).
 		WriteTagValue(tagNameDescription, t.Description)
 	if t.ExternalDocs != nil {
 		t.ExternalDocs.writeYaml(w)

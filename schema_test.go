@@ -121,6 +121,26 @@ enum:
   foo: "bar"
 `,
 		},
+		{
+			schema: Schema{
+				Name:    "test",
+				Comment: "test comment",
+			},
+			expect: `#test comment
+type: "object"
+`,
+		},
+		{
+			schema: Schema{
+				Name:    "test",
+				Comment: "test comment",
+			},
+			withName: true,
+			expect: `"test":
+  #test comment
+  type: "object"
+`,
+		},
 	}
 	for i, tc := range testCases {
 		t.Run(fmt.Sprintf("[%d]", i+1), func(t *testing.T) {

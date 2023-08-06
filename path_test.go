@@ -19,6 +19,7 @@ func TestPaths_WriteYaml(t *testing.T) {
 					Description: "this is a test",
 				},
 			},
+			Comment: "test comment",
 		},
 	}
 	w := yaml.NewWriter(nil)
@@ -26,6 +27,7 @@ func TestPaths_WriteYaml(t *testing.T) {
 	data, err := w.Bytes()
 	require.NoError(t, err)
 	const expected = `"/bar":
+  #test comment
   get:
     description: "this is a test"
     tags:

@@ -40,12 +40,16 @@ func TestServer_WriteYaml(t *testing.T) {
 	s = Server{
 		Description: "foo",
 		Additional:  &testAdditional{},
+		Comment:     "test comment",
+		Extensions:  Extensions{"foo": "bar"},
 	}
 	s.writeYaml("api/v1", w)
 	data, err = w.Bytes()
 	assert.NoError(t, err)
 	assert.Equal(t, `- url: "api/v1"
+  #test comment
   description: "foo"
+  x-foo: "bar"
   foo: "bar"
 `, string(data))
 }

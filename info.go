@@ -22,10 +22,13 @@ type Info struct {
 	Additional Additional
 	// ExternalDocs is the optional eternal docs (for the entire spec)
 	ExternalDocs *ExternalDocs
+	// Comment is any comment(s) to appear in the OAS spec yaml
+	Comment string
 }
 
 func (i Info) writeYaml(w yaml.Writer) {
 	w.WriteTagStart(tagNameInfo).
+		WriteComments(i.Comment).
 		WriteTagValue(tagNameTitle, defValue(i.Title, defaultTitle)).
 		WriteTagValue(tagNameDescription, i.Description).
 		WriteTagValue(tagNameVersion, defValue(i.Version, "1.0.0")).
@@ -51,11 +54,14 @@ type Contact struct {
 	Email string
 	// Extensions is extension OAS yaml properties
 	Extensions Extensions
+	// Comment is any comment(s) to appear in the OAS spec yaml
+	Comment string
 }
 
 func (c *Contact) writeYaml(w yaml.Writer) {
 	if c.Name != "" || c.Url != "" || c.Email != "" {
 		w.WriteTagStart(tagNameContact).
+			WriteComments(c.Comment).
 			WriteTagValue(tagNameName, c.Name).
 			WriteTagValue(tagNameUrl, c.Url).
 			WriteTagValue(tagNameEmail, c.Email)
@@ -70,11 +76,14 @@ type License struct {
 	Url  string
 	// Extensions is extension OAS yaml properties
 	Extensions Extensions
+	// Comment is any comment(s) to appear in the OAS spec yaml
+	Comment string
 }
 
 func (l *License) writeYaml(w yaml.Writer) {
 	if l.Name != "" {
 		w.WriteTagStart(tagNameLicense).
+			WriteComments(l.Comment).
 			WriteTagValue(tagNameName, l.Name).
 			WriteTagValue(tagNameUrl, l.Url)
 		writeExtensions(l.Extensions, w)
@@ -88,11 +97,14 @@ type ExternalDocs struct {
 	Url         string
 	// Extensions is extension OAS yaml properties
 	Extensions Extensions
+	// Comment is any comment(s) to appear in the OAS spec yaml
+	Comment string
 }
 
 func (x *ExternalDocs) writeYaml(w yaml.Writer) {
 	if x.Url != "" {
 		w.WriteTagStart(tagNameExternalDocs).
+			WriteComments(x.Comment).
 			WriteTagValue(tagNameDescription, x.Description).
 			WriteTagValue(tagNameUrl, x.Url)
 		writeExtensions(x.Extensions, w)

@@ -263,12 +263,14 @@ func TestMethod_WriteYaml(t *testing.T) {
 			},
 		},
 		Additional: &testAdditional{},
+		Comment:    "test comment",
 	}
 	w := yaml.NewWriter(nil)
 	m.writeYaml(opts, nil, nil, nil, "foo", http.MethodPost, w)
 	data, err := w.Bytes()
 	require.NoError(t, err)
 	const expect = `post:
+  #test comment
   summary: "test summary"
   description: "test desc"
   operationId: "testOp"

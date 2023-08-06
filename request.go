@@ -55,12 +55,15 @@ type Request struct {
 	Extensions Extensions
 	// Additional is any additional OAS spec yaml to be written
 	Additional Additional
+	// Comment is any comment(s) to appear in the OAS spec yaml (not used with Ref)
+	Comment string
 }
 
 func (r *Request) writeYaml(w yaml.Writer) {
 	w.WriteTagStart(tagNameRequestBody)
 	if r.Ref == "" {
-		w.WriteTagValue(tagNameDescription, r.Description).
+		w.WriteComments(r.Comment).
+			WriteTagValue(tagNameDescription, r.Description).
 			WriteTagValue(tagNameRequired, r.Required)
 		writeContent(r.ContentType, r.Schema, r.SchemaRef, r.IsArray, w)
 		writeExtensions(r.Extensions, w)
