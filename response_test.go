@@ -22,6 +22,7 @@ func TestResponses_WriteYaml(t *testing.T) {
 		},
 		http.StatusOK: {
 			SchemaRef: "test_ok",
+			Comment:   "test comment",
 		},
 	}
 	rs.writeYaml(w)
@@ -29,6 +30,7 @@ func TestResponses_WriteYaml(t *testing.T) {
 	assert.NoError(t, err)
 	const expect = `responses:
   200:
+    #test comment
     description: "OK"
     content:
       application/json:
@@ -61,6 +63,7 @@ func TestResponses_WriteYaml_Refd(t *testing.T) {
 		http.StatusOK: {
 			Ref:       "bar",
 			SchemaRef: "test_ok",
+			Comment:   "won't see this",
 		},
 	}
 	rs.writeYaml(w)

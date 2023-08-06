@@ -13,6 +13,7 @@ func TestRequest_WriteYaml(t *testing.T) {
 		Required:    true,
 		SchemaRef:   "foo",
 		Additional:  &testAdditional{},
+		Comment:     "test comment",
 	}
 
 	r.writeYaml(w)
@@ -20,6 +21,7 @@ func TestRequest_WriteYaml(t *testing.T) {
 	data, err := w.Bytes()
 	assert.NoError(t, err)
 	const expect = `requestBody:
+  #test comment
   description: "desc"
   required: true
   content:
@@ -34,7 +36,8 @@ func TestRequest_WriteYaml(t *testing.T) {
 func TestRequest_WriteYaml_Refd(t *testing.T) {
 	w := yaml.NewWriter(nil)
 	r := &Request{
-		Ref: "foo",
+		Ref:     "foo",
+		Comment: "won't see this",
 	}
 
 	r.writeYaml(w)

@@ -104,6 +104,21 @@ func TestWriter_WriteLines(t *testing.T) {
 	assert.Equal(t, expect, string(data))
 }
 
+func TestWriter_WriteLines_Crlf(t *testing.T) {
+	w := newWriter(nil)
+	w.WriteTagStart("foo")
+	w.WriteLines("bar: 1\n\nbaz: true\n")
+	data, err := w.Bytes()
+	assert.NoError(t, err)
+	const expect = `foo:
+  bar: 1
+  
+  baz: true
+  
+`
+	assert.Equal(t, expect, string(data))
+}
+
 func TestWriter_Write(t *testing.T) {
 	w := newWriter(nil)
 	w.WriteTagStart("foo")
@@ -114,6 +129,50 @@ func TestWriter_Write(t *testing.T) {
 this
 then this
 and this
+`
+	assert.Equal(t, expect, string(data))
+}
+
+func TestWriter_WriteComments(t *testing.T) {
+	w := newWriter(nil)
+	w.WriteTagStart("foo")
+	w.WriteComments("first", "", "second", "")
+	data, err := w.Bytes()
+	assert.NoError(t, err)
+	const expect = `foo:
+  #first
+  #
+  #second
+  #
+`
+	assert.Equal(t, expect, string(data))
+}
+
+func TestWriter_WriteComments_Empty(t *testing.T) {
+	w := newWriter(nil)
+	w.WriteComments("")
+	data, err := w.Bytes()
+	assert.NoError(t, err)
+	assert.Equal(t, "", string(data))
+
+	w = newWriter(nil)
+	w.WriteComments("", "")
+	data, err = w.Bytes()
+	assert.NoError(t, err)
+	assert.Equal(t, "#\n#\n", string(data))
+}
+
+func TestWriter_WriteComments_Crlf(t *testing.T) {
+	w := newWriter(nil)
+	w.WriteTagStart("foo")
+	w.WriteComments("first\n\nsecond\n")
+	data, err := w.Bytes()
+	assert.NoError(t, err)
+	const expect = `foo:
+  #first
+  #
+  #second
+  #
 `
 	assert.Equal(t, expect, string(data))
 }

@@ -37,6 +37,8 @@ type Definition struct {
 	Extensions Extensions
 	// Additional is any additional OAS spec yaml to be written
 	Additional Additional
+	// Comment is any comment(s) to appear in the OAS spec yaml
+	Comment string
 }
 
 // SetupRoutes sets up the API routes on the supplied chi.Router
@@ -119,6 +121,7 @@ func (d *Definition) AsYaml() ([]byte, error) {
 }
 
 func (d *Definition) writeYaml(w yaml.Writer) error {
+	w.WriteComments(d.Comment)
 	w.WriteTagValue(tagNameOpenApi, OasVersion)
 	d.Info.writeYaml(w)
 	if d.Servers != nil {

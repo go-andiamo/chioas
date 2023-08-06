@@ -293,13 +293,16 @@ func TestDefinition_writeYaml(t *testing.T) {
 			SecuritySchemes: sec,
 		},
 		Security: sec,
+		Comment:  "this is a test comment\nand so is this",
 	}
 	w := yaml.NewWriter(nil)
 	err := d.writeYaml(w)
 	assert.NoError(t, err)
 	data, err := w.Bytes()
 	assert.NoError(t, err)
-	const expect = `openapi: "3.0.3"
+	const expect = `#this is a test comment
+#and so is this
+openapi: "3.0.3"
 info:
   title: "test title"
   description: "test desc"

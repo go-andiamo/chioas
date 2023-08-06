@@ -35,10 +35,13 @@ type Property struct {
 	Extensions Extensions
 	// Additional is any additional OAS spec yaml to be written
 	Additional Additional
+	// Comment is any comment(s) to appear in the OAS spec yaml
+	Comment string
 }
 
 func (p Property) writeYaml(w yaml.Writer) {
-	w.WriteTagStart("\"" + p.Name + "\"")
+	w.WriteTagStart("\"" + p.Name + "\"").
+		WriteComments(p.Comment)
 	if p.SchemaRef != "" {
 		writeSchemaRef(p.SchemaRef, p.Type == tagValueTypeArray, w)
 	} else if p.Type == tagValueTypeArray {

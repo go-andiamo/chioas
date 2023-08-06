@@ -48,9 +48,12 @@ type CommonParameter struct {
 	Extensions Extensions
 	// Additional is any additional OAS spec yaml to be written
 	Additional Additional
+	// Comment is any comment(s) to appear in the OAS spec yaml
+	Comment string
 }
 
 func (p CommonParameter) writeYaml(name string, w yaml.Writer) {
+	w.WriteComments(p.Comment)
 	w.WriteTagStart(name).
 		WriteTagValue(tagNameName, defValue(p.Name, name)).
 		WriteTagValue(tagNameDescription, p.Description).

@@ -28,10 +28,12 @@ type Components struct {
 	Extensions Extensions
 	// Additional is any additional OAS spec yaml to be written
 	Additional Additional
+	// Comment is any comment(s) to appear in the OAS spec yaml
+	Comment string
 }
 
 func (c *Components) writeYaml(w yaml.Writer) {
-	w.WriteTagStart(tagNameComponents)
+	w.WriteComments(c.Comment).WriteTagStart(tagNameComponents)
 	c.Schemas.writeYaml(w)
 	if c.Requests != nil {
 		c.Requests.writeYaml(w)

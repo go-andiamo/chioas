@@ -30,13 +30,15 @@ func TestComponents_WriteYaml(t *testing.T) {
 		Extensions: Extensions{
 			"foo": "bar",
 		},
+		Comment: "test comment",
 	}
 	w := yaml.NewWriter(nil)
 	c.writeYaml(w)
 
 	data, err := w.Bytes()
 	assert.NoError(t, err)
-	const expect = `components:
+	const expect = `#test comment
+components:
   schemas:
     "test":
       type: "object"

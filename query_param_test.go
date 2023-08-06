@@ -123,10 +123,22 @@ func TestQueryParam_WriteYaml(t *testing.T) {
 		},
 		{
 			queryParam: QueryParam{
-				Name: "won't see this",
-				Ref:  "foo",
+				Name:    "won't see this",
+				Ref:     "foo",
+				Comment: "won't see this",
 			},
 			expect: `- $ref: "#/components/parameters/foo"
+`,
+		},
+		{
+			queryParam: QueryParam{
+				Name:    "foo",
+				Comment: "test comment",
+			},
+			expect: `- name: "foo"
+  #test comment
+  in: "query"
+  required: false
 `,
 		},
 	}

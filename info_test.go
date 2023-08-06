@@ -125,6 +125,37 @@ externalDocs:
   foo: "bar"
 `,
 		},
+		{
+			info: Info{
+				Contact: &Contact{
+					Name:    "me",
+					Comment: "test comment",
+				},
+				License: &License{
+					Name:    "test",
+					Comment: "test comment",
+				},
+				Comment: "test comment",
+				ExternalDocs: &ExternalDocs{
+					Url:     "http://example.com",
+					Comment: "test comment",
+				},
+			},
+			expect: `info:
+  #test comment
+  title: "API Documentation"
+  version: "1.0.0"
+  contact:
+    #test comment
+    name: "me"
+  license:
+    #test comment
+    name: "test"
+externalDocs:
+  #test comment
+  url: "http://example.com"
+`,
+		},
 	}
 	for i, tc := range testCases {
 		t.Run(fmt.Sprintf("[%d]", i+1), func(t *testing.T) {
