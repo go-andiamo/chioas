@@ -62,6 +62,8 @@ components:
       name: "baz"
       in: "query"
       required: false
+      schema:
+        type: "string"
   x-foo: "bar"
   foo: "bar"
 `

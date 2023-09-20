@@ -348,6 +348,8 @@ paths:
           description: "id of sub"
           in: "path"
           required: true
+          schema:
+            type: "string"
       responses:
         200:
           description: "OK"
@@ -365,9 +367,13 @@ paths:
           description: "id of sub"
           in: "path"
           required: true
+          schema:
+            type: "string"
         - name: "subitemId"
           in: "path"
           required: true
+          schema:
+            type: "string"
       responses:
         200:
           description: "OK"
