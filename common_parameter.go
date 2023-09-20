@@ -60,15 +60,15 @@ func (p CommonParameter) writeYaml(name string, w yaml.Writer) {
 		WriteTagValue(tagNameIn, defValue(p.In, tagValueQuery)).
 		WriteTagValue(tagNameRequired, p.Required).
 		WriteTagValue(tagNameExample, p.Example)
+	w.WriteTagStart(tagNameSchema)
 	if p.Schema != nil {
-		w.WriteTagStart(tagNameSchema)
 		p.Schema.writeYaml(false, w)
-		w.WriteTagEnd()
 	} else if p.SchemaRef != "" {
-		w.WriteTagStart(tagNameSchema)
 		writeSchemaRef(p.SchemaRef, false, w)
-		w.WriteTagEnd()
+	} else {
+		w.WriteTagValue(tagNameType, "string")
 	}
+	w.WriteTagEnd()
 	writeExtensions(p.Extensions, w)
 	writeAdditional(p.Additional, p, w)
 	w.WriteTagEnd()

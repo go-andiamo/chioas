@@ -25,9 +25,13 @@ func TestQueryParams_WriteYaml(t *testing.T) {
 	const expect = `- name: "foo"
   in: "query"
   required: false
+  schema:
+    type: "string"
 - name: "bar"
   in: "query"
   required: true
+  schema:
+    type: "string"
 `
 	assert.Equal(t, expect, string(data))
 }
@@ -44,6 +48,8 @@ func TestQueryParam_WriteYaml(t *testing.T) {
 			expect: `- name: "foo"
   in: "query"
   required: false
+  schema:
+    type: "string"
 `,
 		},
 		{
@@ -55,6 +61,8 @@ func TestQueryParam_WriteYaml(t *testing.T) {
   description: "foo param"
   in: "query"
   required: false
+  schema:
+    type: "string"
 `,
 		},
 		{
@@ -67,6 +75,8 @@ func TestQueryParam_WriteYaml(t *testing.T) {
   description: "foo param"
   in: "query"
   required: true
+  schema:
+    type: "string"
 `,
 		},
 		{
@@ -81,6 +91,8 @@ func TestQueryParam_WriteYaml(t *testing.T) {
   in: "query"
   required: true
   example: "foo example"
+  schema:
+    type: "string"
 `,
 		},
 		{
@@ -118,6 +130,8 @@ func TestQueryParam_WriteYaml(t *testing.T) {
 			expect: `- name: "foo"
   in: "query"
   required: false
+  schema:
+    type: "string"
   foo: "bar"
 `,
 		},
@@ -139,6 +153,8 @@ func TestQueryParam_WriteYaml(t *testing.T) {
   #test comment
   in: "query"
   required: false
+  schema:
+    type: "string"
 `,
 		},
 	}

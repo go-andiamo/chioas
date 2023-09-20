@@ -24,6 +24,8 @@ func TestCommonParameters_WriteYaml(t *testing.T) {
     name: "foo"
     in: "query"
     required: true
+    schema:
+      type: "string"
 `
 	assert.Equal(t, expect, string(data))
 }
@@ -40,6 +42,8 @@ func TestCommonParameter_WriteYaml(t *testing.T) {
 			expect: `name: "foo"
   in: "query"
   required: false
+  schema:
+    type: "string"
 `,
 		},
 		{
@@ -51,6 +55,8 @@ func TestCommonParameter_WriteYaml(t *testing.T) {
   description: "foo param"
   in: "query"
   required: false
+  schema:
+    type: "string"
 `,
 		},
 		{
@@ -63,6 +69,8 @@ func TestCommonParameter_WriteYaml(t *testing.T) {
   description: "foo param"
   in: "query"
   required: true
+  schema:
+    type: "string"
 `,
 		},
 		{
@@ -77,6 +85,8 @@ func TestCommonParameter_WriteYaml(t *testing.T) {
   in: "query"
   required: true
   example: "foo example"
+  schema:
+    type: "string"
 `,
 		},
 		{
@@ -114,6 +124,8 @@ func TestCommonParameter_WriteYaml(t *testing.T) {
 			expect: `name: "foo"
   in: "query"
   required: false
+  schema:
+    type: "string"
   foo: "bar"
 `,
 		},
@@ -143,6 +155,8 @@ Test:
   name: "foo"
   in: "query"
   required: false
+  schema:
+    type: "string"
 `
 	assert.Equal(t, expect, string(data))
 }

@@ -94,8 +94,8 @@ func TestDocOptions(t *testing.T) {
 		<style>body {
 `
 	assert.True(t, strings.HasPrefix(string(body), expectHtmlStarts))
-	assert.True(t, strings.Contains(string(body), `openApi: "myspec.yaml",`))
-	assert.True(t, strings.Contains(string(body), `redocOptions: {"scrollYOffset":0,"showObjectSchemaExamples":true,"theme":{"rightPanel":{"width":"60%"},"sidebar":{"width":"220px"}}}`))
+	assert.Contains(t, string(body), `openApi: "myspec.yaml",`)
+	assert.Contains(t, string(body), `redocOptions: {"scrollYOffset":0,"showObjectSchemaExamples":true,"theme":{"rightPanel":{"width":"60%"},"sidebar":{"width":"220px"}}}`)
 
 	req, _ = http.NewRequest(http.MethodGet, "/apidocs/myspec.yaml", nil)
 	res = httptest.NewRecorder()

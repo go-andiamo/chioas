@@ -26,7 +26,7 @@ type QueryParam struct {
 	// Only used if value is a non-empty string - if both Schema is nil and SchemaRef is empty string, then an
 	// empty object schema is written to the spec yaml, e.g.
 	//   schema:
-	//     type: "object"
+	//     type: "string"
 	//
 	// If the value does not contain a path (i.e. does not contain any "/") then the ref
 	// path will be the value prefixed with components schemas path.  For example, specifying "foo"
@@ -60,15 +60,15 @@ func (p QueryParam) writeYaml(w yaml.Writer) {
 			WriteTagValue(tagNameIn, defValue(p.In, tagValueQuery)).
 			WriteTagValue(tagNameRequired, p.Required).
 			WriteTagValue(tagNameExample, p.Example)
+		w.WriteTagStart(tagNameSchema)
 		if p.Schema != nil {
-			w.WriteTagStart(tagNameSchema)
 			p.Schema.writeYaml(false, w)
-			w.WriteTagEnd()
 		} else if p.SchemaRef != "" {
-			w.WriteTagStart(tagNameSchema)
 			writeSchemaRef(p.SchemaRef, false, w)
-			w.WriteTagEnd()
+		} else {
+			w.WriteTagValue(tagNameType, "string")
 		}
+		w.WriteTagEnd()
 		writeExtensions(p.Extensions, w)
 		writeAdditional(p.Additional, p, w)
 		w.WriteTagEnd()
