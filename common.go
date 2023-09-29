@@ -5,7 +5,7 @@ var OasVersion = "3.0.3"
 const (
 	root = "/"
 
-	tagNameApplicationJson = "application/json"
+	tagNameApplicationJson = contentTypeJson
 	tagNameComponents      = "components"
 	tagNameContact         = "contact"
 	tagNameContent         = "content"

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"github.com/go-chi/chi/v5"
+	"gopkg.in/yaml.v3"
 	"html/template"
 	"net/http"
 )
@@ -17,6 +18,8 @@ type DocOptions struct {
 	Context string
 	// NoCache if set to true, docs page and spec aren't cached (and built on each call)
 	NoCache bool
+	// AsJson if set to true, serves the spec as JSON
+	AsJson bool
 	// Path the path on which to serve api docs page and spec (defaults to "/docs")
 	Path string
 	// DocIndexPage the name of the docs index page (defaults to "index.html")
@@ -57,12 +60,13 @@ type DocOptions struct {
 type OperationIdentifier func(method Method, methodName string, path string, parentTag string) string
 
 const (
-	defaultDocsPath   = "/docs"
-	defaultIndexName  = "index.html"
-	defaultSpecName   = "spec.yaml"
-	defaultTitle      = "API Documentation"
-	defaultRedocJsUrl = "https://cdn.jsdelivr.net/npm/redoc@2.0.0-rc.77/bundles/redoc.standalone.min.js"
-	defaultTryJsUrl   = "https://cdn.jsdelivr.net/gh/wll8/redoc-try@1.4.7/dist/try.js"
+	defaultDocsPath     = "/docs"
+	defaultIndexName    = "index.html"
+	defaultSpecName     = "spec.yaml"
+	defaultSpecNameJson = "spec.json"
+	defaultTitle        = "API Documentation"
+	defaultRedocJsUrl   = "https://cdn.jsdelivr.net/npm/redoc@2.0.0-rc.77/bundles/redoc.standalone.min.js"
+	defaultTryJsUrl     = "https://cdn.jsdelivr.net/gh/wll8/redoc-try@1.4.7/dist/try.js"
 )
 
 func (d *DocOptions) setupRoutes(def *Definition, route chi.Router) error {
@@ -74,7 +78,12 @@ func (d *DocOptions) setupRoutes(def *Definition, route chi.Router) error {
 		}
 		path := defValue(d.Path, defaultDocsPath)
 		indexPage := defValue(d.DocIndexPage, defaultIndexName)
-		specName := defValue(d.SpecName, defaultSpecName)
+		specName := ""
+		if d.AsJson {
+			specName = defValue(d.SpecName, defaultSpecNameJson)
+		} else {
+			specName = defValue(d.SpecName, defaultSpecName)
+		}
 		data := map[string]any{
 			htmlTagTitle:          defValue(d.Title, defaultTitle),
 			htmlTagStylesOverride: template.CSS(defValue(d.StylesOverride, defaultStylesOverride)),
@@ -88,26 +97,49 @@ func (d *DocOptions) setupRoutes(def *Definition, route chi.Router) error {
 		docsRoute.Get(root, http.RedirectHandler(redirectPath, http.StatusMovedPermanently).ServeHTTP)
 		if d.NoCache {
 			docsRoute.Get(root+indexPage, func(writer http.ResponseWriter, request *http.Request) {
+				writer.Header().Set(hdrContentType, contentTypeHtml)
 				_ = tmp.Execute(writer, data)
 			})
-			docsRoute.Get(root+specName, func(writer http.ResponseWriter, request *http.Request) {
-				_ = def.WriteYaml(writer)
-			})
+			if d.AsJson {
+				docsRoute.Get(root+specName, func(writer http.ResponseWriter, request *http.Request) {
+					writer.Header().Set(hdrContentType, contentTypeJson)
+					_ = def.WriteJson(writer)
+				})
+			} else {
+				docsRoute.Get(root+specName, func(writer http.ResponseWriter, request *http.Request) {
+					writer.Header().Set(hdrContentType, contentTypeYaml)
+					_ = def.WriteYaml(writer)
+				})
+			}
 		} else {
 			indexData, err := d.buildIndexData(tmp, data)
 			if err != nil {
 				return err
 			}
-			specData, err := d.buildSpecData(def)
-			if err != nil {
-				return err
-			}
 			docsRoute.Get(root+indexPage, func(writer http.ResponseWriter, request *http.Request) {
+				writer.Header().Set(hdrContentType, contentTypeHtml)
 				_, _ = writer.Write(indexData)
 			})
-			docsRoute.Get(root+specName, func(writer http.ResponseWriter, request *http.Request) {
-				_, _ = writer.Write(specData)
-			})
+			if d.AsJson {
+				specData, err := def.AsJson()
+				if err != nil {
+					return err
+				}
+				docsRoute.Get(root+specName, func(writer http.ResponseWriter, request *http.Request) {
+					writer.Header().Set(hdrContentType, contentTypeJson)
+					_, _ = writer.Write(specData)
+				})
+
+			} else {
+				specData, err := def.AsYaml()
+				if err != nil {
+					return err
+				}
+				docsRoute.Get(root+specName, func(writer http.ResponseWriter, request *http.Request) {
+					writer.Header().Set(hdrContentType, contentTypeYaml)
+					_, _ = writer.Write(specData)
+				})
+			}
 		}
 		route.Mount(path, docsRoute)
 	}
@@ -142,11 +174,11 @@ func (d *DocOptions) buildIndexData(tmp *template.Template, inData map[string]an
 	return
 }
 
-func (d *DocOptions) buildSpecData(def *Definition) (data []byte, err error) {
-	return def.AsYaml()
-}
-
 const (
+	contentTypeHtml       = "text/html"
+	contentTypeJson       = "application/json"
+	contentTypeYaml       = "application/yaml"
+	hdrContentType        = "Content-Type"
 	htmlTagTitle          = "title"
 	htmlTagStylesOverride = "stylesOverride"
 	htmlTagSpecName       = "specName"
@@ -212,4 +244,44 @@ func defValue(v, def string) string {
 		return v
 	}
 	return def
+}
+
+func yaml2Json(yamlData []byte) (data []byte, err error) {
+	r := &node{}
+	if err = yaml.Unmarshal(yamlData, r); err == nil {
+		data, err = json.Marshal(r.Value)
+	}
+	return
+}
+
+type node struct {
+	Key   string
+	Value any
+}
+
+func (n *node) UnmarshalYAML(value *yaml.Node) (err error) {
+	n.Key = value.Tag
+	switch value.Kind {
+	case yaml.ScalarNode:
+		n.Value = value.Value
+	case yaml.MappingNode:
+		childMap := make(map[string]any)
+		for i := 0; i < len(value.Content) && err == nil; i += 2 {
+			keyNode := value.Content[i]
+			valNode := value.Content[i+1]
+			child := &node{}
+			err = child.UnmarshalYAML(valNode)
+			childMap[keyNode.Value] = child.Value
+		}
+		n.Value = childMap
+	case yaml.SequenceNode:
+		childSlice := make([]any, len(value.Content))
+		for i, childNode := range value.Content {
+			child := &node{}
+			err = child.UnmarshalYAML(childNode)
+			childSlice[i] = child.Value
+		}
+		n.Value = childSlice
+	}
+	return
 }

@@ -181,7 +181,7 @@ func (m Method) writeYaml(opts *DocOptions, template urit.Template, pathVars []u
 	if m.OptionalSecurity || len(m.Security) > 0 {
 		w.WriteTagStart(tagNameSecurity)
 		if m.OptionalSecurity {
-			w.WriteLines("- {}")
+			w.WriteItem(yaml.LiteralValue{Value: "{}"})
 		}
 		m.Security.writeYaml(w, true)
 		w.WriteTagEnd()

@@ -1,8 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"github.com/go-andiamo/chioas"
 	"github.com/go-chi/chi/v5"
+	"reflect"
+	"runtime"
+	"strings"
 )
 
 var apiDef = chioas.Definition{
@@ -23,17 +27,14 @@ var apiDef = chioas.Definition{
 	},
 	Info: chioas.Info{
 		Title: "Swagger Petstore - OpenAPI 3.0",
-		Description: `This is a sample Pet Store Server based on the OpenAPI 3.0 specification. 
-You can find out more about
+		Description: `This is a sample Pet Store Server based on the OpenAPI 3.0 specification.
 
-Swagger at [http://swagger.io](http://swagger.io). In the third iteration of
-the pet store, we've switched to the design first approach!
 
-You can now help us improve the API whether it's by making changes to the
-definition itself or to the code.
+You can find out more about Swagger at [http://swagger.io](http://swagger.io). In the third iteration of the pet store, we've switched to the design first approach!
 
-That way, with time, we can improve the API in general, and expose some of
-the new features in OAS3.
+
+You can now help us improve the API whether it's by making changes to the definition itself or to the code.
+That way, with time, we can improve the API in general, and expose some of the new features in OAS3.
 
 
 Some useful links:
@@ -133,6 +134,22 @@ type api struct {
 
 var petStoreApi = &api{
 	Definition: apiDef,
+}
+
+func commenter(handlerMethod string, comments ...string) []string {
+	if handlerMethod != "" {
+		if mbn, ok := reflect.TypeOf(&api{}).MethodByName(handlerMethod); ok {
+			fn := mbn.Func.Pointer()
+			fi := runtime.FuncForPC(fn)
+			ff, fl := fi.FileLine(fi.Entry())
+			n := ""
+			if pts := strings.Split(ff, "/"); len(pts) > 0 {
+				n = pts[len(pts)-1]
+			}
+			comments = append(comments, fmt.Sprintf("handler: %s()  %s:%d", handlerMethod, n, fl))
+		}
+	}
+	return comments
 }
 
 func (a *api) SetupRoutes(r chi.Router) error {

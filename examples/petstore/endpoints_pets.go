@@ -10,6 +10,7 @@ var petsPaths = chioas.Path{
 	Tag: "pet",
 	Methods: map[string]chioas.Method{
 		http.MethodGet: {
+			Comment:     chioas.SourceComment(commenter("GetPets")...),
 			Handler:     "GetPets",
 			Summary:     "List/query pets",
 			Description: "List/query pets",
@@ -30,6 +31,7 @@ var petsPaths = chioas.Path{
 			},
 		},
 		http.MethodPost: {
+			Comment:     chioas.SourceComment(commenter("PostPets")...),
 			Handler:     "PostPets",
 			Summary:     "Add pet",
 			Description: "Add pet",
@@ -56,6 +58,7 @@ var petsPaths = chioas.Path{
 			},
 			Methods: chioas.Methods{
 				http.MethodGet: {
+					Comment:     chioas.SourceComment(commenter("GetPet")...),
 					Handler:     "GetPet",
 					Summary:     "Get an existing pet",
 					Description: "Get an existing pet by Id",
@@ -68,6 +71,7 @@ var petsPaths = chioas.Path{
 					},
 				},
 				http.MethodPut: {
+					Comment:     chioas.SourceComment(commenter("UpdatePet")...),
 					Handler:     "UpdatePet",
 					Summary:     "Update an existing pet",
 					Description: "Update an existing pet by Id",

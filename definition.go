@@ -114,10 +114,31 @@ func (d *Definition) WriteYaml(w io.Writer) error {
 	return err
 }
 
+func (d *Definition) WriteJson(writer io.Writer) (err error) {
+	w := yaml.NewWriter(nil)
+	_ = d.writeYaml(w)
+	var data []byte
+	if data, err = w.Bytes(); err == nil {
+		if data, err = yaml2Json(data); err == nil {
+			_, err = writer.Write(data)
+		}
+	}
+	return
+}
+
 func (d *Definition) AsYaml() ([]byte, error) {
 	w := yaml.NewWriter(nil)
 	_ = d.writeYaml(w)
 	return w.Bytes()
+}
+
+func (d *Definition) AsJson() (data []byte, err error) {
+	w := yaml.NewWriter(nil)
+	_ = d.writeYaml(w)
+	if data, err = w.Bytes(); err == nil {
+		data, err = yaml2Json(data)
+	}
+	return
 }
 
 func (d *Definition) writeYaml(w yaml.Writer) error {

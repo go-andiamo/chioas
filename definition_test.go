@@ -196,78 +196,77 @@ func (d *dummyApi) GetSubSubs(writer http.ResponseWriter, request *http.Request)
 	d.calls[request.URL.Path] = d.calls[request.URL.Path] + 1
 }
 
-func TestDefinition_writeYaml(t *testing.T) {
-	sec := SecuritySchemes{
+var testSec = SecuritySchemes{
+	{
+		Name:        "ApiKey",
+		Description: "foo",
+		Type:        "apiKey",
+		In:          "header",
+		ParamName:   "X-API-KEY",
+	},
+	{
+		Name:   "MyOauth",
+		Type:   "oauth2",
+		Scopes: []string{"write:foo", "read:foo"},
+	},
+}
+
+var testDef = Definition{
+	DocOptions: DocOptions{
+		Context: "svc",
+	},
+	Servers: Servers{
+		"/api/v1": {
+			Description: "original",
+		},
+	},
+	Info: Info{
+		Title:       "test title",
+		Description: "test desc",
+		Version:     "1.0.1",
+	},
+	Tags: Tags{
 		{
-			Name:        "ApiKey",
-			Description: "foo",
-			Type:        "apiKey",
-			In:          "header",
-			ParamName:   "X-API-KEY",
+			Name:        "Foo",
+			Description: "foo tag",
 		},
 		{
-			Name:   "MyOauth",
-			Type:   "oauth2",
-			Scopes: []string{"write:foo", "read:foo"},
+			Name:        "Subs",
+			Description: "subs tag",
 		},
-	}
-	d := Definition{
-		DocOptions: DocOptions{
-			Context: "svc",
+	},
+	Methods: Methods{
+		http.MethodGet: {
+			Description: "Root discovery",
 		},
-		Servers: Servers{
-			"/api/v1": {
-				Description: "original",
-			},
-		},
-		Info: Info{
-			Title:       "test title",
-			Description: "test desc",
-			Version:     "1.0.1",
-		},
-		Tags: Tags{
-			{
-				Name:        "Foo",
-				Description: "foo tag",
-			},
-			{
-				Name:        "Subs",
-				Description: "subs tag",
-			},
-		},
-		Methods: Methods{
-			http.MethodGet: {
-				Description: "Root discovery",
-			},
-		},
-		Paths: Paths{
-			"/subs": {
-				Tag: "Subs",
-				Methods: Methods{
-					http.MethodGet: {
-						Description: "get subs desc",
-					},
+	},
+	Paths: Paths{
+		"/subs": {
+			Tag: "Subs",
+			Methods: Methods{
+				http.MethodGet: {
+					Description: "get subs desc",
 				},
-				Paths: Paths{
-					"/{subId: [a-z]*}": {
-						PathParams: PathParams{
-							"subId": {
-								Description: "id of sub",
-							},
+			},
+			Paths: Paths{
+				"/{subId: [a-z]*}": {
+					PathParams: PathParams{
+						"subId": {
+							Description: "id of sub",
 						},
-						Methods: Methods{
-							http.MethodGet: {
-								Description: "get specific sub",
-							},
+					},
+					Methods: Methods{
+						http.MethodGet: {
+							Description: "get specific sub",
 						},
-						Paths: Paths{
-							"/subitems": {
-								Paths: Paths{
-									"/{subitemId}": {
-										Methods: Methods{
-											http.MethodGet: {
-												Description: "get specific sub-item of sub",
-											},
+					},
+					Paths: Paths{
+						"/subitems": {
+							Paths: Paths{
+								"/{subitemId}": {
+									Methods: Methods{
+										http.MethodGet: {
+											Description: "get specific sub-item of sub",
 										},
 									},
 								},
@@ -277,30 +276,27 @@ func TestDefinition_writeYaml(t *testing.T) {
 				},
 			},
 		},
-		Components: &Components{
-			Schemas: Schemas{
-				{
-					Name:               "fooReq",
-					Description:        "foo desc",
-					RequiredProperties: []string{"foo"},
-					Properties: []Property{
-						{
-							Name: "foo",
-						},
+	},
+	Components: &Components{
+		Schemas: Schemas{
+			{
+				Name:               "fooReq",
+				Description:        "foo desc",
+				RequiredProperties: []string{"foo"},
+				Properties: []Property{
+					{
+						Name: "foo",
 					},
 				},
 			},
-			SecuritySchemes: sec,
 		},
-		Security: sec,
-		Comment:  "this is a test comment\nand so is this",
-	}
-	w := yaml.NewWriter(nil)
-	err := d.writeYaml(w)
-	assert.NoError(t, err)
-	data, err := w.Bytes()
-	assert.NoError(t, err)
-	const expect = `#this is a test comment
+		SecuritySchemes: testSec,
+	},
+	Security: testSec,
+	Comment:  "this is a test comment\nand so is this",
+}
+
+const expectYaml = `#this is a test comment
 #and so is this
 openapi: "3.0.3"
 info:
@@ -405,20 +401,59 @@ security:
     - "write:foo"
     - "read:foo"
 `
-	assert.Equal(t, expect, string(data))
 
-	data, err = d.AsYaml()
+func TestDefinition_writeYaml(t *testing.T) {
+	w := yaml.NewWriter(nil)
+	err := testDef.writeYaml(w)
 	assert.NoError(t, err)
-	assert.Equal(t, expect, string(data))
+	data, err := w.Bytes()
+	assert.NoError(t, err)
+	assert.Equal(t, expectYaml, string(data))
 
 	var buff bytes.Buffer
 	bw := bufio.NewWriter(&buff)
-	err = d.WriteYaml(bw)
+	err = testDef.WriteYaml(bw)
 	assert.NoError(t, err)
 	err = bw.Flush()
 	assert.NoError(t, err)
 	data = buff.Bytes()
-	assert.Equal(t, expect, string(data))
+	assert.Equal(t, expectYaml, string(data))
+}
+
+func TestDefinition_WriteYaml(t *testing.T) {
+	var buff bytes.Buffer
+	bw := bufio.NewWriter(&buff)
+	err := testDef.WriteYaml(bw)
+	assert.NoError(t, err)
+	err = bw.Flush()
+	assert.NoError(t, err)
+	data := buff.Bytes()
+	assert.Equal(t, expectYaml, string(data))
+}
+
+func TestDefinition_AsYaml(t *testing.T) {
+	data, err := testDef.AsYaml()
+	assert.NoError(t, err)
+	assert.Equal(t, expectYaml, string(data))
+}
+
+const expectJson = `{"components":{"schemas":{"fooReq":{"description":"foo desc","properties":{"foo":{"type":"string"}},"required":["foo"],"type":"object"}},"securitySchemes":{"ApiKey":{"description":"foo","in":"header","name":"X-API-KEY","type":"apiKey"},"MyOauth":{"type":"oauth2"}}},"info":{"description":"test desc","title":"test title","version":"1.0.1"},"openapi":"3.0.3","paths":{"/svc/":{"get":{"description":"Root discovery","responses":{"200":{"content":{"application/json":{"schema":{"type":"object"}}},"description":"OK"}}}},"/svc/subs":{"get":{"description":"get subs desc","responses":{"200":{"content":{"application/json":{"schema":{"type":"object"}}},"description":"OK"}},"tags":["Subs"]}},"/svc/subs/{subId}":{"get":{"description":"get specific sub","parameters":[{"description":"id of sub","in":"path","name":"subId","required":"true","schema":{"type":"string"}}],"responses":{"200":{"content":{"application/json":{"schema":{"type":"object"}}},"description":"OK"}},"tags":["Subs"]}},"/svc/subs/{subId}/subitems/{subitemId}":{"get":{"description":"get specific sub-item of sub","parameters":[{"description":"id of sub","in":"path","name":"subId","required":"true","schema":{"type":"string"}},{"in":"path","name":"subitemId","required":"true","schema":{"type":"string"}}],"responses":{"200":{"content":{"application/json":{"schema":{"type":"object"}}},"description":"OK"}},"tags":["Subs"]}}},"security":[{"ApiKey":[]},{"MyOauth":["write:foo","read:foo"]}],"servers":[{"description":"original","url":"/api/v1"}],"tags":[{"description":"foo tag","name":"Foo"},{"description":"subs tag","name":"Subs"}]}`
+
+func TestDefinition_AsJson(t *testing.T) {
+	data, err := testDef.AsJson()
+	assert.NoError(t, err)
+	assert.Equal(t, expectJson, string(data))
+}
+
+func TestDefinition_WriteJson(t *testing.T) {
+	var buff bytes.Buffer
+	bw := bufio.NewWriter(&buff)
+	err := testDef.WriteJson(bw)
+	assert.NoError(t, err)
+	err = bw.Flush()
+	assert.NoError(t, err)
+	data := buff.Bytes()
+	assert.Equal(t, expectJson, string(data))
 }
 
 type testAdditional struct {
