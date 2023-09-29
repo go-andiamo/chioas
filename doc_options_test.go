@@ -32,8 +32,12 @@ type apiSpec struct {
 	Definition
 }
 
-var spec = &apiSpec{
-	Definition: apiDef,
+var specYaml = &apiSpec{
+	Definition: apiDefYaml,
+}
+
+var specJson = &apiSpec{
+	Definition: apiDefJson,
 }
 
 func (a *apiSpec) SetupRoutes(r chi.Router) {
@@ -43,7 +47,17 @@ func (a *apiSpec) SetupRoutes(r chi.Router) {
 	}
 }
 
-var apiDef = Definition{
+var defPaths = Paths{
+	"/foo": {
+		Methods: Methods{
+			http.MethodGet: {
+				Handler: func(writer http.ResponseWriter, request *http.Request) {},
+			},
+		},
+	},
+}
+
+var apiDefYaml = Definition{
 	DocOptions: DocOptions{
 		ServeDocs:   true,
 		Title:       "My API Docs",
@@ -63,20 +77,36 @@ var apiDef = Definition{
 			},
 		},
 	},
-	Paths: Paths{
-		"/foo": {
-			Methods: Methods{
-				http.MethodGet: {
-					Handler: func(writer http.ResponseWriter, request *http.Request) {},
+	Paths: defPaths,
+}
+
+var apiDefJson = Definition{
+	DocOptions: DocOptions{
+		ServeDocs:   true,
+		Title:       "My API Docs",
+		DocTemplate: testHtml,
+		AsJson:      true,
+		SpecName:    "myspec.json",
+		Path:        "/apidocs",
+		RedocOptions: map[string]any{
+			"scrollYOffset":            0,
+			"showObjectSchemaExamples": true,
+			"theme": map[string]any{
+				"sidebar": map[string]any{
+					"width": "220px",
+				},
+				"rightPanel": map[string]any{
+					"width": "60%",
 				},
 			},
 		},
 	},
+	Paths: defPaths,
 }
 
 func TestDocOptions(t *testing.T) {
 	router := chi.NewRouter()
-	spec.SetupRoutes(router)
+	specYaml.SetupRoutes(router)
 
 	req, _ := http.NewRequest(http.MethodGet, "/apidocs", nil)
 	res := httptest.NewRecorder()
@@ -121,6 +151,38 @@ paths:
 	assert.Equal(t, expectYaml, string(body))
 }
 
+func TestDocOptions_Json(t *testing.T) {
+	router := chi.NewRouter()
+	specJson.SetupRoutes(router)
+
+	req, _ := http.NewRequest(http.MethodGet, "/apidocs", nil)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusMovedPermanently, res.Code)
+
+	req, _ = http.NewRequest(http.MethodGet, "/apidocs/index.html", nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusOK, res.Code)
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	const expectHtmlStarts = `<html><head>
+        <title>My API Docs</title>
+		<style>body {
+`
+	assert.True(t, strings.HasPrefix(string(body), expectHtmlStarts))
+	assert.Contains(t, string(body), `openApi: "myspec.json",`)
+	assert.Contains(t, string(body), `redocOptions: {"scrollYOffset":0,"showObjectSchemaExamples":true,"theme":{"rightPanel":{"width":"60%"},"sidebar":{"width":"220px"}}}`)
+
+	req, _ = http.NewRequest(http.MethodGet, "/apidocs/myspec.json", nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusOK, res.Code)
+	body, err = io.ReadAll(res.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(body), `"paths":{"/foo":{"get":{`)
+}
+
 func TestDocOptions_NoCache(t *testing.T) {
 	d := &DocOptions{
 		ServeDocs:    true,
@@ -128,7 +190,7 @@ func TestDocOptions_NoCache(t *testing.T) {
 		DocIndexPage: "docs.htm",
 	}
 	router := chi.NewRouter()
-	err := d.setupRoutes(&apiDef, router)
+	err := d.setupRoutes(&apiDefYaml, router)
 	require.NoError(t, err)
 
 	req, _ := http.NewRequest(http.MethodGet, defaultDocsPath, nil)
@@ -170,6 +232,41 @@ paths:
 	assert.Equal(t, expectYaml, string(body))
 }
 
+func TestDocOptions_NoCache_Json(t *testing.T) {
+	d := &DocOptions{
+		ServeDocs:    true,
+		NoCache:      true,
+		AsJson:       true,
+		DocIndexPage: "docs.htm",
+	}
+	router := chi.NewRouter()
+	err := d.setupRoutes(&apiDefJson, router)
+	require.NoError(t, err)
+
+	req, _ := http.NewRequest(http.MethodGet, defaultDocsPath, nil)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusMovedPermanently, res.Code)
+
+	req, _ = http.NewRequest(http.MethodGet, defaultDocsPath+"/docs.htm", nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusOK, res.Code)
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	const expectHtmlStarts = `<html>`
+	assert.True(t, strings.HasPrefix(string(body), expectHtmlStarts))
+	assert.True(t, strings.Contains(string(body), `openApi: "spec.json",`))
+
+	req, _ = http.NewRequest(http.MethodGet, defaultDocsPath+"/"+defaultSpecNameJson, nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusOK, res.Code)
+	body, err = io.ReadAll(res.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(body), `"paths":{"/foo":{"get":{`)
+}
+
 func TestDocOptions_ErrorsWithBadTemplate(t *testing.T) {
 	d := DocOptions{
 		ServeDocs:   true,
@@ -194,6 +291,19 @@ func TestDocOptions_ErrorsWithCache_BadTemplate(t *testing.T) {
 func TestDocOptions_ErrorsWithCache_BadYaml(t *testing.T) {
 	d := DocOptions{
 		ServeDocs: true,
+	}
+	def := &Definition{
+		Additional: &errorAdditional{},
+	}
+	router := chi.NewRouter()
+	err := d.setupRoutes(def, router)
+	assert.Error(t, err)
+}
+
+func TestDocOptions_ErrorsWithCache_BadJson(t *testing.T) {
+	d := DocOptions{
+		ServeDocs: true,
+		AsJson:    true,
 	}
 	def := &Definition{
 		Additional: &errorAdditional{},
