@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	goyaml "gopkg.in/yaml.v3"
 	"reflect"
 	"strings"
 )
@@ -131,6 +132,25 @@ func (y *writer) yamlValue(value any, allowEmpty bool) []string {
 		if !vo.IsZero() {
 			result = y.yamlValue(vo.Elem().Interface(), allowEmpty)
 		}
+	default:
+		if value != nil {
+			result = append(result, y.marshalYaml(value)...)
+		}
+	}
+	return result
+}
+
+func (y *writer) marshalYaml(v any) []string {
+	result := []string{""}
+	var buffer bytes.Buffer
+	enc := goyaml.NewEncoder(&buffer)
+	enc.SetIndent(2)
+	if y.err = enc.Encode(v); y.err == nil {
+		lines := strings.Split(buffer.String(), "\n")
+		if len(lines) > 0 && lines[len(lines)-1] == "" {
+			lines = lines[:len(lines)-1]
+		}
+		result = append(result, lines...)
 	}
 	return result
 }
@@ -149,7 +169,7 @@ func (y *writer) WriteTagValue(name string, value any) Writer {
 	if y.err == nil && value != nil {
 		wv := y.yamlValue(value, false)
 		if len(wv) > 0 && y.writeIndent() {
-			_, y.err = y.w.WriteString(name + ": " + wv[0] + "\n")
+			_, y.err = y.w.WriteString(name + ":" + padFirst(wv[0]) + "\n")
 			for i := 1; i < len(wv); i++ {
 				_, y.err = y.w.WriteString(string(y.indent) + "  " + wv[i] + "\n")
 			}
@@ -189,7 +209,7 @@ func (y *writer) WriteItem(value any) Writer {
 	if y.err == nil && value != nil {
 		wv := y.yamlValue(value, false)
 		if len(wv) > 0 && y.writeIndent() {
-			_, y.err = y.w.WriteString("- " + wv[0] + "\n")
+			_, y.err = y.w.WriteString("-" + padFirst(wv[0]) + "\n")
 			for i := 1; i < len(wv); i++ {
 				_, y.err = y.w.WriteString(string(y.indent) + "  " + wv[i] + "\n")
 			}
@@ -207,7 +227,7 @@ func (y *writer) WriteItemValue(name string, value any) Writer {
 		} else {
 			wv := y.yamlValue(value, true)
 			if len(wv) > 0 && y.writeIndent() {
-				_, y.err = y.w.WriteString("- " + name + ": " + wv[0] + "\n")
+				_, y.err = y.w.WriteString("- " + name + ":" + padFirst(wv[0]) + "\n")
 				for i := 1; i < len(wv); i++ {
 					_, y.err = y.w.WriteString(string(y.indent) + "  " + wv[i] + "\n")
 				}
@@ -222,7 +242,7 @@ func (y *writer) WriteItemStart(name string, value any) Writer {
 		if y.writeIndent() {
 			wv := y.yamlValue(value, true)
 			if len(wv) > 0 {
-				_, y.err = y.w.WriteString(`- ` + name + `: ` + wv[0] + "\n")
+				_, y.err = y.w.WriteString("- " + name + ":" + padFirst(wv[0]) + "\n")
 				for i := 1; i < len(wv); i++ {
 					_, y.err = y.w.WriteString(string(y.indent) + "  " + wv[i] + "\n")
 				}
@@ -233,6 +253,13 @@ func (y *writer) WriteItemStart(name string, value any) Writer {
 		}
 	}
 	return y
+}
+
+func padFirst(first string) string {
+	if first != "" {
+		return " " + first
+	}
+	return ""
 }
 
 func (y *writer) WriteLines(lines ...string) Writer {

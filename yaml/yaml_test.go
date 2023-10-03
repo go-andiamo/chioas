@@ -348,6 +348,28 @@ ccc
 			},
 			expect: []string{`[]`},
 		},
+		{
+			value: map[string]any{
+				"foo": map[string]any{
+					"bar": map[string]any{
+						"baz": map[string]any{
+							"buzz": 1,
+						},
+					},
+				},
+			},
+			expect: []string{"", `foo:`, `  bar:`, `    baz:`, `      buzz: 1`},
+		},
+		{
+			value: &exampleStruct{
+				Foo: "bar\nbaz",
+			},
+			expect: []string{"", "Foo: |-", "  bar", "  baz"},
+		},
+		{
+			value:  []any{"a", 1, true},
+			expect: []string{"", "- a", "- 1", "- true"},
+		},
 	}
 	for i, tc := range testCases {
 		t.Run(fmt.Sprintf("[%d]", i+1), func(t *testing.T) {
@@ -356,6 +378,10 @@ ccc
 			assert.Equal(t, tc.expect, v)
 		})
 	}
+}
+
+type exampleStruct struct {
+	Foo string `yaml:"Foo"`
 }
 
 func TestWriter_WriteTagValue(t *testing.T) {

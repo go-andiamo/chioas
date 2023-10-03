@@ -19,6 +19,8 @@ type Property struct {
 	//
 	// only used if Type = "array"
 	ItemType string
+	// Format is the OAS format for the property
+	Format string
 	// Example is the OAS example for the property
 	Example any
 	// SchemaRef is the OAS schema reference
@@ -50,11 +52,13 @@ func (p Property) writeYaml(w yaml.Writer) {
 			WriteTagStart(tagNameItems).
 			WriteTagValue(tagNameType, defValue(p.ItemType, tagValueTypeString)).
 			WriteTagValue(tagNameExample, p.Example).
+			WriteTagValue(tagNameFormat, nilString(p.Format)).
 			WriteTagEnd()
 	} else {
 		w.WriteTagValue(tagNameDescription, p.Description).
 			WriteTagValue(tagNameType, defValue(p.Type, tagValueTypeString)).
-			WriteTagValue(tagNameExample, p.Example)
+			WriteTagValue(tagNameExample, p.Example).
+			WriteTagValue(tagNameFormat, nilString(p.Format))
 	}
 	writeExtensions(p.Extensions, w)
 	writeAdditional(p.Additional, p, w)
