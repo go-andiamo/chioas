@@ -16,6 +16,7 @@ const (
 	tagNameEnum            = "enum"
 	tagNameExample         = "example"
 	tagNameExternalDocs    = "externalDocs"
+	tagNameFormat          = "format"
 	tagNameIn              = "in"
 	tagNameInfo            = "info"
 	tagNameItems           = "items"
@@ -60,3 +61,14 @@ const (
 	tagValueTypeNumber  = "number"
 	tagValueTypeBoolean = "boolean"
 )
+
+func nilString(v any) any {
+	result := v
+	switch vt := v.(type) {
+	case string:
+		if vt == "" {
+			result = nil
+		}
+	}
+	return result
+}

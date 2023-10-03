@@ -141,6 +141,20 @@ type: "object"
   type: "object"
 `,
 		},
+		{
+			schema: Schema{
+				Name: "test",
+				Example: map[string]any{
+					"foo": "bar",
+				},
+			},
+			withName: true,
+			expect: `"test":
+  type: "object"
+  example:
+    foo: bar
+`,
+		},
 	}
 	for i, tc := range testCases {
 		t.Run(fmt.Sprintf("[%d]", i+1), func(t *testing.T) {

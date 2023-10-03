@@ -38,6 +38,8 @@ type Schema struct {
 	Properties Properties
 	// Default is the OAS default
 	Default any
+	// Example is the OAS example for the schema
+	Example any
 	// Enum is the OAS enum
 	Enum []any
 	// Extensions is extension OAS yaml properties
@@ -73,7 +75,8 @@ func (s Schema) writeYaml(withName bool, w yaml.Writer) {
 		}
 		w.WriteTagEnd()
 	}
-	w.WriteTagValue(tagNameDefault, s.Default)
+	w.WriteTagValue(tagNameDefault, s.Default).
+		WriteTagValue(tagNameExample, s.Example)
 	if len(s.Enum) > 0 {
 		w.WriteTagStart(tagNameEnum)
 		for _, e := range s.Enum {
