@@ -20,6 +20,8 @@ type Request struct {
 	//
 	// defaults to "application/json"
 	ContentType string
+	// AlternativeContentTypes is a map of alternative content types (where the key is the media type - e.g. "application/json")
+	AlternativeContentTypes ContentTypes
 	// Schema is the optional OAS Schema
 	//
 	// Only used if the value is non-nil - otherwise uses SchemaRef is used
@@ -65,7 +67,7 @@ func (r *Request) writeYaml(w yaml.Writer) {
 		w.WriteComments(r.Comment).
 			WriteTagValue(tagNameDescription, r.Description).
 			WriteTagValue(tagNameRequired, r.Required)
-		writeContent(r.ContentType, r.Schema, r.SchemaRef, r.IsArray, w)
+		writeContent(r.ContentType, r.Schema, r.SchemaRef, r.IsArray, r.AlternativeContentTypes, w)
 		writeExtensions(r.Extensions, w)
 		writeAdditional(r.Additional, r, w)
 	} else {
@@ -78,7 +80,7 @@ func (r *Request) componentsWriteYaml(name string, w yaml.Writer) {
 	w.WriteTagStart(name).
 		WriteTagValue(tagNameDescription, r.Description).
 		WriteTagValue(tagNameRequired, r.Required)
-	writeContent(r.ContentType, r.Schema, r.SchemaRef, r.IsArray, w)
+	writeContent(r.ContentType, r.Schema, r.SchemaRef, r.IsArray, r.AlternativeContentTypes, w)
 	writeExtensions(r.Extensions, w)
 	writeAdditional(r.Additional, r, w)
 	w.WriteTagEnd()

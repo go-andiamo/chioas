@@ -155,6 +155,43 @@ type: "object"
     foo: bar
 `,
 		},
+		{
+			schema: Schema{
+				Name: "test",
+				Properties: Properties{
+					{
+						Name:     "foo",
+						Required: true,
+					},
+				},
+			},
+			expect: `type: "object"
+required:
+  - "foo"
+properties:
+  "foo":
+    type: "string"
+`,
+		},
+		{
+			schema: Schema{
+				Name:               "test",
+				RequiredProperties: []string{"foo", "foo"},
+				Properties: Properties{
+					{
+						Name:     "foo",
+						Required: true,
+					},
+				},
+			},
+			expect: `type: "object"
+required:
+  - "foo"
+properties:
+  "foo":
+    type: "string"
+`,
+		},
 	}
 	for i, tc := range testCases {
 		t.Run(fmt.Sprintf("[%d]", i+1), func(t *testing.T) {

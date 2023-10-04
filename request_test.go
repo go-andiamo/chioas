@@ -1,26 +1,26 @@
 package chioas
 
 import (
+	"fmt"
 	"github.com/go-andiamo/chioas/yaml"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
 func TestRequest_WriteYaml(t *testing.T) {
-	w := yaml.NewWriter(nil)
-	r := &Request{
-		Description: "desc",
-		Required:    true,
-		SchemaRef:   "foo",
-		Additional:  &testAdditional{},
-		Comment:     "test comment",
-	}
-
-	r.writeYaml(w)
-
-	data, err := w.Bytes()
-	assert.NoError(t, err)
-	const expect = `requestBody:
+	testCases := []struct {
+		request *Request
+		expect  string
+	}{
+		{
+			request: &Request{
+				Description: "desc",
+				Required:    true,
+				SchemaRef:   "foo",
+				Additional:  &testAdditional{},
+				Comment:     "test comment",
+			},
+			expect: `requestBody:
   #test comment
   description: "desc"
   required: true
@@ -29,41 +29,25 @@ func TestRequest_WriteYaml(t *testing.T) {
       schema:
         $ref: "#/components/schemas/foo"
   foo: "bar"
-`
-	assert.Equal(t, expect, string(data))
-}
-
-func TestRequest_WriteYaml_Refd(t *testing.T) {
-	w := yaml.NewWriter(nil)
-	r := &Request{
-		Ref:     "foo",
-		Comment: "won't see this",
-	}
-
-	r.writeYaml(w)
-
-	data, err := w.Bytes()
-	assert.NoError(t, err)
-	const expect = `requestBody:
+`,
+		},
+		{
+			request: &Request{
+				Ref:     "foo",
+				Comment: "won't see this",
+			},
+			expect: `requestBody:
   $ref: "#/components/requestBodies/foo"
-`
-	assert.Equal(t, expect, string(data))
-}
-
-func TestRequest_WriteYaml_IsArray(t *testing.T) {
-	w := yaml.NewWriter(nil)
-	r := &Request{
-		Description: "desc",
-		Required:    true,
-		SchemaRef:   "foo",
-		IsArray:     true,
-	}
-
-	r.writeYaml(w)
-
-	data, err := w.Bytes()
-	assert.NoError(t, err)
-	const expect = `requestBody:
+`,
+		},
+		{
+			request: &Request{
+				Description: "desc",
+				Required:    true,
+				SchemaRef:   "foo",
+				IsArray:     true,
+			},
+			expect: `requestBody:
   description: "desc"
   required: true
   content:
@@ -72,6 +56,36 @@ func TestRequest_WriteYaml_IsArray(t *testing.T) {
         type: "array"
         items:
           $ref: "#/components/schemas/foo"
-`
-	assert.Equal(t, expect, string(data))
+`,
+		},
+		{
+			request: &Request{
+				SchemaRef: "foo",
+				AlternativeContentTypes: ContentTypes{
+					"application/xml": {
+						SchemaRef: "foo",
+					},
+				},
+			},
+			expect: `requestBody:
+  required: false
+  content:
+    application/json:
+      schema:
+        $ref: "#/components/schemas/foo"
+    application/xml:
+      schema:
+        $ref: "#/components/schemas/foo"
+`,
+		},
+	}
+	for i, tc := range testCases {
+		t.Run(fmt.Sprintf("[%d]", i+1), func(t *testing.T) {
+			w := yaml.NewWriter(nil)
+			tc.request.writeYaml(w)
+			data, err := w.Bytes()
+			assert.NoError(t, err)
+			assert.Equal(t, tc.expect, string(data))
+		})
+	}
 }

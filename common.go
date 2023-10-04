@@ -1,50 +1,71 @@
 package chioas
 
+import (
+	"encoding/json"
+	"github.com/go-andiamo/chioas/yaml"
+	"math"
+	"strings"
+)
+
 var OasVersion = "3.0.3"
 
 const (
 	root = "/"
 
-	tagNameApplicationJson = contentTypeJson
-	tagNameComponents      = "components"
-	tagNameContact         = "contact"
-	tagNameContent         = "content"
-	tagNameDefault         = "default"
-	tagNameDeprecated      = "deprecated"
-	tagNameDescription     = "description"
-	tagNameEmail           = "email"
-	tagNameEnum            = "enum"
-	tagNameExample         = "example"
-	tagNameExternalDocs    = "externalDocs"
-	tagNameFormat          = "format"
-	tagNameIn              = "in"
-	tagNameInfo            = "info"
-	tagNameItems           = "items"
-	tagNameLicense         = "license"
-	tagNameName            = "name"
-	tagNameOpenApi         = "openapi"
-	tagNameOperationId     = "operationId"
-	tagNameParameters      = "parameters"
-	tagNamePaths           = "paths"
-	tagNameProperties      = "properties"
-	tagNameRef             = "$ref"
-	tagNameRequestBodies   = "requestBodies"
-	tagNameRequestBody     = "requestBody"
-	tagNameRequired        = "required"
-	tagNameResponses       = "responses"
-	tagNameSecurity        = "security"
-	tagNameSchema          = "schema"
-	tagNameSchemas         = "schemas"
-	tagNameScheme          = "scheme"
-	tagNameSecuritySchemes = "securitySchemes"
-	tagNameServers         = "servers"
-	tagNameSummary         = "summary"
-	tagNameTags            = "tags"
-	tagNameTermsOfService  = "termsOfService"
-	tagNameTitle           = "title"
-	tagNameType            = "type"
-	tagNameUrl             = "url"
-	tagNameVersion         = "version"
+	tagNameApplicationJson  = contentTypeJson
+	tagNameComponents       = "components"
+	tagNameContact          = "contact"
+	tagNameContent          = "content"
+	tagNameDefault          = "default"
+	tagNameDeprecated       = "deprecated"
+	tagNameDescription      = "description"
+	tagNameEmail            = "email"
+	tagNameEnum             = "enum"
+	tagNameExample          = "example"
+	tagNameExclusiveMaximum = "exclusiveMaximum"
+	tagNameExclusiveMinimum = "exclusiveMinimum"
+	tagNameExternalDocs     = "externalDocs"
+	tagNameFormat           = "format"
+	tagNameIn               = "in"
+	tagNameInfo             = "info"
+	tagNameItems            = "items"
+	tagNameLicense          = "license"
+	tagNameMaxItems         = "maxItems"
+	tagNameMaxLength        = "maxLength"
+	tagNameMaxProperties    = "maxProperties"
+	tagNameMaximum          = "maximum"
+	tagNameMinItems         = "minItems"
+	tagNameMinLength        = "minLength"
+	tagNameMinProperties    = "minProperties"
+	tagNameMinimum          = "minimum"
+	tagNameMultipleOf       = "multipleOf"
+	tagNameName             = "name"
+	tagNameNullable         = "nullable"
+	tagNameOpenApi          = "openapi"
+	tagNameOperationId      = "operationId"
+	tagNameParameters       = "parameters"
+	tagNamePaths            = "paths"
+	tagNamePattern          = "pattern"
+	tagNameProperties       = "properties"
+	tagNameRef              = "$ref"
+	tagNameRequestBodies    = "requestBodies"
+	tagNameRequestBody      = "requestBody"
+	tagNameRequired         = "required"
+	tagNameResponses        = "responses"
+	tagNameSchema           = "schema"
+	tagNameSchemas          = "schemas"
+	tagNameScheme           = "scheme"
+	tagNameSecurity         = "security"
+	tagNameSecuritySchemes  = "securitySchemes"
+	tagNameServers          = "servers"
+	tagNameSummary          = "summary"
+	tagNameTags             = "tags"
+	tagNameTermsOfService   = "termsOfService"
+	tagNameTitle            = "title"
+	tagNameType             = "type"
+	tagNameUniqueItems      = "uniqueItems"
+	tagNameUrl              = "url"
+	tagNameVersion          = "version"
 
 	refPathSchemas    = "#/" + tagNameComponents + "/" + tagNameSchemas + "/"
 	refPathRequests   = "#/" + tagNameComponents + "/" + tagNameRequestBodies + "/"
@@ -62,13 +83,52 @@ const (
 	tagValueTypeBoolean = "boolean"
 )
 
-func nilString(v any) any {
-	result := v
-	switch vt := v.(type) {
-	case string:
-		if vt == "" {
-			result = nil
+func writeSchemaRef(ref string, isArray bool, w yaml.Writer) {
+	if isArray {
+		w.WriteTagValue(tagNameType, tagValueTypeArray).
+			WriteTagStart(tagNameItems)
+	}
+	if strings.Contains(ref, "/") {
+		w.WriteTagValue(tagNameRef, ref)
+	} else {
+		w.WriteTagValue(tagNameRef, refPathSchemas+ref)
+	}
+	if isArray {
+		w.WriteTagEnd()
+	}
+}
+
+func nilString(v string) (result any) {
+	result = v
+	if v == "" {
+		result = nil
+	}
+	return
+}
+
+func nilBool(v bool) (result any) {
+	result = v
+	if !v {
+		result = nil
+	}
+	return
+}
+
+func nilNumber(n json.Number) (result any) {
+	if n != "" {
+		if i, err := n.Int64(); err == nil {
+			result = i
+		} else if f, err := n.Float64(); err == nil && !math.IsNaN(f) && !math.IsInf(f, 0) {
+			result = n
 		}
 	}
-	return result
+	return
+}
+
+func nilUint(v uint) (result any) {
+	result = v
+	if v == 0 {
+		result = nil
+	}
+	return
 }
