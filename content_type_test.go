@@ -1,0 +1,259 @@
+package chioas
+
+import (
+	"fmt"
+	"github.com/go-andiamo/chioas/yaml"
+	"github.com/stretchr/testify/assert"
+	"testing"
+)
+
+func TestWriteContentType(t *testing.T) {
+	testCases := []struct {
+		contentType string
+		schema      any
+		schemaRef   string
+		isArray     bool
+		expect      string
+	}{
+		{
+			expect: `application/json:
+  schema:
+    type: "object"
+`,
+		},
+		{
+			isArray: true,
+			expect: `application/json:
+  schema:
+    type: "object"
+`,
+		},
+		{
+			schemaRef: "foo",
+			expect: `application/json:
+  schema:
+    $ref: "#/components/schemas/foo"
+`,
+		},
+		{
+			schemaRef: "foo",
+			isArray:   true,
+			expect: `application/json:
+  schema:
+    type: "array"
+    items:
+      $ref: "#/components/schemas/foo"
+`,
+		},
+		{
+			schema: &mySchemaConverter{},
+			expect: `application/json:
+  schema:
+    type: "object"
+    required:
+      - "foo"
+    properties:
+      "foo":
+        type: "string"
+`,
+		},
+		{
+			schema:  &mySchemaConverter{},
+			isArray: true,
+			expect: `application/json:
+  schema:
+    type: "array"
+    items:
+      type: "object"
+      required:
+        - "foo"
+      properties:
+        "foo":
+          type: "string"
+`,
+		},
+		{
+			schema: &mySchemaWriter{},
+			expect: `application/json:
+  schema:
+    type: "object"
+    properties:
+      "foo":
+        type: "string"
+`,
+		},
+		{
+			schema: myTestResponse{},
+			expect: `application/json:
+  schema:
+    type: "object"
+    required:
+      - "bar"
+    properties:
+      "foo":
+        type: "string"
+      "bar":
+        type: "boolean"
+        example: false
+      "baz":
+        type: "integer"
+      "float":
+        type: "number"
+      "slice":
+        type: "array"
+        items:
+          type: "string"
+      "map":
+        type: "object"
+`,
+		},
+		{
+			schema: &myTestResponse{},
+			expect: `application/json:
+  schema:
+    type: "object"
+    required:
+      - "bar"
+    properties:
+      "foo":
+        type: "string"
+      "bar":
+        type: "boolean"
+        example: false
+      "baz":
+        type: "integer"
+      "float":
+        type: "number"
+      "slice":
+        type: "array"
+        items:
+          type: "string"
+      "map":
+        type: "object"
+`,
+		},
+		{
+			schema: []myTestResponse{},
+			expect: `application/json:
+  schema:
+    type: "array"
+    items:
+      type: "object"
+      required:
+        - "bar"
+      properties:
+        "foo":
+          type: "string"
+        "bar":
+          type: "boolean"
+        "baz":
+          type: "integer"
+        "float":
+          type: "number"
+        "slice":
+          type: "array"
+          items:
+            type: "string"
+        "map":
+          type: "object"
+`,
+		},
+	}
+	for i, tc := range testCases {
+		t.Run(fmt.Sprintf("[%d]", i+1), func(t *testing.T) {
+			w := yaml.NewWriter(nil)
+			writeContentType(tc.contentType, tc.schema, tc.schemaRef, tc.isArray, w)
+			data, err := w.Bytes()
+			assert.NoError(t, err)
+			assert.Equal(t, tc.expect, string(data))
+		})
+	}
+}
+
+func TestWriteContent(t *testing.T) {
+	testCases := []struct {
+		contentType     string
+		schema          any
+		schemaRef       string
+		isArray         bool
+		altContentTypes ContentTypes
+		expect          string
+	}{
+		{
+			expect: `content:
+  application/json:
+    schema:
+      type: "object"
+`,
+		},
+		{
+			schemaRef: "foo",
+			expect: `content:
+  application/json:
+    schema:
+      $ref: "#/components/schemas/foo"
+`,
+		},
+		{
+			schemaRef: "foo",
+			altContentTypes: ContentTypes{
+				"application/xml": {
+					SchemaRef: "foo",
+				},
+			},
+			expect: `content:
+  application/json:
+    schema:
+      $ref: "#/components/schemas/foo"
+  application/xml:
+    schema:
+      $ref: "#/components/schemas/foo"
+`,
+		},
+	}
+	for i, tc := range testCases {
+		t.Run(fmt.Sprintf("[%d]", i+1), func(t *testing.T) {
+			w := yaml.NewWriter(nil)
+			writeContent(tc.contentType, tc.schema, tc.schemaRef, tc.isArray, tc.altContentTypes, w)
+			data, err := w.Bytes()
+			assert.NoError(t, err)
+			assert.Equal(t, tc.expect, string(data))
+		})
+	}
+}
+
+type mySchemaConverter struct {
+}
+
+func (m *mySchemaConverter) ToSchema() *Schema {
+	return &Schema{
+		Name:               "test",
+		RequiredProperties: []string{"foo"},
+		Properties: []Property{
+			{
+				Name: "foo",
+				Type: "string",
+			},
+		},
+	}
+}
+
+type mySchemaWriter struct {
+}
+
+func (m *mySchemaWriter) WriteSchema(w yaml.Writer) {
+	w.WriteTagValue(tagNameType, "object").
+		WriteTagStart(tagNameProperties).
+		WriteTagStart(`"foo"`).
+		WriteTagValue(tagNameType, "string").
+		WriteTagEnd().WriteTagEnd()
+}
+
+type myTestResponse struct {
+	Foo   string         `json:"foo,omitempty"`
+	Bar   bool           `json:"bar"`
+	Baz   *int           `json:"baz"`
+	Float *float32       `json:"float"`
+	Slice []string       `json:"slice,omitempty"`
+	Map   map[string]any `json:"map,omitempty"`
+}

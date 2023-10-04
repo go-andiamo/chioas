@@ -78,11 +78,84 @@ func TestProperty_WriteYaml(t *testing.T) {
   format: "email"
 `,
 		},
+		{
+			property: Property{
+				Name: "foo",
+				Type: tagValueTypeObject,
+				Properties: Properties{
+					{
+						Name:     "bar",
+						Required: true,
+					},
+				},
+			},
+			expect: `"foo":
+  type: "object"
+  properties:
+    "bar":
+      type: "string"
+      required: true
+`,
+		},
+		{
+			property: Property{
+				Name:     "foo",
+				Type:     tagValueTypeArray,
+				ItemType: tagValueTypeObject,
+				Properties: Properties{
+					{
+						Name:     "bar",
+						Required: true,
+					},
+				},
+			},
+			expect: `"foo":
+  type: "array"
+  items:
+    type: "object"
+    properties:
+      "bar":
+        type: "string"
+        required: true
+`,
+		},
+		{
+			property: Property{
+				Name:       "foo",
+				Deprecated: true,
+			},
+			expect: `"foo":
+  type: "string"
+  deprecated: true
+`,
+		},
+		{
+			property: Property{
+				Name: "foo",
+				Constraints: Constraints{
+					Pattern:    "???",
+					Minimum:    "1",
+					Maximum:    "1.1",
+					MultipleOf: 3,
+					Additional: map[string]any{
+						"foo": "bar",
+					},
+				},
+			},
+			expect: `"foo":
+  type: "string"
+  pattern: "???"
+  maximum: 1.1
+  minimum: 1
+  multipleOf: 3
+  foo: "bar"
+`,
+		},
 	}
 	for i, tc := range testCases {
 		t.Run(fmt.Sprintf("[%d]", i+1), func(t *testing.T) {
 			w := yaml.NewWriter(nil)
-			tc.property.writeYaml(w)
+			tc.property.writeYaml(w, false)
 			data, err := w.Bytes()
 			assert.NoError(t, err)
 			assert.Equal(t, tc.expect, string(data))

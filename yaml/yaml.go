@@ -3,10 +3,12 @@ package yaml
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	goyaml "gopkg.in/yaml.v3"
 	"reflect"
+	"strconv"
 	"strings"
 )
 
@@ -98,6 +100,8 @@ func (y *writer) yamlValue(value any, allowEmpty bool) []string {
 		result = append(result, vt.Value)
 	case *LiteralValue:
 		result = append(result, vt.Value)
+	case json.Number:
+		result = append(result, vt.String())
 	case string:
 		if vt != "" || allowEmpty {
 			if strings.Contains(vt, "\n") {
@@ -125,8 +129,10 @@ func (y *writer) yamlValue(value any, allowEmpty bool) []string {
 		result = append(result, fmt.Sprintf("%d", vt))
 	case uint, uint8, uint16, uint32, uint64:
 		result = append(result, fmt.Sprintf("%d", vt))
-	case float32, float64:
-		result = append(result, fmt.Sprintf("%f", vt))
+	case float32:
+		result = append(result, strconv.FormatFloat(float64(vt), 'f', -1, 32))
+	case float64:
+		result = append(result, strconv.FormatFloat(vt, 'f', -1, 64))
 	case *int, *int8, *int16, *int32, *int64, *uint, *uint8, *uint16, *uint32, *uint64, *float32, *float64:
 		vo := reflect.ValueOf(vt)
 		if !vo.IsZero() {

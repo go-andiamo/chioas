@@ -174,10 +174,8 @@ func (m Method) writeYaml(opts *DocOptions, template urit.Template, pathVars []u
 		WriteComments(m.Comment).
 		WriteTagValue(tagNameSummary, m.Summary).
 		WriteTagValue(tagNameDescription, m.Description).
-		WriteTagValue(tagNameOperationId, m.getOperationId(opts, method, template, parentTag))
-	if m.Deprecated {
-		w.WriteTagValue(tagNameDeprecated, true)
-	}
+		WriteTagValue(tagNameOperationId, m.getOperationId(opts, method, template, parentTag)).
+		WriteTagValue(tagNameDeprecated, nilBool(m.Deprecated))
 	if m.OptionalSecurity || len(m.Security) > 0 {
 		w.WriteTagStart(tagNameSecurity)
 		if m.OptionalSecurity {
