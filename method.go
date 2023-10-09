@@ -74,6 +74,8 @@ type GetHandler func(path string, method string, thisApi any) (http.HandlerFunc,
 func (m Method) getHandler(path string, method string, thisApi any) (http.HandlerFunc, error) {
 	if m.Handler == nil {
 		return nil, fmt.Errorf("handler not set (path: %s, method: %s)", path, method)
+	} else if hf, ok := m.Handler.(http.HandlerFunc); ok {
+		return hf, nil
 	} else if hf, ok := m.Handler.(func(http.ResponseWriter, *http.Request)); ok {
 		return hf, nil
 	} else if gh, ok := m.Handler.(func(string, string, any) (http.HandlerFunc, error)); ok {

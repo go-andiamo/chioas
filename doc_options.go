@@ -54,6 +54,8 @@ type DocOptions struct {
 	HideHeadMethods bool
 	// OperationIdentifier is an optional function called by Method to generate `operationId` tag value
 	OperationIdentifier OperationIdentifier
+	// specData is used internally where api has been generated from spec (see FromJson and FromYaml)
+	specData []byte
 }
 
 // OperationIdentifier is a function that can be provided to DocOptions
@@ -95,55 +97,64 @@ func (d *DocOptions) setupRoutes(def *Definition, route chi.Router) error {
 		redirectPath := path + root + indexPage
 		docsRoute := chi.NewRouter()
 		docsRoute.Get(root, http.RedirectHandler(redirectPath, http.StatusMovedPermanently).ServeHTTP)
-		if d.NoCache {
-			docsRoute.Get(root+indexPage, func(writer http.ResponseWriter, request *http.Request) {
-				writer.Header().Set(hdrContentType, contentTypeHtml)
-				_ = tmp.Execute(writer, data)
-			})
-			if d.AsJson {
-				docsRoute.Get(root+specName, func(writer http.ResponseWriter, request *http.Request) {
-					writer.Header().Set(hdrContentType, contentTypeJson)
-					_ = def.WriteJson(writer)
-				})
-			} else {
-				docsRoute.Get(root+specName, func(writer http.ResponseWriter, request *http.Request) {
-					writer.Header().Set(hdrContentType, contentTypeYaml)
-					_ = def.WriteYaml(writer)
-				})
-			}
-		} else {
-			indexData, err := d.buildIndexData(tmp, data)
-			if err != nil {
+		if d.specData != nil || !d.NoCache {
+			if err := d.setupCachedRoutes(def, docsRoute, tmp, data, indexPage, specName); err != nil {
 				return err
 			}
-			docsRoute.Get(root+indexPage, func(writer http.ResponseWriter, request *http.Request) {
-				writer.Header().Set(hdrContentType, contentTypeHtml)
-				_, _ = writer.Write(indexData)
-			})
-			if d.AsJson {
-				specData, err := def.AsJson()
-				if err != nil {
-					return err
-				}
-				docsRoute.Get(root+specName, func(writer http.ResponseWriter, request *http.Request) {
-					writer.Header().Set(hdrContentType, contentTypeJson)
-					_, _ = writer.Write(specData)
-				})
-
-			} else {
-				specData, err := def.AsYaml()
-				if err != nil {
-					return err
-				}
-				docsRoute.Get(root+specName, func(writer http.ResponseWriter, request *http.Request) {
-					writer.Header().Set(hdrContentType, contentTypeYaml)
-					_, _ = writer.Write(specData)
-				})
-			}
+		} else {
+			d.setupNoCachedRoutes(def, docsRoute, tmp, data, indexPage, specName)
 		}
 		route.Mount(path, docsRoute)
 	}
 	return nil
+}
+
+func (d *DocOptions) setupCachedRoutes(def *Definition, docsRoute *chi.Mux, tmp *template.Template, inData map[string]any, indexPage, specName string) (err error) {
+	indexData, err := d.buildIndexData(tmp, inData)
+	if err != nil {
+		return err
+	}
+	docsRoute.Get(root+indexPage, func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set(hdrContentType, contentTypeHtml)
+		_, _ = writer.Write(indexData)
+	})
+	var specData []byte
+	contentType := contentTypeYaml
+	if d.specData != nil {
+		specData = d.specData
+	} else if d.AsJson {
+		contentType = contentTypeJson
+		if specData, err = def.AsJson(); err != nil {
+			return err
+		}
+	} else {
+		if specData, err = def.AsYaml(); err != nil {
+			return err
+		}
+	}
+	docsRoute.Get(root+specName, func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set(hdrContentType, contentType)
+		_, _ = writer.Write(specData)
+	})
+	return nil
+}
+
+func (d *DocOptions) setupNoCachedRoutes(def *Definition, docsRoute *chi.Mux, tmp *template.Template, inData map[string]any, indexPage, specName string) {
+	docsRoute.Get(root+indexPage, func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set(hdrContentType, contentTypeHtml)
+		_ = tmp.Execute(writer, inData)
+	})
+	if d.AsJson {
+		docsRoute.Get(root+specName, func(writer http.ResponseWriter, request *http.Request) {
+			writer.Header().Set(hdrContentType, contentTypeJson)
+			_ = def.WriteJson(writer)
+		})
+	} else {
+		docsRoute.Get(root+specName, func(writer http.ResponseWriter, request *http.Request) {
+			writer.Header().Set(hdrContentType, contentTypeYaml)
+			_ = def.WriteYaml(writer)
+		})
+	}
 }
 
 func (d *DocOptions) getRedocOptions() map[string]any {

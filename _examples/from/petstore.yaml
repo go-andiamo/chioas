@@ -1,0 +1,156 @@
+openapi: "3.0.3"
+info:
+  title: "Swagger Petstore - OpenAPI 3.0"
+  version: "1.0.17"
+tags:
+  - name: "pet"
+    description: "Everything about your Pets"
+    externalDocs:
+      description: "Find out more"
+      url: "http://swagger.io"
+paths:
+  "/":
+    get:
+      description: Root discovery
+      x-handler: "GetRoot"
+      responses:
+        200:
+          description: Root discovery
+          content:
+            application/json:
+              schema:
+                type: object
+  "/pets":
+    get:
+      summary: "List/query pets"
+      description: "List/query pets"
+      operationId: "getPets"
+      x-handler: ".GetPets"
+      tags:
+        - "pet"
+      parameters:
+        - name: "status"
+          description: "Status values that need to be considered for filter"
+          in: "query"
+          required: false
+          schema:
+            $ref: "#/components/schemas/Status"
+      responses:
+        200:
+          description: "Resultant pets"
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/Pet"
+    post:
+      summary: "Add pet"
+      description: "Add pet"
+      operationId: "addPet"
+      x-handler: ".PostPets"
+      tags:
+        - "pet"
+      requestBody:
+        description: "Pet to be added to the store"
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Pet"
+      responses:
+        200:
+          description: "Created pet"
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/Pet"
+  "/pets/{petId}":
+    get:
+      summary: "Get an existing pet"
+      description: "Get an existing pet by Id"
+      operationId: "getPet"
+      x-handler: ".GetPet"
+      tags:
+        - "pet"
+      parameters:
+        - name: "petId"
+          description: "id of the Pet"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+      responses:
+        200:
+          description: "Successful operation"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pet"
+    put:
+      summary: "Update an existing pet"
+      description: "Update an existing pet by Id"
+      operationId: "updatePet"
+      x-handler: ".PutPet"
+      tags:
+        - "pet"
+      parameters:
+        - name: "petId"
+          description: "id of the Pet"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+      requestBody:
+        description: "Update an existent pet in the store"
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Pet"
+      responses:
+        200:
+          description: "Successful operation"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pet"
+components:
+  schemas:
+    "Pet":
+      type: "object"
+      required:
+        - "name"
+        - "photoUrls"
+      properties:
+        "id":
+          type: "integer"
+          example: 10
+        "name":
+          type: "string"
+          example: "doggie"
+        "category":
+          $ref: "#/components/schemas/Category"
+        "photoUrls":
+          type: "array"
+          items:
+            type: "string"
+            example: "https://example.com/dog-picture.jpg"
+    "Category":
+      type: "object"
+      properties:
+        "id":
+          type: "integer"
+          example: 1
+        "name":
+          type: "string"
+          example: "Dogs"
+    "Status":
+      type: "string"
+      default: "available"
+      enum:
+        - "available"
+        - "pending"
+        - "sold"
