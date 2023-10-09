@@ -16,6 +16,11 @@
 * Produces an OpenApi spec (OAS) of that definition
 * Optionally serves an interactive API docs web-page (as part of your service)
 
+### Already have an OAS spec?
+No problem, use `chioas.FromJson()` or `chioas.FromYaml()` to read the spec definition.
+All you'll need to do is add `x-handler` tags to each method in the spec.
+
+See [From example](https://github.com/go-andiamo/chioas/tree/main/_examples/from)
 
 ## Installation
 To install chioas, use go get:
