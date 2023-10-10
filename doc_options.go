@@ -24,6 +24,10 @@ type DocOptions struct {
 	Path string
 	// DocIndexPage the name of the docs index page (defaults to "index.html")
 	DocIndexPage string
+	// SupportFiles is an optional handler that is used for other files under "/docs" path
+	//
+	// see _examples/swagger_ui for example usage
+	SupportFiles http.Handler
 	// Title the title in the docs index page (defaults to "API Documentation")
 	Title string
 	// RedocOptions redoc options to be used (see https://github.com/Redocly/redoc#redoc-options-object)
@@ -56,6 +60,10 @@ type DocOptions struct {
 	OperationIdentifier OperationIdentifier
 	// specData is used internally where api has been generated from spec (see FromJson and FromYaml)
 	specData []byte
+}
+
+type SupportFiles interface {
+	ServeHTTP(http.ResponseWriter, *http.Request)
 }
 
 // OperationIdentifier is a function that can be provided to DocOptions
@@ -103,6 +111,11 @@ func (d *DocOptions) setupRoutes(def *Definition, route chi.Router) error {
 			}
 		} else {
 			d.setupNoCachedRoutes(def, docsRoute, tmp, data, indexPage, specName)
+		}
+		if d.SupportFiles != nil {
+			docsRoute.Get("/*", func(writer http.ResponseWriter, request *http.Request) {
+				d.SupportFiles.ServeHTTP(writer, request)
+			})
 		}
 		route.Mount(path, docsRoute)
 	}

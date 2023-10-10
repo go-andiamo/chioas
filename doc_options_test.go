@@ -232,6 +232,48 @@ paths:
 	assert.Equal(t, expectYaml, string(body))
 }
 
+type testSupportFiles struct {
+}
+
+func (sf *testSupportFiles) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusPaymentRequired)
+}
+
+func TestDocOptions_SupportFiles(t *testing.T) {
+	d := &DocOptions{
+		ServeDocs:    true,
+		SupportFiles: &testSupportFiles{},
+	}
+	router := chi.NewRouter()
+	err := d.setupRoutes(&apiDefYaml, router)
+	require.NoError(t, err)
+
+	req, _ := http.NewRequest(http.MethodGet, defaultDocsPath, nil)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusMovedPermanently, res.Code)
+
+	req, _ = http.NewRequest(http.MethodGet, defaultDocsPath+"/"+defaultIndexName, nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusOK, res.Code)
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	const expectHtmlStarts = `<html>`
+	assert.True(t, strings.HasPrefix(string(body), expectHtmlStarts))
+	assert.True(t, strings.Contains(string(body), `openApi: "spec.yaml",`))
+
+	req, _ = http.NewRequest(http.MethodGet, defaultDocsPath+"/"+defaultSpecName, nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusOK, res.Code)
+
+	req, _ = http.NewRequest(http.MethodGet, defaultDocsPath+"/some_styling.css", nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusPaymentRequired, res.Code)
+}
+
 func TestDocOptions_NoCache_Json(t *testing.T) {
 	d := &DocOptions{
 		ServeDocs:    true,
