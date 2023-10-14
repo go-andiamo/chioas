@@ -58,6 +58,8 @@ type DocOptions struct {
 	HideHeadMethods bool
 	// OperationIdentifier is an optional function called by Method to generate `operationId` tag value
 	OperationIdentifier OperationIdentifier
+	// Middlewares is any chi.Middlewares for everything served under '/docs' path
+	Middlewares chi.Middlewares
 	// specData is used internally where api has been generated from spec (see FromJson and FromYaml)
 	specData []byte
 }
@@ -79,7 +81,7 @@ const (
 	defaultTryJsUrl     = "https://cdn.jsdelivr.net/gh/wll8/redoc-try@1.4.7/dist/try.js"
 )
 
-func (d *DocOptions) setupRoutes(def *Definition, route chi.Router) error {
+func (d *DocOptions) SetupRoutes(def *Definition, route chi.Router) error {
 	if d.ServeDocs {
 		tmpStr := defValue(d.DocTemplate, defaultTemplate)
 		tmp, err := template.New("index").Parse(tmpStr)
@@ -104,6 +106,7 @@ func (d *DocOptions) setupRoutes(def *Definition, route chi.Router) error {
 		}
 		redirectPath := path + root + indexPage
 		docsRoute := chi.NewRouter()
+		docsRoute.Use(d.Middlewares...)
 		docsRoute.Get(root, http.RedirectHandler(redirectPath, http.StatusMovedPermanently).ServeHTTP)
 		if d.specData != nil || !d.NoCache {
 			if err := d.setupCachedRoutes(def, docsRoute, tmp, data, indexPage, specName); err != nil {

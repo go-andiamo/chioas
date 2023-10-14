@@ -190,7 +190,7 @@ func TestDocOptions_NoCache(t *testing.T) {
 		DocIndexPage: "docs.htm",
 	}
 	router := chi.NewRouter()
-	err := d.setupRoutes(&apiDefYaml, router)
+	err := d.SetupRoutes(&apiDefYaml, router)
 	require.NoError(t, err)
 
 	req, _ := http.NewRequest(http.MethodGet, defaultDocsPath, nil)
@@ -245,7 +245,7 @@ func TestDocOptions_SupportFiles(t *testing.T) {
 		SupportFiles: &testSupportFiles{},
 	}
 	router := chi.NewRouter()
-	err := d.setupRoutes(&apiDefYaml, router)
+	err := d.SetupRoutes(&apiDefYaml, router)
 	require.NoError(t, err)
 
 	req, _ := http.NewRequest(http.MethodGet, defaultDocsPath, nil)
@@ -282,7 +282,7 @@ func TestDocOptions_NoCache_Json(t *testing.T) {
 		DocIndexPage: "docs.htm",
 	}
 	router := chi.NewRouter()
-	err := d.setupRoutes(&apiDefJson, router)
+	err := d.SetupRoutes(&apiDefJson, router)
 	require.NoError(t, err)
 
 	req, _ := http.NewRequest(http.MethodGet, defaultDocsPath, nil)
@@ -315,7 +315,7 @@ func TestDocOptions_ErrorsWithBadTemplate(t *testing.T) {
 		DocTemplate: `<html>{{badFunc}}</html>`,
 	}
 	router := chi.NewRouter()
-	err := d.setupRoutes(nil, router)
+	err := d.SetupRoutes(nil, router)
 	assert.Error(t, err)
 }
 
@@ -326,7 +326,7 @@ func TestDocOptions_ErrorsWithCache_BadTemplate(t *testing.T) {
 	}
 	def := &Definition{}
 	router := chi.NewRouter()
-	err := d.setupRoutes(def, router)
+	err := d.SetupRoutes(def, router)
 	assert.Error(t, err)
 }
 
@@ -338,7 +338,7 @@ func TestDocOptions_ErrorsWithCache_BadYaml(t *testing.T) {
 		Additional: &errorAdditional{},
 	}
 	router := chi.NewRouter()
-	err := d.setupRoutes(def, router)
+	err := d.SetupRoutes(def, router)
 	assert.Error(t, err)
 }
 
@@ -351,7 +351,7 @@ func TestDocOptions_ErrorsWithCache_BadJson(t *testing.T) {
 		Additional: &errorAdditional{},
 	}
 	router := chi.NewRouter()
-	err := d.setupRoutes(def, router)
+	err := d.SetupRoutes(def, router)
 	assert.Error(t, err)
 }
 

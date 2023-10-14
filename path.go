@@ -16,8 +16,6 @@ func (ps Paths) writeYaml(opts *DocOptions, autoHeads bool, context string, w ya
 	}
 }
 
-type ApplyMiddlewares func(thisApi any) chi.Middlewares
-
 // Path represents a path for both the router and the OAS spec
 type Path struct {
 	// Methods is the methods on the path

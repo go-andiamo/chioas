@@ -115,10 +115,6 @@ head:
   responses:
     200:
       description: "OK"
-      content:
-        application/json:
-          schema:
-            type: "object"
 options:
   responses:
     200:
@@ -239,10 +235,6 @@ head:
   responses:
     200:
       description: "OK"
-      content:
-        application/json:
-          schema:
-            type: "object"
 `
 	assert.Equal(t, expect, string(data))
 }

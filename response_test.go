@@ -11,7 +11,7 @@ import (
 func TestResponses_WriteYaml(t *testing.T) {
 	w := yaml.NewWriter(nil)
 	rs := Responses{}
-	rs.writeYaml(w)
+	rs.writeYaml(false, w)
 	data, err := w.Bytes()
 	assert.NoError(t, err)
 	assert.Equal(t, ``, string(data))
@@ -26,7 +26,7 @@ func TestResponses_WriteYaml(t *testing.T) {
 			Comment:   "test comment",
 		},
 	}
-	rs.writeYaml(w)
+	rs.writeYaml(false, w)
 	data, err = w.Bytes()
 	assert.NoError(t, err)
 	const expect = `responses:
@@ -50,7 +50,7 @@ func TestResponses_WriteYaml(t *testing.T) {
 func TestResponses_WriteYaml_Refd(t *testing.T) {
 	w := yaml.NewWriter(nil)
 	rs := Responses{}
-	rs.writeYaml(w)
+	rs.writeYaml(false, w)
 	data, err := w.Bytes()
 	assert.NoError(t, err)
 	assert.Equal(t, ``, string(data))
@@ -67,7 +67,7 @@ func TestResponses_WriteYaml_Refd(t *testing.T) {
 			Comment:   "won't see this",
 		},
 	}
-	rs.writeYaml(w)
+	rs.writeYaml(false, w)
 	data, err = w.Bytes()
 	assert.NoError(t, err)
 	const expect = `responses:
@@ -438,7 +438,7 @@ func TestResponse_WriteYaml(t *testing.T) {
 	for i, tc := range testCases {
 		t.Run(fmt.Sprintf("[%d]", i+1), func(t *testing.T) {
 			w := yaml.NewWriter(nil)
-			tc.response.writeYaml(http.StatusOK, w)
+			tc.response.writeYaml(http.StatusOK, false, w)
 			data, err := w.Bytes()
 			assert.NoError(t, err)
 			assert.Equal(t, tc.expect, string(data))

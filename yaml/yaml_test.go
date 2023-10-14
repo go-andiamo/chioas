@@ -3,6 +3,7 @@ package yaml
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/stretchr/testify/assert"
@@ -232,7 +233,7 @@ func TestYamlValue(t *testing.T) {
 		},
 		{
 			value:  1.1,
-			expect: []string{`1.100000`},
+			expect: []string{`1.1`},
 		},
 		{
 			value:  true,
@@ -314,11 +315,11 @@ func TestYamlValue(t *testing.T) {
 		},
 		{
 			value:  &pf32,
-			expect: []string{`16.160000`},
+			expect: []string{`16.16`},
 		},
 		{
 			value:  &pf64,
-			expect: []string{`16.160000`},
+			expect: []string{`16.16`},
 		},
 		{
 			value: `aaa
@@ -370,6 +371,10 @@ ccc
 			value:  []any{"a", 1, true},
 			expect: []string{"", "- a", "- 1", "- true"},
 		},
+		{
+			value:  json.Number(""),
+			expect: []string{""},
+		},
 	}
 	for i, tc := range testCases {
 		t.Run(fmt.Sprintf("[%d]", i+1), func(t *testing.T) {
@@ -418,6 +423,11 @@ func TestWriter_WriteTagValue(t *testing.T) {
   bbb
   ccc
 `,
+		},
+		{
+			tag:    "foo",
+			value:  "",
+			expect: ``,
 		},
 	}
 	for i, tc := range testCases {
@@ -568,6 +578,20 @@ func TestWriter_WriteItemStart(t *testing.T) {
   aaa
   bbb
   ccc
+`, string(data))
+	assert.Equal(t, 2, len(w.indent))
+
+	w = newWriter(nil)
+	w.WriteItemStart("foo", map[string]any{
+		"bar": map[string]any{
+			"baz:": true,
+		},
+	})
+	data, err = w.Bytes()
+	require.NoError(t, err)
+	assert.Equal(t, `- foo:
+  bar:
+    'baz:': true
 `, string(data))
 	assert.Equal(t, 2, len(w.indent))
 }

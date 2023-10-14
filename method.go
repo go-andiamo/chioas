@@ -196,12 +196,12 @@ func (m Method) writeYaml(opts *DocOptions, template urit.Template, pathVars []u
 		m.Request.writeYaml(w)
 	}
 	if m.Responses != nil && len(m.Responses) > 0 {
-		m.Responses.writeYaml(w)
+		m.Responses.writeYaml(method == http.MethodHead, w)
 	} else if opts != nil && opts.DefaultResponses != nil && len(opts.DefaultResponses) > 0 {
-		opts.DefaultResponses.writeYaml(w)
+		opts.DefaultResponses.writeYaml(method == http.MethodHead, w)
 	} else {
 		// no responses - needs something...
-		defaultResponses.writeYaml(w)
+		defaultResponses.writeYaml(method == http.MethodHead, w)
 	}
 	writeExtensions(m.Extensions, w)
 	writeAdditional(m.Additional, m, w)

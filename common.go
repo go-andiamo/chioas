@@ -3,11 +3,18 @@ package chioas
 import (
 	"encoding/json"
 	"github.com/go-andiamo/chioas/yaml"
+	"github.com/go-chi/chi/v5"
 	"math"
 	"strings"
 )
 
+// OasVersion is the default OAS version for docs
 var OasVersion = "3.0.3"
+
+// ApplyMiddlewares is a function that returns middlewares to be applied to a Path or the api root
+//
+// can be used on Path.ApplyMiddlewares and Definition.ApplyMiddlewares (for api root)
+type ApplyMiddlewares func(thisApi any) chi.Middlewares
 
 const (
 	root = "/"

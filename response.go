@@ -10,7 +10,7 @@ import (
 // Responses is a map of Response where the key is the http status code
 type Responses map[int]Response
 
-func (r Responses) writeYaml(w yaml.Writer) {
+func (r Responses) writeYaml(isHead bool, w yaml.Writer) {
 	if l := len(r); l > 0 {
 		sortCodes := make([]int, 0, l)
 		for rc := range r {
@@ -19,7 +19,7 @@ func (r Responses) writeYaml(w yaml.Writer) {
 		sort.Ints(sortCodes)
 		w.WriteTagStart(tagNameResponses)
 		for _, sc := range sortCodes {
-			r[sc].writeYaml(sc, w)
+			r[sc].writeYaml(sc, isHead, w)
 		}
 		w.WriteTagEnd()
 	}
@@ -84,7 +84,7 @@ type Response struct {
 	Comment string
 }
 
-func (r Response) writeYaml(statusCode int, w yaml.Writer) {
+func (r Response) writeYaml(statusCode int, isHead bool, w yaml.Writer) {
 	w.WriteTagStart(strconv.Itoa(statusCode))
 	if r.Ref == "" {
 		w.WriteComments(r.Comment)
@@ -93,7 +93,7 @@ func (r Response) writeYaml(statusCode int, w yaml.Writer) {
 			desc = http.StatusText(statusCode)
 		}
 		w.WriteTagValue(tagNameDescription, desc)
-		if !r.NoContent && statusCode != http.StatusNoContent {
+		if !isHead && !r.NoContent && statusCode != http.StatusNoContent {
 			writeContent(r.ContentType, r.Schema, r.SchemaRef, r.IsArray, r.AlternativeContentTypes, w)
 		}
 		writeExtensions(r.Extensions, w)

@@ -45,15 +45,15 @@ type Definition struct {
 //
 // Pass the thisApi arg if any of the methods use method by name
 func (d *Definition) SetupRoutes(router chi.Router, thisApi any) error {
+	if err := d.DocOptions.SetupRoutes(d, router); err != nil {
+		return err
+	}
 	subRoute := chi.NewRouter()
 	middlewares := d.Middlewares
 	if d.ApplyMiddlewares != nil {
 		middlewares = append(middlewares, d.ApplyMiddlewares(thisApi)...)
 	}
 	subRoute.Use(middlewares...)
-	if err := d.DocOptions.setupRoutes(d, subRoute); err != nil {
-		return err
-	}
 	if err := d.setupMethods(root, d.Methods, subRoute, thisApi); err != nil {
 		return err
 	}
@@ -105,6 +105,7 @@ func (d *Definition) setupMethods(path string, methods Methods, route chi.Router
 	return nil
 }
 
+// WriteYaml writes the definition as YAML to the provided io.Writer
 func (d *Definition) WriteYaml(w io.Writer) error {
 	yw := yaml.NewWriter(bufio.NewWriter(w))
 	err := d.writeYaml(yw)
@@ -114,6 +115,7 @@ func (d *Definition) WriteYaml(w io.Writer) error {
 	return err
 }
 
+// WriteJson writes the definition as JSON to the provided io.Writer
 func (d *Definition) WriteJson(writer io.Writer) (err error) {
 	w := yaml.NewWriter(nil)
 	_ = d.writeYaml(w)
@@ -126,12 +128,14 @@ func (d *Definition) WriteJson(writer io.Writer) (err error) {
 	return
 }
 
+// AsYaml returns the spec as YAML data
 func (d *Definition) AsYaml() ([]byte, error) {
 	w := yaml.NewWriter(nil)
 	_ = d.writeYaml(w)
 	return w.Bytes()
 }
 
+// AsJson returns the spec as JSON data
 func (d *Definition) AsJson() (data []byte, err error) {
 	w := yaml.NewWriter(nil)
 	_ = d.writeYaml(w)
