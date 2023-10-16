@@ -71,7 +71,7 @@ func (r *Request) writeYaml(w yaml.Writer) {
 		writeExtensions(r.Extensions, w)
 		writeAdditional(r.Additional, r, w)
 	} else {
-		w.WriteTagValue(tagNameRef, refPathRequests+r.Ref)
+		writeRef(tagNameRequestBodies, r.Ref, w)
 	}
 	w.WriteTagEnd()
 }

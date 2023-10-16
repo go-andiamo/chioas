@@ -60,6 +60,8 @@ type DocOptions struct {
 	OperationIdentifier OperationIdentifier
 	// Middlewares is any chi.Middlewares for everything served under '/docs' path
 	Middlewares chi.Middlewares
+	// CheckRefs when set to true, all internal $ref's are checked
+	CheckRefs bool
 	// specData is used internally where api has been generated from spec (see FromJson and FromYaml)
 	specData []byte
 }

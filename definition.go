@@ -146,6 +146,9 @@ func (d *Definition) AsJson() (data []byte, err error) {
 }
 
 func (d *Definition) writeYaml(w yaml.Writer) error {
+	if d.DocOptions.CheckRefs {
+		w.RefChecker(d)
+	}
 	w.WriteComments(d.Comment)
 	w.WriteTagValue(tagNameOpenApi, OasVersion)
 	d.Info.writeYaml(w)

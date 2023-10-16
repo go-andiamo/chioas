@@ -1,6 +1,7 @@
 package chioas
 
 import (
+	"errors"
 	"github.com/go-andiamo/chioas/yaml"
 	"reflect"
 	"strings"
@@ -18,10 +19,12 @@ func (ss Schemas) writeYaml(w yaml.Writer) {
 	}
 }
 
+// SchemaConverter is an interface that can be implemented by anything to convert it to a schema
 type SchemaConverter interface {
 	ToSchema() *Schema
 }
 
+// SchemaWriter is an interface that can be implemented by anything to write a schema for that item
 type SchemaWriter interface {
 	WriteSchema(w yaml.Writer)
 }
@@ -57,8 +60,12 @@ type Schema struct {
 	Comment string
 }
 
-func (s Schema) writeYaml(withName bool, w yaml.Writer) {
+func (s *Schema) writeYaml(withName bool, w yaml.Writer) {
 	if withName {
+		if s.Name == "" {
+			w.SetError(errors.New("schema without name"))
+			return
+		}
 		w.WriteTagStart("\"" + s.Name + "\"")
 	}
 	w.WriteComments(s.Comment).
@@ -98,7 +105,7 @@ func (s Schema) writeYaml(withName bool, w yaml.Writer) {
 	}
 }
 
-func (s Schema) getRequiredProperties() ([]string, bool) {
+func (s *Schema) getRequiredProperties() ([]string, bool) {
 	result := make([]string, 0, len(s.RequiredProperties))
 	m := map[string]bool{}
 	for _, v := range s.RequiredProperties {

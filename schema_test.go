@@ -33,19 +33,18 @@ func TestSchemas_WriteYaml(t *testing.T) {
 
 func TestSchema_WriteYaml(t *testing.T) {
 	testCases := []struct {
-		schema   Schema
-		withName bool
-		expect   string
+		schema    Schema
+		withName  bool
+		expect    string
+		expectErr string
 	}{
 		{
 			expect: `type: "object"
 `,
 		},
 		{
-			withName: true,
-			expect: `"":
-  type: "object"
-`,
+			withName:  true,
+			expectErr: "schema without name",
 		},
 		{
 			schema: Schema{
@@ -198,8 +197,13 @@ properties:
 			w := yaml.NewWriter(nil)
 			tc.schema.writeYaml(tc.withName, w)
 			data, err := w.Bytes()
-			assert.NoError(t, err)
-			assert.Equal(t, tc.expect, string(data))
+			if tc.expectErr != "" {
+				assert.Error(t, err)
+				assert.Equal(t, tc.expectErr, err.Error())
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.expect, string(data))
+			}
 		})
 	}
 }
