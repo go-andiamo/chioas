@@ -2,10 +2,8 @@ package chioas
 
 import (
 	"encoding/json"
-	"github.com/go-andiamo/chioas/yaml"
 	"github.com/go-chi/chi/v5"
 	"math"
-	"strings"
 )
 
 // OasVersion is the default OAS version for docs
@@ -74,11 +72,6 @@ const (
 	tagNameUrl              = "url"
 	tagNameVersion          = "version"
 
-	refPathSchemas    = "#/" + tagNameComponents + "/" + tagNameSchemas + "/"
-	refPathRequests   = "#/" + tagNameComponents + "/" + tagNameRequestBodies + "/"
-	refPathResponses  = "#/" + tagNameComponents + "/" + tagNameResponses + "/"
-	refPathParameters = "#/" + tagNameComponents + "/" + tagNameParameters + "/"
-
 	tagValuePath        = "path"
 	tagValueQuery       = "query"
 	tagValueTypeObject  = "object"
@@ -89,21 +82,6 @@ const (
 	tagValueTypeNumber  = "number"
 	tagValueTypeBoolean = "boolean"
 )
-
-func writeSchemaRef(ref string, isArray bool, w yaml.Writer) {
-	if isArray {
-		w.WriteTagValue(tagNameType, tagValueTypeArray).
-			WriteTagStart(tagNameItems)
-	}
-	if strings.Contains(ref, "/") {
-		w.WriteTagValue(tagNameRef, ref)
-	} else {
-		w.WriteTagValue(tagNameRef, refPathSchemas+ref)
-	}
-	if isArray {
-		w.WriteTagEnd()
-	}
-}
 
 func nilString(v string) (result any) {
 	result = v

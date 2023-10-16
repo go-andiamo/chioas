@@ -605,3 +605,25 @@ func TestWriter_Bytes_ReturnsErr(t *testing.T) {
 	_, err = w.Bytes()
 	require.Error(t, err)
 }
+
+func TestWriter_RefChecker(t *testing.T) {
+	w := newWriter(nil)
+	assert.Nil(t, w.refChecker)
+	rc := w.RefChecker(nil)
+	assert.NotNil(t, rc)
+	assert.Equal(t, nullRefChecker, rc)
+	err := rc.RefCheck("any", "any")
+	assert.NoError(t, err)
+
+	w.RefChecker(&testRefChecker{})
+	rc = w.RefChecker(nil)
+	assert.NotEqual(t, nullRefChecker, rc)
+	assert.Error(t, w.RefChecker(nil).RefCheck("any", "any"))
+}
+
+type testRefChecker struct {
+}
+
+func (r *testRefChecker) RefCheck(area, ref string) error {
+	return errors.New("fooey")
+}

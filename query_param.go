@@ -73,6 +73,6 @@ func (p QueryParam) writeYaml(w yaml.Writer) {
 		writeAdditional(p.Additional, p, w)
 		w.WriteTagEnd()
 	} else {
-		w.WriteItemValue(tagNameRef, refPathParameters+p.Ref)
+		writeItemRef(tagNameParameters, p.Ref, w)
 	}
 }

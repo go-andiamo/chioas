@@ -59,6 +59,6 @@ func (pp PathParam) writeYaml(name string, w yaml.Writer) {
 		writeAdditional(pp.Additional, pp, w)
 		w.WriteTagEnd()
 	} else {
-		w.WriteItemValue(tagNameRef, refPathParameters+pp.Ref)
+		writeItemRef(tagNameParameters, pp.Ref, w)
 	}
 }

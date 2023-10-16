@@ -30,15 +30,22 @@ type Writer interface {
 	CurrentIndent() string
 	SetError(err error)
 	Errored() error
+	RefChecker(rc RefChecker) RefChecker
+}
+
+// RefChecker is an interface optionally used by Writer.RefChecker so that refs can be checked for existence
+type RefChecker interface {
+	RefCheck(area, ref string) error
 }
 
 var _ Writer = &writer{}
 
 type writer struct {
-	buffer bytes.Buffer
-	w      *bufio.Writer
-	indent []byte
-	err    error
+	buffer     bytes.Buffer
+	w          *bufio.Writer
+	indent     []byte
+	err        error
+	refChecker RefChecker
 }
 
 func newWriter(w *bufio.Writer) *writer {
@@ -77,7 +84,7 @@ func (y *writer) incIndent() {
 func (y *writer) decIndent() {
 	if len(y.indent) > 1 {
 		y.indent = y.indent[2:]
-	} else {
+	} else if y.err == nil {
 		y.err = errors.New("attempt to end un-started indent")
 	}
 }
@@ -309,4 +316,23 @@ func (y *writer) SetError(err error) {
 
 func (y *writer) Errored() error {
 	return y.err
+}
+
+func (y *writer) RefChecker(rc RefChecker) RefChecker {
+	if rc != nil {
+		y.refChecker = rc
+		return rc
+	} else if y.refChecker != nil {
+		return y.refChecker
+	}
+	return nullRefChecker
+}
+
+var nullRefChecker RefChecker = &refChecker{}
+
+type refChecker struct {
+}
+
+func (r *refChecker) RefCheck(area, ref string) error {
+	return nil
 }

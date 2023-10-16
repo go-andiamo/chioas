@@ -99,7 +99,7 @@ func (r Response) writeYaml(statusCode int, isHead bool, w yaml.Writer) {
 		writeExtensions(r.Extensions, w)
 		writeAdditional(r.Additional, r, w)
 	} else {
-		w.WriteTagValue(tagNameRef, refPathResponses+r.Ref)
+		writeRef(tagNameResponses, r.Ref, w)
 	}
 	w.WriteTagEnd()
 }
