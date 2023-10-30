@@ -117,6 +117,7 @@ func TestDocOptions(t *testing.T) {
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
 	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, contentTypeHtml, res.Header().Get(hdrContentType))
 	body, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
 	const expectHtmlStarts = `<html><head>
@@ -164,6 +165,7 @@ func TestDocOptions_Json(t *testing.T) {
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
 	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, contentTypeHtml, res.Header().Get(hdrContentType))
 	body, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
 	const expectHtmlStarts = `<html><head>
@@ -202,6 +204,7 @@ func TestDocOptions_NoCache(t *testing.T) {
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
 	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, contentTypeHtml, res.Header().Get(hdrContentType))
 	body, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
 	const expectHtmlStarts = `<html>`
@@ -257,6 +260,7 @@ func TestDocOptions_SupportFiles(t *testing.T) {
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
 	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, contentTypeHtml, res.Header().Get(hdrContentType))
 	body, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
 	const expectHtmlStarts = `<html>`
@@ -294,6 +298,7 @@ func TestDocOptions_NoCache_Json(t *testing.T) {
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
 	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, contentTypeHtml, res.Header().Get(hdrContentType))
 	body, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
 	const expectHtmlStarts = `<html>`
@@ -376,7 +381,7 @@ func TestDocOptions_RedocOptions(t *testing.T) {
   </script>
 </body>
 </html>`,
-			RedocOptions: RedocOptions{
+			RedocOptions: &RedocOptions{
 				ScrollYOffset: "200px",
 				Theme: &RedocTheme{
 					Typography: &RedocTypography{
@@ -395,6 +400,7 @@ func TestDocOptions_RedocOptions(t *testing.T) {
 	res := httptest.NewRecorder()
 	router.ServeHTTP(res, req)
 	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, contentTypeHtml, res.Header().Get(hdrContentType))
 	data := res.Body.Bytes()
 	const expect = `<html>
 <body>
@@ -407,4 +413,192 @@ func TestDocOptions_RedocOptions(t *testing.T) {
 </body>
 </html>`
 	assert.Equal(t, expect, string(data))
+}
+
+func TestDocOptions_RedocOptions_Custom(t *testing.T) {
+	type CustomRedocOptions struct {
+		ScrollYOffset string `json:"scrollYOffset"`
+	}
+	def := Definition{
+		DocOptions: DocOptions{
+			ServeDocs: true,
+			UIStyle:   Redoc,
+			DocTemplate: `<html>
+<body>
+  <script>
+    initTry({
+      openApi: {{.specName}},
+      redocOptions: {{.redocopts}}
+    })
+  </script>
+</body>
+</html>`,
+			RedocOptions: &CustomRedocOptions{
+				ScrollYOffset: "200px",
+			},
+		},
+	}
+	router := chi.NewRouter()
+	err := def.SetupRoutes(router, nil)
+	assert.NoError(t, err)
+
+	req, err := http.NewRequest(http.MethodGet, "/docs/index.html", nil)
+	assert.NoError(t, err)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, contentTypeHtml, res.Header().Get(hdrContentType))
+	data := res.Body.Bytes()
+	const expect = `<html>
+<body>
+  <script>
+    initTry({
+      openApi: "spec.yaml",
+      redocOptions: {"scrollYOffset":"200px"}
+    })
+  </script>
+</body>
+</html>`
+	assert.Equal(t, expect, string(data))
+}
+
+func TestDocOptions_SwaggerOptions(t *testing.T) {
+	def := Definition{
+		DocOptions: DocOptions{
+			ServeDocs: true,
+			UIStyle:   Swagger,
+			SwaggerOptions: &SwaggerOptions{
+				DeepLinking: true,
+				Plugins:     []SwaggerPlugin{"MyPlugin1", "MyPlugin2"},
+				Presets:     []SwaggerPreset{"MyPreset1", "MyPreset2"},
+			},
+		},
+	}
+	router := chi.NewRouter()
+	err := def.SetupRoutes(router, nil)
+	assert.NoError(t, err)
+
+	req, err := http.NewRequest(http.MethodGet, "/docs/index.html", nil)
+	assert.NoError(t, err)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, contentTypeHtml, res.Header().Get(hdrContentType))
+	data := string(res.Body.Bytes())
+	assert.Contains(t, data, `"deepLinking":true`)
+	assert.Contains(t, data, `"dom_id":"#swagger-ui"`)
+	assert.Contains(t, data, `"url":"spec.yaml"`)
+	assert.Contains(t, data, `cfg.presets = [MyPreset1,MyPreset2]`)
+	assert.Contains(t, data, `cfg.plugins = [MyPlugin1,MyPlugin2]`)
+
+	expectedSupportFiles := map[string]string{
+		"favicon-16x16.png":               "image/png",
+		"favicon-32x32.png":               "image/png",
+		"index.css":                       "text/css; charset=utf-8",
+		"oauth2-redirect.html":            "text/html; charset=utf-8",
+		"swagger-initializer.js":          "application/javascript",
+		"swagger-ui.css":                  "text/css; charset=utf-8",
+		"swagger-ui.js":                   "application/javascript",
+		"swagger-ui-bundle.js":            "application/javascript",
+		"swagger-ui-es-bundle.js":         "application/javascript",
+		"swagger-ui-es-bundle-core.js":    "application/javascript",
+		"swagger-ui-standalone-preset.js": "application/javascript",
+	}
+	for filename, contentType := range expectedSupportFiles {
+		t.Run(filename, func(t *testing.T) {
+			req, err := http.NewRequest(http.MethodGet, "/docs/"+filename, nil)
+			assert.NoError(t, err)
+			res := httptest.NewRecorder()
+			router.ServeHTTP(res, req)
+			assert.Equal(t, http.StatusOK, res.Code)
+			assert.Equal(t, contentType, res.Header().Get(hdrContentType))
+		})
+	}
+
+	req, err = http.NewRequest(http.MethodGet, "/docs/foo.txt", nil)
+	assert.NoError(t, err)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusNotFound, res.Code)
+}
+
+func TestDocOptions_SwaggerOptions_DefaultPresets(t *testing.T) {
+	def := Definition{
+		DocOptions: DocOptions{
+			ServeDocs: true,
+			UIStyle:   Swagger,
+			SwaggerOptions: &SwaggerOptions{
+				DeepLinking: true,
+			},
+		},
+	}
+	router := chi.NewRouter()
+	err := def.SetupRoutes(router, nil)
+	assert.NoError(t, err)
+
+	req, err := http.NewRequest(http.MethodGet, "/docs/index.html", nil)
+	assert.NoError(t, err)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, contentTypeHtml, res.Header().Get(hdrContentType))
+	data := string(res.Body.Bytes())
+	assert.Contains(t, data, `"deepLinking":true`)
+	assert.Contains(t, data, `"dom_id":"#swagger-ui"`)
+	assert.Contains(t, data, `"url":"spec.yaml"`)
+	assert.Contains(t, data, `cfg.presets = [SwaggerUIBundle.presets.apis,SwaggerUIStandalonePreset]`)
+}
+
+func TestDocOptions_Swagger_WithSupportFiles(t *testing.T) {
+	def := Definition{
+		DocOptions: DocOptions{
+			ServeDocs:    true,
+			UIStyle:      Swagger,
+			SupportFiles: &testSupportFiles{},
+		},
+	}
+	router := chi.NewRouter()
+	err := def.SetupRoutes(router, nil)
+	assert.NoError(t, err)
+
+	req, err := http.NewRequest(http.MethodGet, "/docs/foo.txt", nil)
+	assert.NoError(t, err)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusPaymentRequired, res.Code)
+}
+
+func TestDocOptions_GetSwaggerOptions_Custom(t *testing.T) {
+	o := DocOptions{
+		SwaggerOptions: map[string]any{
+			"foo": "bar",
+		},
+	}
+	m, presets, plugins := o.getSwaggerOptions("test.yaml")
+	assert.Equal(t, 3, len(m))
+	assert.Equal(t, "bar", m["foo"])
+	assert.Equal(t, "test.yaml", m["url"])
+	assert.Equal(t, "#swagger-ui", m["dom_id"])
+	assert.Equal(t, "cfg.presets = [SwaggerUIBundle.presets.apis,SwaggerUIStandalonePreset]", string(presets))
+	assert.Equal(t, "", string(plugins))
+
+	type CustomSwaggerOptions struct {
+		Url   string `json:"url"`
+		DomId string `json:"dom_id"`
+		Foo   string `json:"foo"`
+	}
+	o = DocOptions{
+		SwaggerOptions: &CustomSwaggerOptions{
+			Url:   "gets overridden",
+			DomId: "#my-id",
+			Foo:   "bar",
+		},
+	}
+	m, presets, plugins = o.getSwaggerOptions("test.yaml")
+	assert.Equal(t, 3, len(m))
+	assert.Equal(t, "bar", m["foo"])
+	assert.Equal(t, "test.yaml", m["url"])
+	assert.Equal(t, "#my-id", m["dom_id"])
+	assert.Equal(t, "cfg.presets = [SwaggerUIBundle.presets.apis,SwaggerUIStandalonePreset]", string(presets))
+	assert.Equal(t, "", string(plugins))
 }

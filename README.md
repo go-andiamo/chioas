@@ -22,6 +22,16 @@ All you'll need to do is add `x-handler` tags to each method in the spec.
 
 See [From example](https://github.com/go-andiamo/chioas/tree/main/_examples/from)
 
+### Choice of UI styles
+*Chioas* supports two different styles of API docs UI:
+1. Redoc (see [Redocly.redoc](https://github.com/Redocly/redoc) and [Redoc-try](https://github.com/wll8/redoc-try))
+2. Swagger (see [swagger-ui](https://github.com/swagger-api/swagger-ui))
+
+Set the desired style using `DocOptions.UIStyle` (the default is `Redoc`).
+Notes:
+* statics for `Redoc` are served from CDNs
+* statics for `Swagger` are all served directly from *Chioas*
+
 ## Installation
 To install chioas, use go get:
 

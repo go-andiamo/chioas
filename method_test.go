@@ -14,11 +14,17 @@ import (
 
 func TestMethod_GetHandler_WithHandlerSet(t *testing.T) {
 	m := Method{
-		Handler: func(writer http.ResponseWriter, request *http.Request) {
-
-		},
+		Handler: func(writer http.ResponseWriter, request *http.Request) {},
 	}
 	mh, err := m.getHandler(root, http.MethodGet, nil)
+	assert.NoError(t, err)
+	assert.NotNil(t, mh)
+
+	var hf http.HandlerFunc = func(writer http.ResponseWriter, request *http.Request) {}
+	m = Method{
+		Handler: hf,
+	}
+	mh, err = m.getHandler(root, http.MethodGet, nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, mh)
 }
