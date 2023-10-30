@@ -41,6 +41,48 @@ type RedocOptions struct {
 	ShowWebhookVerb                 bool        `json:"showWebhookVerb,omitempty"`                 // when set to true, shows the HTTP request method for webhooks in operations and in the sidebar.
 }
 
+func (o *RedocOptions) ToMap() map[string]any {
+	m := map[string]any{}
+	addMap(m, o.DisableSearch, "disableSearch")
+	addMap(m, o.MinCharacterLengthToInitSearch, "minCharacterLengthToInitSearch")
+	addMap(m, o.ExpandDefaultServerVariables, "expandDefaultServerVariables")
+	addMap(m, o.ExpandResponses, "expandResponses")
+	addMap(m, o.GeneratedPayloadSamplesMaxDepth, "generatedPayloadSamplesMaxDepth")
+	addMap(m, o.MaxDisplayedEnumValues, "maxDisplayedEnumValues")
+	addMap(m, o.HideDownloadButton, "hideDownloadButton")
+	addMap(m, o.DownloadFileName, "downloadFileName")
+	addMap(m, o.DownloadDefinitionUrl, "downloadDefinitionUrl")
+	addMap(m, o.HideHostname, "hideHostname")
+	addMap(m, o.HideLoading, "hideLoading")
+	addMap(m, o.HideFab, "hideFab")
+	addMap(m, o.HideSchemaPattern, "hideSchemaPattern")
+	addMap(m, o.HideSingleRequestSampleTab, "hideSingleRequestSampleTab")
+	addMap(m, o.ShowObjectSchemaExamples, "showObjectSchemaExamples")
+	addMap(m, o.ExpandSingleSchemaField, "expandSingleSchemaField")
+	addMapNonNil(m, o.SchemaExpansionLevel, "schemaExpansionLevel")
+	addMapNonNil(m, o.JsonSampleExpandLevel, "jsonSampleExpandLevel")
+	addMap(m, o.HideSchemaTitles, "hideSchemaTitles")
+	addMap(m, o.SimpleOneOfTypeLabel, "simpleOneOfTypeLabel")
+	addMap(m, o.SortEnumValuesAlphabetically, "sortEnumValuesAlphabetically")
+	addMap(m, o.SortOperationsAlphabetically, "sortOperationsAlphabetically")
+	addMap(m, o.SortTagsAlphabetically, "sortTagsAlphabetically")
+	addMap(m, o.MenuToggle, "menuToggle")
+	addMap(m, o.NativeScrollbars, "nativeScrollbars")
+	addMap(m, o.OnlyRequiredInSamples, "onlyRequiredInSamples")
+	addMap(m, o.PathInMiddlePanel, "pathInMiddlePanel")
+	addMap(m, o.RequiredPropsFirst, "requiredPropsFirst")
+	addMapNonNil(m, o.ScrollYOffset, "scrollYOffset")
+	addMap(m, o.ShowExtensions, "showExtensions")
+	addMap(m, o.SortPropsAlphabetically, "sortPropsAlphabetically")
+	addMap(m, o.PayloadSampleIndex, "payloadSampleIdx")
+	addMapMappable(m, o.Theme, "theme")
+	addMap(m, o.UntrustedSpec, "untrustedSpec")
+	addMapNonNil(m, o.Nonce, "nonce")
+	addMap(m, o.SideNavStyle, "sideNavStyle")
+	addMap(m, o.ShowWebhookVerb, "showWebhookVerb")
+	return m
+}
+
 type RedocTheme struct {
 	Spacing     *RedocSpacing     `json:"spacing,omitempty"`
 	Breakpoints *RedocBreakpoints `json:"breakpoints,omitempty"`
@@ -52,21 +94,56 @@ type RedocTheme struct {
 	Fab         *RedocFab         `json:"fab,omitempty"`
 }
 
+func (o *RedocTheme) ToMap() map[string]any {
+	m := map[string]any{}
+	addMapMappable(m, o.Spacing, "spacing")
+	addMapMappable(m, o.Breakpoints, "breakpoints")
+	addMapMappable(m, o.Colors, "colors")
+	addMapMappable(m, o.Typography, "typography")
+	addMapMappable(m, o.Sidebar, "sidebar")
+	addMapMappable(m, o.Logo, "logo")
+	addMapMappable(m, o.RightPanel, "rightPanel")
+	addMapMappable(m, o.Fab, "fab")
+	return m
+}
+
 type RedocSpacing struct {
 	Unit              int `json:"unit,omitempty"`              // 5 # main spacing unit used in autocomputed theme values later
 	SectionHorizontal int `json:"sectionHorizontal,omitempty"` // 40 # Horizontal section padding. COMPUTED: spacing.unit * 8
 	SectionVertical   int `json:"sectionVertical,omitempty"`   // 40 # Horizontal section padding. COMPUTED: spacing.unit * 8
 }
 
+func (o *RedocSpacing) ToMap() map[string]any {
+	m := map[string]any{}
+	addMap(m, o.Unit, "unit")
+	addMap(m, o.SectionHorizontal, "sectionHorizontal")
+	addMap(m, o.SectionVertical, "sectionVertical")
+	return m
+}
+
 // RedocBreakpoints breakpoints for switching three/two and mobile view layouts
 type RedocBreakpoints struct {
 	Small  string `json:"small,omitempty"`  // '50rem'
 	Medium string `json:"medium,omitempty"` // '85rem'
-	Large  string `json:"large"`            // '105rem'
+	Large  string `json:"large,omitempty"`  // '105rem'
+}
+
+func (o *RedocBreakpoints) ToMap() map[string]any {
+	m := map[string]any{}
+	addMap(m, o.Small, "small")
+	addMap(m, o.Medium, "medium")
+	addMap(m, o.Large, "large")
+	return m
 }
 
 type RedocColors struct {
 	TonalOffset float32 `json:"tonalOffset,omitempty"` // 0.3 # default tonal offset used in computations
+}
+
+func (o *RedocColors) ToMap() map[string]any {
+	m := map[string]any{}
+	addMap(m, o.TonalOffset, "tonalOffset")
+	return m
 }
 
 type RedocTypography struct {
@@ -83,10 +160,34 @@ type RedocTypography struct {
 	Links             *RedocLinks    `json:"links,omitempty"`
 }
 
+func (o *RedocTypography) ToMap() map[string]any {
+	m := map[string]any{}
+	addMap(m, o.FontSize, "fontSize")
+	addMap(m, o.LineHeight, "lineHeight")
+	addMap(m, o.FontWeightRegular, "fontWeightRegular")
+	addMap(m, o.FontWeightBold, "fontWeightBold")
+	addMap(m, o.FontWeightLight, "fontWeightLight")
+	addMap(m, o.FontFamily, "fontFamily")
+	addMap(m, o.Smoothing, "smoothing")
+	addMapDef(m, o.OptimizeSpeed, "optimizeSpeed", true)
+	addMapMappable(m, o.Headings, "headings")
+	addMapMappable(m, o.Code, "code")
+	addMapMappable(m, o.Links, "links")
+	return m
+}
+
 type RedocHeadings struct {
 	FontFamily string `json:"fontFamily,omitempty"` // 'Montserrat, sans-serif'
 	FontWeight string `json:"fontWeight,omitempty"` // '400'
 	LineHeight string `json:"lineHeight,omitempty"` // '1.6em'
+}
+
+func (o *RedocHeadings) ToMap() map[string]any {
+	m := map[string]any{}
+	addMap(m, o.FontFamily, "fontFamily")
+	addMap(m, o.FontWeight, "fontWeight")
+	addMap(m, o.LineHeight, "lineHeight")
+	return m
 }
 
 type RedocCode struct {
@@ -99,45 +200,110 @@ type RedocCode struct {
 	Wrap            bool   `json:"wrap,omitempty"`            // whether to break word for inline blocks (otherwise they can overflow)
 }
 
+func (o *RedocCode) ToMap() map[string]any {
+	m := map[string]any{}
+	addMap(m, o.FontFamily, "fontFamily")
+	addMap(m, o.FontWeight, "fontWeight")
+	addMap(m, o.LineHeight, "lineHeight")
+	addMap(m, o.FontWeight, "fontWeight")
+	addMap(m, o.Color, "color")
+	addMap(m, o.BackgroundColor, "backgroundColor")
+	addMap(m, o.Wrap, "wrap")
+	return m
+}
+
 type RedocLinks struct {
-	Color               string `json:"color,omitempty"`          // COMPUTED: colors.primary.main
-	Visited             string `json:"visited,omitempty"`        // COMPUTED: typography.links.color
-	Hover               string `json:"hover,omitempty"`          // COMPUTED: lighten(0.2 typography.links.color)
-	TextDecoration      string `json:"textDecoration,omitempty"` // 'auto'
-	HoverTextDecoration string `json:"hoverTextDecoration"`      // 'auto'
+	Color               string `json:"color,omitempty"`               // COMPUTED: colors.primary.main
+	Visited             string `json:"visited,omitempty"`             // COMPUTED: typography.links.color
+	Hover               string `json:"hover,omitempty"`               // COMPUTED: lighten(0.2 typography.links.color)
+	TextDecoration      string `json:"textDecoration,omitempty"`      // 'auto'
+	HoverTextDecoration string `json:"hoverTextDecoration,omitempty"` // 'auto'
+}
+
+func (o *RedocLinks) ToMap() map[string]any {
+	m := map[string]any{}
+	addMap(m, o.Color, "color")
+	addMap(m, o.Visited, "visited")
+	addMap(m, o.Hover, "hover")
+	addMap(m, o.TextDecoration, "textDecoration")
+	addMap(m, o.HoverTextDecoration, "hoverTextDecoration")
+	return m
 }
 
 type RedocSidebar struct {
 	Width           string            `json:"width,omitempty"`           // '260px'
 	BackgroundColor string            `json:"backgroundColor,omitempty"` // '#fafafa'
 	TextColor       string            `json:"textColor,omitempty"`       // '#333333'
-	ActiveTextColor string            `json:"activeTextColor"`           // COMPUTED: theme.sidebar.textColor (if set by user) or theme.colors.primary.main
+	ActiveTextColor string            `json:"activeTextColor,omitempty"` // COMPUTED: theme.sidebar.textColor (if set by user) or theme.colors.primary.main
 	GroupItems      *RedocGroupItems  `json:"groupItems,omitempty"`      // Group headings
 	Level1Items     *RedocLevel1Items `json:"level1Items,omitempty"`     //  Level 1 items like tags or section 1st level items
 	Arrow           *RedocArrow       `json:"arrow,omitempty"`           // sidebar arrow
 }
 
+func (o *RedocSidebar) ToMap() map[string]any {
+	m := map[string]any{}
+	addMap(m, o.Width, "width")
+	addMap(m, o.BackgroundColor, "backgroundColor")
+	addMap(m, o.TextColor, "textColor")
+	addMap(m, o.ActiveTextColor, "activeTextColor")
+	addMapMappable(m, o.GroupItems, "groupItems")
+	addMapMappable(m, o.Level1Items, "level1Items")
+	addMapMappable(m, o.Arrow, "arrow")
+	return m
+}
+
 type RedocGroupItems struct {
 	ActiveBackgroundColor string `json:"activeBackgroundColor,omitempty"` // COMPUTED: theme.sidebar.backgroundColor
-	ActiveTextColor       string `json:"activeTextColor"`                 // COMPUTED: theme.sidebar.activeTextColor
-	TextTransform         string `json:"textTransform"`                   // 'uppercase'
+	ActiveTextColor       string `json:"activeTextColor,omitempty"`       // COMPUTED: theme.sidebar.activeTextColor
+	TextTransform         string `json:"textTransform,omitempty"`         // 'uppercase'
+}
+
+func (o *RedocGroupItems) ToMap() map[string]any {
+	m := map[string]any{}
+	addMap(m, o.ActiveBackgroundColor, "activeBackgroundColor")
+	addMap(m, o.ActiveTextColor, "activeTextColor")
+	addMap(m, o.TextTransform, "textTransform")
+	return m
 }
 
 type RedocLevel1Items struct {
 	ActiveBackgroundColor string `json:"activeBackgroundColor,omitempty"` // COMPUTED: theme.sidebar.backgroundColor
 	ActiveTextColor       string `json:"activeTextColor,omitempty"`       // COMPUTED: theme.sidebar.activeTextColor
-	TextTransform         string `json:"textTransform"`                   // 'none'
+	TextTransform         string `json:"textTransform,omitempty"`         // 'none'
+}
+
+func (o *RedocLevel1Items) ToMap() map[string]any {
+	m := map[string]any{}
+	addMap(m, o.ActiveBackgroundColor, "activeBackgroundColor")
+	addMap(m, o.ActiveTextColor, "activeTextColor")
+	addMap(m, o.TextTransform, "textTransform")
+	return m
 }
 
 type RedocArrow struct {
-	Size  string `json:"size,omitempty"` // '1.5em'
-	Color string `json:"color"`          // COMPUTED: theme.sidebar.textColor
+	Size  string `json:"size,omitempty"`  // '1.5em'
+	Color string `json:"color,omitempty"` // COMPUTED: theme.sidebar.textColor
+}
+
+func (o *RedocArrow) ToMap() map[string]any {
+	m := map[string]any{}
+	addMap(m, o.Size, "size")
+	addMap(m, o.Color, "color")
+	return m
 }
 
 type RedocLogo struct {
 	MaxHeight int    `json:"maxHeight,omitempty"` // COMPUTED: sidebar.width
 	MaxWidth  int    `json:"maxWidth,omitempty"`  // COMPUTED: sidebar.width
-	Gutter    string `json:"gutter"`              // '2px' # logo image padding
+	Gutter    string `json:"gutter,omitempty"`    // '2px' # logo image padding
+}
+
+func (o *RedocLogo) ToMap() map[string]any {
+	m := map[string]any{}
+	addMap(m, o.MaxHeight, "maxHeight")
+	addMap(m, o.MaxWidth, "maxWidth")
+	addMap(m, o.Gutter, "gutter")
+	return m
 }
 
 type RedocRightPanel struct {
@@ -147,9 +313,25 @@ type RedocRightPanel struct {
 	Servers         *RedocRightPanelServers `json:"servers,omitempty"`
 }
 
+func (o *RedocRightPanel) ToMap() map[string]any {
+	m := map[string]any{}
+	addMap(m, o.BackgroundColor, "backgroundColor")
+	addMap(m, o.Width, "width")
+	addMap(m, o.TextColor, "textColor")
+	addMapMappable(m, o.Servers, "servers")
+	return m
+}
+
 type RedocRightPanelServers struct {
 	Overlay *RedocRightPanelServersOverlay `json:"overlay,omitempty"`
 	Url     *RedocRightPanelServersUrl     `json:"url,omitempty"`
+}
+
+func (o *RedocRightPanelServers) ToMap() map[string]any {
+	m := map[string]any{}
+	addMapMappable(m, o.Overlay, "overlay")
+	addMapMappable(m, o.Url, "url")
+	return m
 }
 
 type RedocRightPanelServersOverlay struct {
@@ -157,11 +339,31 @@ type RedocRightPanelServersOverlay struct {
 	TextColor       string `json:"textColor,omitempty"`       // '#263238'
 }
 
+func (o *RedocRightPanelServersOverlay) ToMap() map[string]any {
+	m := map[string]any{}
+	addMap(m, o.BackgroundColor, "backgroundColor")
+	addMap(m, o.TextColor, "textColor")
+	return m
+}
+
 type RedocRightPanelServersUrl struct {
 	BackgroundColor string `json:"backgroundColor,omitempty"` // '#fff'
+}
+
+func (o *RedocRightPanelServersUrl) ToMap() map[string]any {
+	m := map[string]any{}
+	addMap(m, o.BackgroundColor, "backgroundColor")
+	return m
 }
 
 type RedocFab struct {
 	BackgroundColor string `json:"backgroundColor,omitempty"` // '#263238'
 	Color           string `json:"color,omitempty"`           // '#ffffff'
+}
+
+func (o *RedocFab) ToMap() map[string]any {
+	m := map[string]any{}
+	addMap(m, o.BackgroundColor, "backgroundColor")
+	addMap(m, o.Color, "color")
+	return m
 }
