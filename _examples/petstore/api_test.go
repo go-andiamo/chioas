@@ -44,5 +44,5 @@ func TestDocs(t *testing.T) {
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
 	assert.Equal(t, http.StatusOK, res.Code)
-	assert.Equal(t, "text/plain; charset=utf-8", res.Header().Get("Content-Type"))
+	assert.Equal(t, "application/yaml", res.Header().Get("Content-Type"))
 }

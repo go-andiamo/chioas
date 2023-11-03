@@ -58,6 +58,16 @@ type Schema struct {
 	Additional Additional
 	// Comment is any comment(s) to appear in the OAS spec yaml
 	Comment string
+	// SchemaRef is the OAS schema reference
+	//
+	// Only used if value is a non-empty string
+	//
+	// If the value does not contain a path (i.e. does not contain any "/") then the ref
+	// path will be the value prefixed with components schemas path.  For example, specifying "foo"
+	// will result in a schema ref:
+	//   schema:
+	//     $ref: "#/components/schemas/foo"
+	SchemaRef string
 }
 
 func (s *Schema) writeYaml(withName bool, w yaml.Writer) {
@@ -68,41 +78,83 @@ func (s *Schema) writeYaml(withName bool, w yaml.Writer) {
 		}
 		w.WriteTagStart("\"" + s.Name + "\"")
 	}
-	w.WriteComments(s.Comment).
-		WriteTagValue(tagNameDescription, s.Description)
-	if s.Type != "" {
-		w.WriteTagValue(tagNameType, s.Type)
+	w.WriteComments(s.Comment)
+	if s.SchemaRef != "" {
+		writeSchemaRef(s.SchemaRef, s.Type == tagValueTypeArray, w)
 	} else {
-		w.WriteTagValue(tagNameType, tagValueTypeObject)
-	}
-	if reqs, has := s.getRequiredProperties(); has {
-		w.WriteTagStart(tagNameRequired)
-		for _, rp := range reqs {
-			w.WriteItem(rp)
+		w.WriteTagValue(tagNameDescription, s.Description)
+		if s.Type != "" {
+			w.WriteTagValue(tagNameType, s.Type)
+		} else {
+			w.WriteTagValue(tagNameType, tagValueTypeObject)
 		}
-		w.WriteTagEnd()
-	}
-	if len(s.Properties) > 0 {
-		w.WriteTagStart(tagNameProperties)
-		for _, p := range s.Properties {
-			p.writeYaml(w, true)
+		if reqs, has := s.getRequiredProperties(); has {
+			w.WriteTagStart(tagNameRequired)
+			for _, rp := range reqs {
+				w.WriteItem(rp)
+			}
+			w.WriteTagEnd()
 		}
-		w.WriteTagEnd()
-	}
-	w.WriteTagValue(tagNameDefault, s.Default).
-		WriteTagValue(tagNameExample, s.Example)
-	if len(s.Enum) > 0 {
-		w.WriteTagStart(tagNameEnum)
-		for _, e := range s.Enum {
-			w.WriteItem(e)
+		if len(s.Properties) > 0 {
+			w.WriteTagStart(tagNameProperties)
+			for _, p := range s.Properties {
+				p.writeYaml(w, true)
+			}
+			w.WriteTagEnd()
 		}
-		w.WriteTagEnd()
+		w.WriteTagValue(tagNameDefault, s.Default).
+			WriteTagValue(tagNameExample, s.Example)
+		if len(s.Enum) > 0 {
+			w.WriteTagStart(tagNameEnum)
+			for _, e := range s.Enum {
+				w.WriteItem(e)
+			}
+			w.WriteTagEnd()
+		}
+		writeExtensions(s.Extensions, w)
+		writeAdditional(s.Additional, s, w)
 	}
-	writeExtensions(s.Extensions, w)
-	writeAdditional(s.Additional, s, w)
 	if withName {
 		w.WriteTagEnd()
 	}
+	/*
+		w.WriteComments(s.Comment).
+			WriteTagValue(tagNameDescription, s.Description)
+		if s.Type != "" {
+			w.WriteTagValue(tagNameType, s.Type)
+		} else {
+			w.WriteTagValue(tagNameType, tagValueTypeObject)
+		}
+		if reqs, has := s.getRequiredProperties(); has {
+			w.WriteTagStart(tagNameRequired)
+			for _, rp := range reqs {
+				w.WriteItem(rp)
+			}
+			w.WriteTagEnd()
+		}
+		if len(s.Properties) > 0 {
+			w.WriteTagStart(tagNameProperties)
+			for _, p := range s.Properties {
+				p.writeYaml(w, true)
+			}
+			w.WriteTagEnd()
+		}
+		w.WriteTagValue(tagNameDefault, s.Default).
+			WriteTagValue(tagNameExample, s.Example)
+		if len(s.Enum) > 0 {
+			w.WriteTagStart(tagNameEnum)
+			for _, e := range s.Enum {
+				w.WriteItem(e)
+			}
+			w.WriteTagEnd()
+		}
+		writeExtensions(s.Extensions, w)
+		writeAdditional(s.Additional, s, w)
+		if withName {
+			w.WriteTagEnd()
+		}
+
+	*/
 }
 
 func (s *Schema) getRequiredProperties() ([]string, bool) {

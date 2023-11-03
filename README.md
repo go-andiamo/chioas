@@ -16,6 +16,12 @@
 * Produces an OpenApi spec (OAS) of that definition
 * Optionally serves an interactive API docs web-page (as part of your service)
 
+### Advantages
+With your actual API and OpenAPI spec (OAS) being specified in _**one**_ place there's no chance of them becoming out of sync! (eliminating having to manually update spec yaml/json to match API or vice versa)
+
+You can even keep your request/response OAS schemas in sync with your request/response structs!<br>
+See [petstore example](https://github.com/go-andiamo/chioas/tree/main/_examples/petstore)
+
 ### Already have an OAS spec?
 No problem, use `chioas.FromJson()` or `chioas.FromYaml()` to read the spec definition.
 All you'll need to do is add `x-handler` tags to each method in the spec.

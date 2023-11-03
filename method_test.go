@@ -1,97 +1,14 @@
 package chioas
 
 import (
-	"errors"
 	"github.com/go-andiamo/chioas/yaml"
 	"github.com/go-andiamo/urit"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 )
-
-func TestMethod_GetHandler_WithHandlerSet(t *testing.T) {
-	m := Method{
-		Handler: func(writer http.ResponseWriter, request *http.Request) {},
-	}
-	mh, err := m.getHandler(root, http.MethodGet, nil)
-	assert.NoError(t, err)
-	assert.NotNil(t, mh)
-
-	var hf http.HandlerFunc = func(writer http.ResponseWriter, request *http.Request) {}
-	m = Method{
-		Handler: hf,
-	}
-	mh, err = m.getHandler(root, http.MethodGet, nil)
-	assert.NoError(t, err)
-	assert.NotNil(t, mh)
-}
-
-func TestMethod_GetHandler_WithGetHandler(t *testing.T) {
-	m := Method{
-		Handler: func(path string, method string, thisApi any) (http.HandlerFunc, error) {
-			return nil, errors.New("foo")
-		},
-	}
-	mh, err := m.getHandler(root, http.MethodGet, nil)
-	assert.Error(t, err)
-	assert.Nil(t, mh)
-}
-
-func TestMethod_GetHandler_WithMethodNameSet(t *testing.T) {
-	m := Method{
-		Handler: "Foo",
-	}
-	_, err := m.getHandler(root, http.MethodGet, nil)
-	assert.Error(t, err)
-
-	type dummyStruct struct{}
-	_, err = m.getHandler(root, http.MethodGet, &dummyStruct{})
-	assert.Error(t, err)
-
-	dummy := &dummyWithMethod{}
-	mh, err := m.getHandler(root, http.MethodGet, dummy)
-	assert.NoError(t, err)
-	assert.NotNil(t, mh)
-	assert.False(t, dummy.called)
-	req, err := http.NewRequest(http.MethodGet, "/example", nil)
-	require.NoError(t, err)
-	res := httptest.NewRecorder()
-	mh.ServeHTTP(res, req)
-	assert.True(t, dummy.called)
-
-	m = Method{
-		Handler: "Bar",
-	}
-	_, err = m.getHandler(root, http.MethodGet, dummy)
-	assert.Error(t, err)
-
-	m = Method{
-		Handler: false,
-	}
-	_, err = m.getHandler(root, http.MethodGet, dummy)
-	assert.Error(t, err)
-}
-
-type dummyWithMethod struct {
-	called bool
-}
-
-func (d *dummyWithMethod) Foo(writer http.ResponseWriter, request *http.Request) {
-	d.called = true
-}
-
-func (d *dummyWithMethod) Bar() {
-	d.called = true
-}
-
-func TestMethod_GetHandler_NoHandlerOrMethodNameSet(t *testing.T) {
-	m := Method{}
-	_, err := m.getHandler(root, http.MethodGet, nil)
-	assert.Error(t, err)
-}
 
 func TestMethods_WriteYaml(t *testing.T) {
 	opts := &DocOptions{}

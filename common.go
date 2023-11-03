@@ -34,6 +34,7 @@ const (
 	tagNameIn               = "in"
 	tagNameInfo             = "info"
 	tagNameItems            = "items"
+	tagNameItemType         = "itemType"
 	tagNameLicense          = "license"
 	tagNameMaxItems         = "maxItems"
 	tagNameMaxLength        = "maxLength"
