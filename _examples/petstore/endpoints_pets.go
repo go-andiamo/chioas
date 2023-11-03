@@ -6,6 +6,18 @@ import (
 	"net/http"
 )
 
+type PetRequestResponse struct {
+	Id        int         `json:"id" oas:"description:The id of the pet,example"`
+	Name      string      `json:"name" oas:"description:The name of the pet,required,example"`
+	Category  PetCategory `json:"category" oas:"$ref:Category"`
+	PhotoUrls []string    `json:"photoUrls" oas:"description:Photos of the pet,required,example"`
+}
+
+type PetCategory struct {
+	Id   int    `json:"id" oas:"description:The id of the category,example"`
+	Name string `json:"name" oas:"description: The name of the category,example,# this is a comment in the spec"`
+}
+
 var petsPaths = chioas.Path{
 	Tag: "pet",
 	Methods: map[string]chioas.Method{

@@ -15,6 +15,11 @@ type Definition struct {
 	DocOptions DocOptions
 	// AutoHeadMethods when set to true, automatically adds HEAD methods for GET methods (where HEAD method not explicitly specified)
 	AutoHeadMethods bool
+	// MethodHandlerBuilder is an optional MethodHandlerBuilder which is called to build the
+	// http.HandlerFunc for the method
+	//
+	// If MethodHandlerBuilder is nil then the default method handler builder is used
+	MethodHandlerBuilder MethodHandlerBuilder
 	// Info is the OAS info for the spec
 	Info Info
 	// Servers is the OAS servers for the spec
@@ -89,15 +94,16 @@ func (d *Definition) setupPaths(ancestry []string, paths Paths, route chi.Router
 func (d *Definition) setupMethods(path string, methods Methods, route chi.Router, thisApi any) error {
 	if methods != nil {
 		for m, mDef := range methods {
-			if h, err := mDef.getHandler(path, m, thisApi); err == nil {
+			if h, err := getMethodHandlerBuilder(d.MethodHandlerBuilder).BuildHandler(path, m, mDef, thisApi); err == nil {
 				route.MethodFunc(m, root, h)
 			} else {
 				return err
 			}
 		}
 		if d.AutoHeadMethods {
-			if getM, ok := methods.getWithoutHead(); ok {
-				h, _ := getM.getHandler(path, http.MethodHead, thisApi)
+			if mDef, ok := methods.getWithoutHead(); ok {
+				//h, _ := mDef.getHandler(path, http.MethodHead, thisApi)
+				h, _ := getMethodHandlerBuilder(d.MethodHandlerBuilder).BuildHandler(path, http.MethodHead, mDef, thisApi)
 				route.MethodFunc(http.MethodHead, root, h)
 			}
 		}

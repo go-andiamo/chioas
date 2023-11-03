@@ -191,6 +191,16 @@ properties:
     type: "string"
 `,
 		},
+		{
+			schema: Schema{
+				Name:      "Foo",
+				SchemaRef: "Foo2",
+			},
+			withName: true,
+			expect: `"Foo":
+  $ref: "#/components/schemas/Foo2"
+`,
+		},
 	}
 	for i, tc := range testCases {
 		t.Run(fmt.Sprintf("[%d]", i+1), func(t *testing.T) {

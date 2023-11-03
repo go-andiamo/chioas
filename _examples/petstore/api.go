@@ -1,29 +1,41 @@
 package main
 
 import (
+	"embed"
 	"fmt"
 	"github.com/go-andiamo/chioas"
 	"github.com/go-chi/chi/v5"
+	"net/http"
 	"reflect"
 	"runtime"
 	"strings"
 )
 
+// part of our spec is a static file! (though it doesn't have to be - just for demo purposes)
+//
+//go:embed status_schema.yaml
+var supportFilesFS embed.FS
+
+type supportFiles struct {
+}
+
+func (s *supportFiles) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+	// we serve file(s) from static embedded filesystem
+	// (we could equally generate file content dynamically - if the need arises)
+	name := strings.TrimPrefix(request.URL.Path, "/docs/")
+	if data, err := supportFilesFS.ReadFile(name); err == nil {
+		_, _ = writer.Write(data)
+	} else {
+		writer.WriteHeader(http.StatusNotFound)
+	}
+}
+
 var apiDef = chioas.Definition{
 	DocOptions: chioas.DocOptions{
-		ServeDocs: true, // makes docs served as interactive UI on /docs/index.htm
-		RedocOptions: map[string]any{
-			"scrollYOffset":            0,
-			"showObjectSchemaExamples": true,
-			"theme": map[string]any{
-				"sidebar": map[string]any{
-					"width": "220px",
-				},
-				"rightPanel": map[string]any{
-					"width": "60%",
-				},
-			},
-		},
+		ServeDocs:    true, // makes docs served as interactive UI on /docs/index.htm
+		UIStyle:      chioas.Swagger,
+		SupportFiles: &supportFiles{},
+		CheckRefs:    true, // make sure that any $ref's are valid!
 	},
 	Info: chioas.Info{
 		Title: "Swagger Petstore - OpenAPI 3.0",
@@ -55,18 +67,6 @@ Store](https://github.com/swagger-api/swagger-petstore/blob/master/src/main/reso
 				Url:         "http://swagger.io",
 			},
 		},
-		{
-			Name:        "store",
-			Description: "Access to Petstore orders",
-			ExternalDocs: &chioas.ExternalDocs{
-				Description: "Find out more about our store",
-				Url:         "http://swagger.io",
-			},
-		},
-		{
-			Name:        "user",
-			Description: "Operations about user",
-		},
 	},
 	Paths: chioas.Paths{
 		"/pets": petsPaths,
@@ -76,54 +76,31 @@ Store](https://github.com/swagger-api/swagger-petstore/blob/master/src/main/reso
 
 var components = chioas.Components{
 	Schemas: chioas.Schemas{
+		// generate schema from the PetRequestResponse struct...
+		(&chioas.Schema{
+			Name:        "Pet",
+			Description: "Pet request/response",
+			Comment:     chioas.SourceComment(),
+		}).Must(PetRequestResponse{
+			Id:        1,
+			Name:      "doggie",
+			PhotoUrls: []string{"https://example.com/dog-picture.jpg"},
+		}),
+		// generate schema from the PetCategory struct...
+		(&chioas.Schema{
+			Name:        "Category",
+			Description: "Pet category",
+			Comment:     chioas.SourceComment(),
+		}).Must(PetCategory{
+			Id:   1,
+			Name: "Dogs",
+		}),
 		{
-			Name:               "Pet",
-			Type:               "object",
-			RequiredProperties: []string{"name", "photoUrls"},
-			Properties: []chioas.Property{
-				{
-					Name:    "id",
-					Type:    "integer",
-					Example: 10,
-				},
-				{
-					Name:    "name",
-					Type:    "string",
-					Example: "doggie",
-				},
-				{
-					Name:      "category",
-					SchemaRef: "Category",
-				},
-				{
-					Name:     "photoUrls",
-					Type:     "array",
-					ItemType: "string",
-					Example:  "https://example.com/dog-picture.jpg",
-				},
-			},
-		},
-		{
-			Name: "Category",
-			Type: "object",
-			Properties: []chioas.Property{
-				{
-					Name:    "id",
-					Type:    "integer",
-					Example: 1,
-				},
-				{
-					Name:    "name",
-					Type:    "string",
-					Example: "Dogs",
-				},
-			},
-		},
-		{
-			Name:    "Status",
-			Type:    "string",
-			Default: "available",
-			Enum:    []any{"available", "pending", "sold"},
+			Name:      "Status",
+			SchemaRef: "./status_schema.yaml", // we could have defined the schema here - but for demo purposes, we're serving a static file (see supportFiles)
+			//			Type:    "string",
+			//			Default: "available",
+			//			Enum:    []any{"available", "pending", "sold"},
 		},
 	},
 }

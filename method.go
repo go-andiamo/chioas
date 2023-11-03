@@ -1,12 +1,10 @@
 package chioas
 
 import (
-	"fmt"
 	"github.com/go-andiamo/chioas/yaml"
 	"github.com/go-andiamo/urit"
 	"golang.org/x/exp/slices"
 	"net/http"
-	"reflect"
 	"sort"
 	"strings"
 )
@@ -66,34 +64,6 @@ type Method struct {
 	Comment string
 	// HideDocs if set to true, hides this method from the OAS docs
 	HideDocs bool
-}
-
-// GetHandler is a function that can be set on Method.Handler - and is called to obtain the http.HandlerFunc
-type GetHandler func(path string, method string, thisApi any) (http.HandlerFunc, error)
-
-func (m Method) getHandler(path string, method string, thisApi any) (http.HandlerFunc, error) {
-	if m.Handler == nil {
-		return nil, fmt.Errorf("handler not set (path: %s, method: %s)", path, method)
-	} else if hf, ok := m.Handler.(http.HandlerFunc); ok {
-		return hf, nil
-	} else if hf, ok := m.Handler.(func(http.ResponseWriter, *http.Request)); ok {
-		return hf, nil
-	} else if gh, ok := m.Handler.(func(string, string, any) (http.HandlerFunc, error)); ok {
-		return gh(path, method, thisApi)
-	} else if mn, ok := m.Handler.(string); ok {
-		if thisApi == nil {
-			return nil, fmt.Errorf("method by name '%s' can only be used when 'thisApi' arg is passed to Definition.SetupRoutes (path: %s, method: %s)", mn, path, method)
-		}
-		mfn := reflect.ValueOf(thisApi).MethodByName(mn)
-		if !mfn.IsValid() {
-			return nil, fmt.Errorf("method name '%s' does not exist (path: %s, method: %s)", mn, path, method)
-		}
-		if hf, ok = mfn.Interface().(func(http.ResponseWriter, *http.Request)); ok {
-			return hf, nil
-		}
-		return nil, fmt.Errorf("method name '%s' is not http.HandlerFunc (path: %s, method: %s)", mn, path, method)
-	}
-	return nil, fmt.Errorf("invalid handler type (path: %s, method: %s)", path, method)
 }
 
 // MethodsOrder defines the order in which methods appear in docs
