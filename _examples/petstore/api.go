@@ -12,8 +12,9 @@ import (
 )
 
 // part of our spec is a static file! (though it doesn't have to be - just for demo purposes)
+// we're also using it to serve up a logo image - which is used in the docs template html
 //
-//go:embed status_schema.yaml
+//go:embed status_schema.yaml petstore-logo.png
 var supportFilesFS embed.FS
 
 type supportFiles struct {
@@ -35,7 +36,8 @@ var apiDef = chioas.Definition{
 		ServeDocs:    true, // makes docs served as interactive UI on /docs/index.htm
 		UIStyle:      chioas.Swagger,
 		SupportFiles: &supportFiles{},
-		CheckRefs:    true, // make sure that any $ref's are valid!
+		CheckRefs:    true,                      // make sure that any $ref's are valid!
+		DocTemplate:  customizedSwaggerTemplate, // customized template to show logo
 	},
 	Info: chioas.Info{
 		Title: "Swagger Petstore - OpenAPI 3.0",
@@ -132,3 +134,42 @@ func commenter(handlerMethod string, comments ...string) []string {
 func (a *api) SetupRoutes(r chi.Router) error {
 	return a.Definition.SetupRoutes(r, a)
 }
+
+// customizing the html template (to show a logo) - copied from chioas/doc_options.go defaultSwaggerTemplate
+const customizedSwaggerTemplate = `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>{{.title}}</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" type="text/css" href="./swagger-ui.css" />
+    <link rel="stylesheet" type="text/css" href="./index.css" />
+    <link rel="icon" type="image/png" href="./favicon-32x32.png" sizes="32x32" />
+    <link rel="icon" type="image/png" href="./favicon-16x16.png" sizes="16x16" />
+    <style>{{.stylesOverride}}</style>
+    <style>
+        .logo img {
+            padding: inherit;
+            margin:auto;
+            width: 200px;
+            display: block;
+        }
+    </style>
+  </head>
+  <body>
+	<div class="logo">
+		<img src="petstore-logo.png" alt="pet store logo">
+	</div>
+    <div id="swagger-ui"></div>
+    <script src="./swagger-ui-bundle.js" charset="UTF-8"> </script>
+    <script src="./swagger-ui-standalone-preset.js" charset="UTF-8"> </script>
+    <script>
+      window.onload = function() {
+		let cfg = {{.swaggeropts}}
+		{{.swaggerpresets}}
+		{{.swaggerplugins}}
+        const ui = SwaggerUIBundle(cfg)
+        window.ui = ui
+      }
+    </script>
+  </body>
+</html>`
