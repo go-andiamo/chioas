@@ -117,44 +117,6 @@ func (s *Schema) writeYaml(withName bool, w yaml.Writer) {
 	if withName {
 		w.WriteTagEnd()
 	}
-	/*
-		w.WriteComments(s.Comment).
-			WriteTagValue(tagNameDescription, s.Description)
-		if s.Type != "" {
-			w.WriteTagValue(tagNameType, s.Type)
-		} else {
-			w.WriteTagValue(tagNameType, tagValueTypeObject)
-		}
-		if reqs, has := s.getRequiredProperties(); has {
-			w.WriteTagStart(tagNameRequired)
-			for _, rp := range reqs {
-				w.WriteItem(rp)
-			}
-			w.WriteTagEnd()
-		}
-		if len(s.Properties) > 0 {
-			w.WriteTagStart(tagNameProperties)
-			for _, p := range s.Properties {
-				p.writeYaml(w, true)
-			}
-			w.WriteTagEnd()
-		}
-		w.WriteTagValue(tagNameDefault, s.Default).
-			WriteTagValue(tagNameExample, s.Example)
-		if len(s.Enum) > 0 {
-			w.WriteTagStart(tagNameEnum)
-			for _, e := range s.Enum {
-				w.WriteItem(e)
-			}
-			w.WriteTagEnd()
-		}
-		writeExtensions(s.Extensions, w)
-		writeAdditional(s.Additional, s, w)
-		if withName {
-			w.WriteTagEnd()
-		}
-
-	*/
 }
 
 func (s *Schema) getRequiredProperties() ([]string, bool) {
