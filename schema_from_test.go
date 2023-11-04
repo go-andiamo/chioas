@@ -6,6 +6,7 @@ import (
 	"github.com/go-andiamo/chioas/yaml"
 	"github.com/stretchr/testify/assert"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -100,7 +101,7 @@ func TestSchemaMustFrom_Simple(t *testing.T) {
 
 type basicSchemaSample struct {
 	Id       int    `oas:"name:ID,description:'Desc of id',type:number,format: int64,required,minimum:1,maximum:10,example"`
-	Name     string `json:"name,omitempty" oas:"description:this is the desc,required:true,pattern:xyz,minLength:1,maxLength:10,x-something:foo,example"`
+	Name     string `json:"name,omitempty" oas:"description:this is the desc,required:true,pattern:xyz,minLength:1,maxLength:10,x-something:'foo',example"`
 	Flag     *bool  `json:",omitempty"`
 	DontShow any    `json:"-"`
 	Hyphen   string `json:"-,"`
@@ -981,70 +982,91 @@ func TestTokenSetters(t *testing.T) {
 		value       string
 		noValue     bool
 		pty         *Property
-		assert      func(pty *Property) bool
+		assert      func(t *testing.T, pty *Property)
 		expectError string
 	}{
 		{
 			token: tagNameName,
 			value: `foo`,
-			assert: func(pty *Property) bool {
-				return pty.Name == `foo`
+			assert: func(t *testing.T, pty *Property) {
+				assert.Equal(t, `foo`, pty.Name)
 			},
 		},
 		{
 			token: tagNameName,
 			value: `"foo"`,
-			assert: func(pty *Property) bool {
-				return pty.Name == `foo`
+			assert: func(t *testing.T, pty *Property) {
+				assert.Equal(t, `foo`, pty.Name)
 			},
 		},
 		{
 			token: tagNameName,
 			value: `'foo'`,
-			assert: func(pty *Property) bool {
-				return pty.Name == `foo`
+			assert: func(t *testing.T, pty *Property) {
+				assert.Equal(t, `foo`, pty.Name)
 			},
 		},
 		{
 			token: tagNameDescription,
 			value: `foo`,
-			assert: func(pty *Property) bool {
-				return pty.Description == `foo`
+			assert: func(t *testing.T, pty *Property) {
+				assert.Equal(t, `foo`, pty.Description)
 			},
 		},
 		{
 			token: tagNameDescription,
 			value: `"foo"`,
-			assert: func(pty *Property) bool {
-				return pty.Description == `foo`
+			assert: func(t *testing.T, pty *Property) {
+				assert.Equal(t, `foo`, pty.Description)
 			},
 		},
 		{
 			token: tagNameDescription,
 			value: `'foo'`,
-			assert: func(pty *Property) bool {
-				return pty.Description == `foo`
+			assert: func(t *testing.T, pty *Property) {
+				assert.Equal(t, `foo`, pty.Description)
 			},
 		},
 		{
 			token: tagNameFormat,
 			value: `foo`,
-			assert: func(pty *Property) bool {
-				return pty.Format == `foo`
+			assert: func(t *testing.T, pty *Property) {
+				assert.Equal(t, `foo`, pty.Format)
 			},
 		},
 		{
 			token: tagNameFormat,
 			value: `"foo"`,
-			assert: func(pty *Property) bool {
-				return pty.Format == `foo`
+			assert: func(t *testing.T, pty *Property) {
+				assert.Equal(t, `foo`, pty.Format)
 			},
 		},
 		{
 			token: tagNameFormat,
 			value: `'foo'`,
-			assert: func(pty *Property) bool {
-				return pty.Format == `foo`
+			assert: func(t *testing.T, pty *Property) {
+				assert.Equal(t, `foo`, pty.Format)
+			},
+		},
+		{
+			token: tagNameType,
+			value: `string`,
+			assert: func(t *testing.T, pty *Property) {
+				assert.Equal(t, `string`, pty.Type)
+			},
+		},
+		{
+			token: tagNameType,
+			value: `"string"`,
+			assert: func(t *testing.T, pty *Property) {
+				assert.Equal(t, `string`, pty.Type)
+			},
+		},
+		{
+			token: tagNameType,
+			value: `'string'`,
+			assert: func(t *testing.T, pty *Property) {
+				assert.Equal(t, `string`, pty.Type)
 			},
 		},
 		{
@@ -1053,50 +1075,24 @@ func TestTokenSetters(t *testing.T) {
 			expectError: `invalid oas token 'type' value 'foo' (must be: ""|"string"|"object"|"array"|"boolean"|"integer"|"number"|"null")`,
 		},
 		{
-			token: tagNameType,
+			token: tagNameItemType,
 			value: `string`,
-			assert: func(pty *Property) bool {
-				return pty.Type == `string`
+			assert: func(t *testing.T, pty *Property) {
+				assert.Equal(t, `string`, pty.ItemType)
 			},
 		},
 		{
-			token: tagNameType,
+			token: tagNameItemType,
 			value: `"string"`,
-			assert: func(pty *Property) bool {
-				return pty.Type == `string`
+			assert: func(t *testing.T, pty *Property) {
+				assert.Equal(t, `string`, pty.ItemType)
 			},
 		},
 		{
-			token: tagNameType,
+			token: tagNameItemType,
 			value: `'string'`,
-			assert: func(pty *Property) bool {
-				return pty.Type == `string`
-			},
-		},
-		{
-			token:       tagNameType,
-			value:       `foo`,
-			expectError: `invalid oas token 'type' value 'foo' (must be: ""|"string"|"object"|"array"|"boolean"|"integer"|"number"|"null")`,
-		},
-		{
-			token: tagNameType,
-			value: `string`,
-			assert: func(pty *Property) bool {
-				return pty.Type == `string`
-			},
-		},
-		{
-			token: tagNameType,
-			value: `"string"`,
-			assert: func(pty *Property) bool {
-				return pty.Type == `string`
-			},
-		},
-		{
-			token: tagNameType,
-			value: `'string'`,
-			assert: func(pty *Property) bool {
-				return pty.Type == `string`
+			assert: func(t *testing.T, pty *Property) {
+				assert.Equal(t, `string`, pty.ItemType)
 			},
 		},
 		{
@@ -1105,46 +1101,25 @@ func TestTokenSetters(t *testing.T) {
 			expectError: `invalid oas token 'itemType' value 'foo' (must be: ""|"string"|"object"|"array"|"boolean"|"integer"|"number"|"null")`,
 		},
 		{
-			token: tagNameItemType,
-			value: `string`,
-			assert: func(pty *Property) bool {
-				return pty.ItemType == `string`
-			},
-		},
-		{
-			token: tagNameItemType,
-			value: `"string"`,
-			assert: func(pty *Property) bool {
-				return pty.ItemType == `string`
-			},
-		},
-		{
-			token: tagNameItemType,
-			value: `'string'`,
-			assert: func(pty *Property) bool {
-				return pty.ItemType == `string`
-			},
-		},
-		{
 			token:   tagNameRequired,
 			noValue: true,
-			assert: func(pty *Property) bool {
-				return pty.Required
+			assert: func(t *testing.T, pty *Property) {
+				assert.True(t, pty.Required)
 			},
 		},
 		{
 			token: tagNameRequired,
 			value: "true",
-			assert: func(pty *Property) bool {
-				return pty.Required
+			assert: func(t *testing.T, pty *Property) {
+				assert.True(t, pty.Required)
 			},
 		},
 		{
 			token: tagNameRequired,
 			value: "false",
 			pty:   &Property{Required: true},
-			assert: func(pty *Property) bool {
-				return !pty.Required
+			assert: func(t *testing.T, pty *Property) {
+				assert.False(t, pty.Required)
 			},
 		},
 		{
@@ -1155,23 +1130,23 @@ func TestTokenSetters(t *testing.T) {
 		{
 			token:   tagNameDeprecated,
 			noValue: true,
-			assert: func(pty *Property) bool {
-				return pty.Deprecated
+			assert: func(t *testing.T, pty *Property) {
+				assert.True(t, pty.Deprecated)
 			},
 		},
 		{
 			token: tagNameDeprecated,
 			value: "true",
-			assert: func(pty *Property) bool {
-				return pty.Deprecated
+			assert: func(t *testing.T, pty *Property) {
+				assert.True(t, pty.Deprecated)
 			},
 		},
 		{
 			token: tagNameDeprecated,
 			value: "false",
 			pty:   &Property{Deprecated: true},
-			assert: func(pty *Property) bool {
-				return !pty.Deprecated
+			assert: func(t *testing.T, pty *Property) {
+				assert.False(t, pty.Deprecated)
 			},
 		},
 		{
@@ -1182,50 +1157,50 @@ func TestTokenSetters(t *testing.T) {
 		{
 			token: tagNameRef,
 			value: `foo`,
-			assert: func(pty *Property) bool {
-				return pty.SchemaRef == `foo`
+			assert: func(t *testing.T, pty *Property) {
+				assert.Equal(t, `foo`, pty.SchemaRef)
 			},
 		},
 		{
 			token: tagNameRef,
 			value: `"foo"`,
-			assert: func(pty *Property) bool {
-				return pty.SchemaRef == `foo`
+			assert: func(t *testing.T, pty *Property) {
+				assert.Equal(t, `foo`, pty.SchemaRef)
 			},
 		},
 		{
 			token: tagNameRef,
 			value: `'foo'`,
-			assert: func(pty *Property) bool {
-				return pty.SchemaRef == `foo`
+			assert: func(t *testing.T, pty *Property) {
+				assert.Equal(t, `foo`, pty.SchemaRef)
 			},
 		},
 		{
 			token: tagNamePattern,
 			value: `foo`,
-			assert: func(pty *Property) bool {
-				return pty.Constraints.Pattern == `foo`
+			assert: func(t *testing.T, pty *Property) {
+				assert.Equal(t, `foo`, pty.Constraints.Pattern)
 			},
 		},
 		{
 			token: tagNamePattern,
 			value: `"foo"`,
-			assert: func(pty *Property) bool {
-				return pty.Constraints.Pattern == `foo`
+			assert: func(t *testing.T, pty *Property) {
+				assert.Equal(t, `foo`, pty.Constraints.Pattern)
 			},
 		},
 		{
 			token: tagNamePattern,
 			value: `'foo'`,
-			assert: func(pty *Property) bool {
-				return pty.Constraints.Pattern == `foo`
+			assert: func(t *testing.T, pty *Property) {
+				assert.Equal(t, `foo`, pty.Constraints.Pattern)
 			},
 		},
 		{
 			token: tagNameMaximum,
 			value: `1`,
-			assert: func(pty *Property) bool {
-				return pty.Constraints.Maximum.String() == `1`
+			assert: func(t *testing.T, pty *Property) {
+				assert.Equal(t, `1`, pty.Constraints.Maximum.String())
 			},
 		},
 		{
@@ -1236,8 +1211,8 @@ func TestTokenSetters(t *testing.T) {
 		{
 			token: tagNameMinimum,
 			value: `1`,
-			assert: func(pty *Property) bool {
-				return pty.Constraints.Minimum.String() == `1`
+			assert: func(t *testing.T, pty *Property) {
+				assert.Equal(t, `1`, pty.Constraints.Minimum.String())
 			},
 		},
 		{
@@ -1248,23 +1223,23 @@ func TestTokenSetters(t *testing.T) {
 		{
 			token:   tagNameExclusiveMaximum,
 			noValue: true,
-			assert: func(pty *Property) bool {
-				return pty.Constraints.ExclusiveMaximum
+			assert: func(t *testing.T, pty *Property) {
+				assert.True(t, pty.Constraints.ExclusiveMaximum)
 			},
 		},
 		{
 			token: tagNameExclusiveMaximum,
 			value: "true",
-			assert: func(pty *Property) bool {
-				return pty.Constraints.ExclusiveMaximum
+			assert: func(t *testing.T, pty *Property) {
+				assert.True(t, pty.Constraints.ExclusiveMaximum)
 			},
 		},
 		{
 			token: tagNameExclusiveMaximum,
 			value: "false",
 			pty:   &Property{Constraints: Constraints{ExclusiveMaximum: true}},
-			assert: func(pty *Property) bool {
-				return !pty.Constraints.ExclusiveMaximum
+			assert: func(t *testing.T, pty *Property) {
+				assert.False(t, pty.Constraints.ExclusiveMaximum)
 			},
 		},
 		{
@@ -1275,23 +1250,23 @@ func TestTokenSetters(t *testing.T) {
 		{
 			token:   tagNameExclusiveMinimum,
 			noValue: true,
-			assert: func(pty *Property) bool {
-				return pty.Constraints.ExclusiveMinimum
+			assert: func(t *testing.T, pty *Property) {
+				assert.True(t, pty.Constraints.ExclusiveMinimum)
 			},
 		},
 		{
 			token: tagNameExclusiveMinimum,
 			value: "true",
-			assert: func(pty *Property) bool {
-				return pty.Constraints.ExclusiveMinimum
+			assert: func(t *testing.T, pty *Property) {
+				assert.True(t, pty.Constraints.ExclusiveMinimum)
 			},
 		},
 		{
 			token: tagNameExclusiveMinimum,
 			value: "false",
 			pty:   &Property{Constraints: Constraints{ExclusiveMinimum: true}},
-			assert: func(pty *Property) bool {
-				return !pty.Constraints.ExclusiveMinimum
+			assert: func(t *testing.T, pty *Property) {
+				assert.False(t, pty.Constraints.ExclusiveMinimum)
 			},
 		},
 		{
@@ -1302,23 +1277,23 @@ func TestTokenSetters(t *testing.T) {
 		{
 			token:   tagNameNullable,
 			noValue: true,
-			assert: func(pty *Property) bool {
-				return pty.Constraints.Nullable
+			assert: func(t *testing.T, pty *Property) {
+				assert.True(t, pty.Constraints.Nullable)
 			},
 		},
 		{
 			token: tagNameNullable,
 			value: "true",
-			assert: func(pty *Property) bool {
-				return pty.Constraints.Nullable
+			assert: func(t *testing.T, pty *Property) {
+				assert.True(t, pty.Constraints.Nullable)
 			},
 		},
 		{
 			token: tagNameNullable,
 			value: "false",
 			pty:   &Property{Constraints: Constraints{Nullable: true}},
-			assert: func(pty *Property) bool {
-				return !pty.Constraints.ExclusiveMinimum
+			assert: func(t *testing.T, pty *Property) {
+				assert.False(t, pty.Constraints.Nullable)
 			},
 		},
 		{
@@ -1329,23 +1304,23 @@ func TestTokenSetters(t *testing.T) {
 		{
 			token:   tagNameUniqueItems,
 			noValue: true,
-			assert: func(pty *Property) bool {
-				return pty.Constraints.UniqueItems
+			assert: func(t *testing.T, pty *Property) {
+				assert.True(t, pty.Constraints.UniqueItems)
 			},
 		},
 		{
 			token: tagNameUniqueItems,
 			value: "true",
-			assert: func(pty *Property) bool {
-				return pty.Constraints.UniqueItems
+			assert: func(t *testing.T, pty *Property) {
+				assert.True(t, pty.Constraints.UniqueItems)
 			},
 		},
 		{
 			token: tagNameUniqueItems,
 			value: "false",
 			pty:   &Property{Constraints: Constraints{UniqueItems: true}},
-			assert: func(pty *Property) bool {
-				return !pty.Constraints.UniqueItems
+			assert: func(t *testing.T, pty *Property) {
+				assert.False(t, pty.Constraints.UniqueItems)
 			},
 		},
 		{
@@ -1356,8 +1331,8 @@ func TestTokenSetters(t *testing.T) {
 		{
 			token: tagNameMaxLength,
 			value: "1",
-			assert: func(pty *Property) bool {
-				return pty.Constraints.MaxLength == uint(1)
+			assert: func(t *testing.T, pty *Property) {
+				assert.Equal(t, uint(1), pty.Constraints.MaxLength)
 			},
 		},
 		{
@@ -1368,8 +1343,8 @@ func TestTokenSetters(t *testing.T) {
 		{
 			token: tagNameMinLength,
 			value: "1",
-			assert: func(pty *Property) bool {
-				return pty.Constraints.MinLength == uint(1)
+			assert: func(t *testing.T, pty *Property) {
+				assert.Equal(t, uint(1), pty.Constraints.MinLength)
 			},
 		},
 		{
@@ -1380,8 +1355,8 @@ func TestTokenSetters(t *testing.T) {
 		{
 			token: tagNameMaxItems,
 			value: "1",
-			assert: func(pty *Property) bool {
-				return pty.Constraints.MaxItems == uint(1)
+			assert: func(t *testing.T, pty *Property) {
+				assert.Equal(t, uint(1), pty.Constraints.MaxItems)
 			},
 		},
 		{
@@ -1392,8 +1367,8 @@ func TestTokenSetters(t *testing.T) {
 		{
 			token: tagNameMinItems,
 			value: "1",
-			assert: func(pty *Property) bool {
-				return pty.Constraints.MinItems == uint(1)
+			assert: func(t *testing.T, pty *Property) {
+				assert.Equal(t, uint(1), pty.Constraints.MinItems)
 			},
 		},
 		{
@@ -1404,8 +1379,8 @@ func TestTokenSetters(t *testing.T) {
 		{
 			token: tagNameMaxProperties,
 			value: "1",
-			assert: func(pty *Property) bool {
-				return pty.Constraints.MaxProperties == uint(1)
+			assert: func(t *testing.T, pty *Property) {
+				assert.Equal(t, uint(1), pty.Constraints.MaxProperties)
 			},
 		},
 		{
@@ -1416,8 +1391,8 @@ func TestTokenSetters(t *testing.T) {
 		{
 			token: tagNameMinProperties,
 			value: "1",
-			assert: func(pty *Property) bool {
-				return pty.Constraints.MinProperties == uint(1)
+			assert: func(t *testing.T, pty *Property) {
+				assert.Equal(t, uint(1), pty.Constraints.MinProperties)
 			},
 		},
 		{
@@ -1428,8 +1403,8 @@ func TestTokenSetters(t *testing.T) {
 		{
 			token: tagNameMultipleOf,
 			value: "1",
-			assert: func(pty *Property) bool {
-				return pty.Constraints.MultipleOf == uint(1)
+			assert: func(t *testing.T, pty *Property) {
+				assert.Equal(t, uint(1), pty.Constraints.MultipleOf)
 			},
 		},
 		{
@@ -1448,8 +1423,10 @@ func TestTokenSetters(t *testing.T) {
 				err := sf(pty, tc.value, !tc.noValue)
 				if tc.expectError == "" {
 					assert.NoError(t, err)
-					assert.True(t, tc.assert(pty))
-					done[tc.token] = true
+					tc.assert(t, pty)
+					if !strings.HasPrefix(tc.token, "x-") {
+						done[tc.token] = true
+					}
 				} else {
 					assert.Error(t, err)
 					assert.Equal(t, tc.expectError, err.Error())
@@ -1460,6 +1437,67 @@ func TestTokenSetters(t *testing.T) {
 		})
 	}
 	assert.Equal(t, len(tokenSetters), len(done))
+}
+
+func TestSetFromOasToken_Extensions(t *testing.T) {
+	testCases := []struct {
+		token       string
+		assert      func(t *testing.T, pty *Property)
+		expectError string
+		seenRef     bool
+	}{
+		{
+			token:       `x-something`,
+			expectError: `invalid oas tag token 'x-something' (missing value)`,
+		},
+		{
+			token: `x-something:foo`,
+			assert: func(t *testing.T, pty *Property) {
+				if assert.IsType(t, yaml.LiteralValue{}, pty.Extensions["x-something"]) {
+					assert.Equal(t, `foo`, (pty.Extensions["x-something"]).(yaml.LiteralValue).Value)
+				}
+			},
+		},
+		{
+			token: `x-something:"foo"`,
+			assert: func(t *testing.T, pty *Property) {
+				if assert.IsType(t, yaml.LiteralValue{}, pty.Extensions["x-something"]) {
+					assert.Equal(t, `"foo"`, (pty.Extensions["x-something"]).(yaml.LiteralValue).Value)
+				}
+			},
+		},
+		{
+			token: `x-something:'foo'`,
+			assert: func(t *testing.T, pty *Property) {
+				if assert.IsType(t, yaml.LiteralValue{}, pty.Extensions["x-something"]) {
+					assert.Equal(t, `"foo"`, (pty.Extensions["x-something"]).(yaml.LiteralValue).Value)
+				}
+			},
+		},
+		{
+			token: `x-something:'"foo'`,
+			assert: func(t *testing.T, pty *Property) {
+				if assert.IsType(t, yaml.LiteralValue{}, pty.Extensions["x-something"]) {
+					assert.Equal(t, `"\"foo"`, (pty.Extensions["x-something"]).(yaml.LiteralValue).Value)
+				}
+			},
+		},
+	}
+	for i, tc := range testCases {
+		t.Run(fmt.Sprintf("[%d]", i+1), func(t *testing.T) {
+			pty := &Property{
+				Extensions: Extensions{},
+			}
+			_, err := setFromOasToken(tc.seenRef, tc.token, pty, reflect.StructField{}, nil)
+			if tc.expectError == "" {
+				assert.NoError(t, err)
+				tc.assert(t, pty)
+			} else {
+				assert.Error(t, err)
+				assert.Equal(t, tc.expectError, err.Error())
+			}
+		})
+	}
 }
 
 func TestSetNameFromJsonTag(t *testing.T) {

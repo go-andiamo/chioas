@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/go-andiamo/chioas/yaml"
 	"github.com/go-andiamo/splitter"
 	"golang.org/x/exp/slices"
 	"reflect"
@@ -411,11 +412,13 @@ func setFromOasToken(seenRef bool, token string, pty *Property, fld reflect.Stru
 			pty.Example = extractExample(fld, vo)
 		}
 	} else if strings.HasPrefix(token, "x-") {
-		if !seenRef {
+		if !hasValue {
+			return false, fmt.Errorf("invalid oas tag token '%s' (missing value)", token)
+		} else if !seenRef {
 			if pty.Extensions == nil {
 				pty.Extensions = map[string]any{}
 			}
-			pty.Extensions[token] = unquoteString(value)
+			pty.Extensions[token] = literalExtensionValue(value)
 		}
 	} else if sf, ok := tokenSetters[token]; ok {
 		if !hasValue && !allowedTokenOnly[token] {
@@ -645,6 +648,13 @@ var tokenSetters = map[string]func(pty *Property, value string, hasValue bool) e
 		}
 		return fmt.Errorf("invalid oas token '%s' value '%s'", tagNameMultipleOf, value)
 	},
+}
+
+func literalExtensionValue(s string) yaml.LiteralValue {
+	if (strings.HasPrefix(s, "\"") && strings.HasSuffix(s, "\"")) || (strings.HasPrefix(s, "'") && strings.HasSuffix(s, "'")) {
+		return yaml.LiteralValue{Value: `"` + strings.ReplaceAll(s[1:len(s)-1], `"`, `\"`) + `"`}
+	}
+	return yaml.LiteralValue{Value: s}
 }
 
 func unquoteString(s string) string {
