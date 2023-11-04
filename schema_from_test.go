@@ -17,6 +17,7 @@ func TestSchema_From_DocsExample(t *testing.T) {
 		FamilyName   string   `json:"familyName" oas:"description:'Your family name/surname',required,pattern:'^[A-Z][a-zA-Z]+$',example"`
 		Age          int      `oas:"name:age,required:true,example,#this is a comment,#\"this is another, with commas in it, comment\""`
 		SiblingNames []string `oas:"name:siblings,$ref:'Siblings'"`
+		Status       string   `oas:"name:status,enum:'single',enum:['married','divorced','undisclosed'],example"`
 	}
 	def := Definition{
 		Components: &Components{
@@ -28,6 +29,7 @@ func TestSchema_From_DocsExample(t *testing.T) {
 					GivenName:  "Bilbo",
 					FamilyName: "Baggins",
 					Age:        50,
+					Status:     "single",
 				}),
 			},
 		},
@@ -68,6 +70,14 @@ components:
           type: "array"
           items:
             $ref: "#/components/schemas/Siblings"
+        "status":
+          type: "string"
+          example: "single"
+          enum:
+            - "single"
+            - "married"
+            - "divorced"
+            - "undisclosed"
 `
 	assert.Equal(t, expect, string(data))
 }
@@ -1411,6 +1421,58 @@ func TestTokenSetters(t *testing.T) {
 			token:       tagNameMultipleOf,
 			value:       "blah",
 			expectError: "invalid oas token 'multipleOf' value 'blah'",
+		},
+		{
+			token: tagNameEnum,
+			value: `"foo"`,
+			assert: func(t *testing.T, pty *Property) {
+				assert.Equal(t, 1, len(pty.Enum))
+				assert.IsType(t, yaml.LiteralValue{}, pty.Enum[0])
+				assert.Equal(t, `"foo"`, pty.Enum[0].(yaml.LiteralValue).Value)
+			},
+		},
+		{
+			token: tagNameEnum,
+			value: `foo`,
+			assert: func(t *testing.T, pty *Property) {
+				assert.Equal(t, 1, len(pty.Enum))
+				assert.IsType(t, yaml.LiteralValue{}, pty.Enum[0])
+				assert.Equal(t, `foo`, pty.Enum[0].(yaml.LiteralValue).Value)
+			},
+		},
+		{
+			token: tagNameEnum,
+			value: `[foo,]`,
+			assert: func(t *testing.T, pty *Property) {
+				assert.Equal(t, 1, len(pty.Enum))
+				assert.IsType(t, yaml.LiteralValue{}, pty.Enum[0])
+				assert.Equal(t, `foo`, pty.Enum[0].(yaml.LiteralValue).Value)
+			},
+		},
+		{
+			token: tagNameEnum,
+			value: `[,foo,,]`,
+			assert: func(t *testing.T, pty *Property) {
+				assert.Equal(t, 1, len(pty.Enum))
+				assert.IsType(t, yaml.LiteralValue{}, pty.Enum[0])
+				assert.Equal(t, `foo`, pty.Enum[0].(yaml.LiteralValue).Value)
+			},
+		},
+		{
+			token: tagNameEnum,
+			value: `[foo,bar]`,
+			assert: func(t *testing.T, pty *Property) {
+				assert.Equal(t, 2, len(pty.Enum))
+				assert.IsType(t, yaml.LiteralValue{}, pty.Enum[0])
+				assert.Equal(t, `foo`, pty.Enum[0].(yaml.LiteralValue).Value)
+				assert.IsType(t, yaml.LiteralValue{}, pty.Enum[1])
+				assert.Equal(t, `bar`, pty.Enum[1].(yaml.LiteralValue).Value)
+			},
+		},
+		{
+			token:       tagNameEnum,
+			value:       `[foo,bar]]`,
+			expectError: `unopened ']' at position 7`,
 		},
 	}
 	for i, tc := range testCases {

@@ -34,6 +34,8 @@ type Property struct {
 	Format string
 	// Example is the OAS example for the property
 	Example any
+	// Enum is the OAS enum of the property
+	Enum []any
 	// Deprecated is the OAS deprecated flag for the property
 	Deprecated bool
 	// Constraints is the OAS constraints for the property
@@ -69,8 +71,15 @@ func (p Property) writeYaml(w yaml.Writer, top bool) {
 				WriteTagValue(tagNameType, defValue(p.ItemType, tagValueTypeString))
 		}
 		w.WriteTagValue(tagNameExample, p.Example).
-			WriteTagValue(tagNameFormat, nilString(p.Format)).
-			WriteTagValue(tagNameRequired, nilBool(p.Required && !top)).
+			WriteTagValue(tagNameFormat, nilString(p.Format))
+		if len(p.Enum) > 0 {
+			w.WriteTagStart(tagNameEnum)
+			for _, e := range p.Enum {
+				w.WriteItem(e)
+			}
+			w.WriteTagEnd()
+		}
+		w.WriteTagValue(tagNameRequired, nilBool(p.Required && !top)).
 			WriteTagValue(tagNameDeprecated, nilBool(p.Deprecated))
 		p.Constraints.writeYaml(w)
 		if (p.Type == tagValueTypeObject || (p.Type == tagValueTypeArray && p.ItemType == tagValueTypeObject)) && len(p.Properties) > 0 {
