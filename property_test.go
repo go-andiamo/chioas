@@ -151,6 +151,25 @@ func TestProperty_WriteYaml(t *testing.T) {
   foo: "bar"
 `,
 		},
+		{
+			property: Property{
+				Name: "foo",
+				Enum: []any{
+					true,
+					1,
+					"foo",
+					yaml.LiteralValue{Value: "foo"},
+				},
+			},
+			expect: `"foo":
+  type: "string"
+  enum:
+    - true
+    - 1
+    - "foo"
+    - foo
+`,
+		},
 	}
 	for i, tc := range testCases {
 		t.Run(fmt.Sprintf("[%d]", i+1), func(t *testing.T) {
