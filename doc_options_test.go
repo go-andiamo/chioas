@@ -236,16 +236,19 @@ paths:
 }
 
 type testSupportFiles struct {
+	requests []string
 }
 
 func (sf *testSupportFiles) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	sf.requests = append(sf.requests, r.URL.Path)
 	w.WriteHeader(http.StatusPaymentRequired)
 }
 
 func TestDocOptions_SupportFiles(t *testing.T) {
+	sf := &testSupportFiles{}
 	d := &DocOptions{
 		ServeDocs:    true,
-		SupportFiles: &testSupportFiles{},
+		SupportFiles: sf,
 	}
 	router := chi.NewRouter()
 	err := d.SetupRoutes(&apiDefYaml, router)
@@ -272,10 +275,33 @@ func TestDocOptions_SupportFiles(t *testing.T) {
 	router.ServeHTTP(res, req)
 	assert.Equal(t, http.StatusOK, res.Code)
 
+	assert.Equal(t, 0, len(sf.requests))
 	req, _ = http.NewRequest(http.MethodGet, defaultDocsPath+"/some_styling.css", nil)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
 	assert.Equal(t, http.StatusPaymentRequired, res.Code)
+	assert.Equal(t, 1, len(sf.requests))
+	assert.Equal(t, defaultDocsPath+"/some_styling.css", sf.requests[0])
+}
+
+func TestDocOptions_SupportFilesStripPrefix(t *testing.T) {
+	sf := &testSupportFiles{}
+	d := &DocOptions{
+		ServeDocs:               true,
+		SupportFiles:            sf,
+		SupportFilesStripPrefix: true,
+	}
+	router := chi.NewRouter()
+	err := d.SetupRoutes(&apiDefYaml, router)
+	require.NoError(t, err)
+
+	assert.Equal(t, 0, len(sf.requests))
+	req, _ := http.NewRequest(http.MethodGet, defaultDocsPath+"/some_styling.css", nil)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusPaymentRequired, res.Code)
+	assert.Equal(t, 1, len(sf.requests))
+	assert.Equal(t, "some_styling.css", sf.requests[0])
 }
 
 func TestDocOptions_NoCache_Json(t *testing.T) {
