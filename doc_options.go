@@ -39,6 +39,9 @@ type DocOptions struct {
 	//
 	// see _examples/swagger_ui for example usage
 	SupportFiles http.Handler
+	// SupportFilesStripPrefix if set to true (and SupportFiles is specified) then
+	// calls to SupportFiles have the "/docs" path prefix stripped from the http.Request
+	SupportFilesStripPrefix bool
 	// Title the title in the docs index page (defaults to "API Documentation")
 	Title string
 	// UIStyle is the style of the API docs UI
@@ -223,6 +226,7 @@ func (d *DocOptions) setupNoCachedRoutes(def *Definition, docsRoute *chi.Mux, tm
 
 func (d *DocOptions) setupSupportFiles(docsRoute *chi.Mux) {
 	if d.UIStyle == Swagger {
+		sf := d.getSupportFiles()
 		docsRoute.Get("/*", func(writer http.ResponseWriter, request *http.Request) {
 			name := strings.TrimPrefix(request.URL.Path, defValue(d.Path, defaultDocsPath)+"/")
 			if data, err := swagger_ui.SwaggerUIStaticFiles.ReadFile(name); err == nil {
@@ -231,17 +235,24 @@ func (d *DocOptions) setupSupportFiles(docsRoute *chi.Mux) {
 				}
 				_, _ = writer.Write(data)
 				return
-			} else if d.SupportFiles != nil {
-				d.SupportFiles.ServeHTTP(writer, request)
+			} else if sf != nil {
+				sf.ServeHTTP(writer, request)
 				return
 			}
 			writer.WriteHeader(http.StatusNotFound)
 		})
-	} else if d.SupportFiles != nil {
+	} else if sf := d.getSupportFiles(); sf != nil {
 		docsRoute.Get("/*", func(writer http.ResponseWriter, request *http.Request) {
-			d.SupportFiles.ServeHTTP(writer, request)
+			sf.ServeHTTP(writer, request)
 		})
 	}
+}
+
+func (d *DocOptions) getSupportFiles() http.Handler {
+	if d.SupportFiles != nil && d.SupportFilesStripPrefix {
+		return http.StripPrefix(defValue(d.Path, defaultDocsPath)+"/", d.SupportFiles)
+	}
+	return d.SupportFiles
 }
 
 func (d *DocOptions) getRedocOptions() map[string]any {

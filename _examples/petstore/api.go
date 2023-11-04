@@ -17,27 +17,19 @@ import (
 //go:embed status_schema.yaml petstore-logo.png
 var supportFilesFS embed.FS
 
-type supportFiles struct {
-}
-
-func (s *supportFiles) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
-	// we serve file(s) from static embedded filesystem
-	// (we could equally generate file content dynamically - if the need arises)
-	name := strings.TrimPrefix(request.URL.Path, "/docs/")
-	if data, err := supportFilesFS.ReadFile(name); err == nil {
-		_, _ = writer.Write(data)
-	} else {
-		writer.WriteHeader(http.StatusNotFound)
-	}
-}
+// we're using our own customized docs html template
+//
+//go:embed index_template.html
+var customizedSwaggerTemplate string
 
 var apiDef = chioas.Definition{
 	DocOptions: chioas.DocOptions{
-		ServeDocs:    true, // makes docs served as interactive UI on /docs/index.htm
-		UIStyle:      chioas.Swagger,
-		SupportFiles: &supportFiles{},
-		CheckRefs:    true,                      // make sure that any $ref's are valid!
-		DocTemplate:  customizedSwaggerTemplate, // customized template to show logo
+		ServeDocs:               true, // makes docs served as interactive UI on /docs/index.htm
+		UIStyle:                 chioas.Swagger,
+		SupportFiles:            http.FileServer(http.FS(supportFilesFS)),
+		SupportFilesStripPrefix: true,
+		DocTemplate:             customizedSwaggerTemplate, // customized template to show logo
+		CheckRefs:               true,                      // make sure that any $ref's are valid!
 	},
 	Info: chioas.Info{
 		Title: "Swagger Petstore - OpenAPI 3.0",
@@ -135,6 +127,7 @@ func (a *api) SetupRoutes(r chi.Router) error {
 	return a.Definition.SetupRoutes(r, a)
 }
 
+/*
 // customizing the html template (to show a logo) - copied from chioas/doc_options.go defaultSwaggerTemplate
 const customizedSwaggerTemplate = `<!DOCTYPE html>
 <html lang="en">
@@ -173,3 +166,4 @@ const customizedSwaggerTemplate = `<!DOCTYPE html>
     </script>
   </body>
 </html>`
+*/
