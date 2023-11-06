@@ -216,7 +216,11 @@ func TestYamlValue(t *testing.T) {
 	}{
 		{
 			value:  "foo",
-			expect: []string{`"foo"`},
+			expect: []string{`foo`},
+		},
+		{
+			value:  "foo bar",
+			expect: []string{`"foo bar"`},
 		},
 		{
 			value:  "",
@@ -241,7 +245,7 @@ func TestYamlValue(t *testing.T) {
 		},
 		{
 			value:  &pstr,
-			expect: []string{`"foo"`},
+			expect: []string{`foo`},
 		},
 		{
 			value:  nilstr,
@@ -325,7 +329,7 @@ func TestYamlValue(t *testing.T) {
 			value: `aaa
 bbb
 ccc`,
-			expect: []string{`>-`, `aaa`, `bbb`, `ccc`},
+			expect: []string{`|-`, `aaa`, `bbb`, `ccc`},
 		},
 		{
 			value: `aaa
@@ -335,7 +339,19 @@ bbb
 ccc
 
 `,
-			expect: []string{`>-`, `aaa`, ``, `bbb`, ``, `ccc`, ``, ``},
+			expect: []string{`|+`, `aaa`, ``, `bbb`, ``, `ccc`, ``},
+		},
+		{
+			value:  "aaa\rbbb\rccc",
+			expect: []string{"\"aaa\\rbbb\\rccc\""},
+		},
+		{
+			value:  "\r\r\r",
+			expect: []string{"\"\\r\\r\\r\""},
+		},
+		{
+			value:  "\n\t\n\t\n",
+			expect: []string{"|2", "\t", "\t"},
 		},
 		{
 			value: LiteralValue{
@@ -348,6 +364,41 @@ ccc
 				Value: "[]",
 			},
 			expect: []string{`[]`},
+		},
+		{
+			value: LiteralValue{
+				Value:            "",
+				SafeEncodeString: true,
+			},
+			expect: []string{"\"\""},
+		},
+		{
+			value: LiteralValue{
+				Value:            string(rune(119070)),
+				SafeEncodeString: true,
+			},
+			expect: []string{"\"\\U0001D11E\""},
+		},
+		{
+			value: LiteralValue{
+				Value:            "a\nb\nc",
+				SafeEncodeString: true,
+			},
+			expect: []string{"|-", "a", "b", "c"},
+		},
+		{
+			value: LiteralValue{
+				Value:            "\n\n\n",
+				SafeEncodeString: true,
+			},
+			expect: []string{"|2+", "", ""},
+		},
+		{
+			value: &LiteralValue{
+				Value:            "",
+				SafeEncodeString: true,
+			},
+			expect: []string{"\"\""},
 		},
 		{
 			value: map[string]any{
@@ -398,7 +449,12 @@ func TestWriter_WriteTagValue(t *testing.T) {
 		{
 			tag:    "foo",
 			value:  "bar",
-			expect: "foo: \"bar\"\n",
+			expect: "foo: bar\n",
+		},
+		{
+			tag:    "foo",
+			value:  "bar baz",
+			expect: "foo: \"bar baz\"\n",
 		},
 		{
 			tag:    "foo",
@@ -418,7 +474,7 @@ func TestWriter_WriteTagValue(t *testing.T) {
 		{
 			tag:   "foo",
 			value: "aaa\nbbb\nccc",
-			expect: `foo: >-
+			expect: `foo: |-
   aaa
   bbb
   ccc
@@ -428,6 +484,12 @@ func TestWriter_WriteTagValue(t *testing.T) {
 			tag:    "foo",
 			value:  "",
 			expect: ``,
+		},
+		{
+			tag:   "foo bar",
+			value: "baz",
+			expect: `"foo bar": baz
+`,
 		},
 	}
 	for i, tc := range testCases {
@@ -447,6 +509,12 @@ func TestWriter_WriteTagStart(t *testing.T) {
 	data, err := w.Bytes()
 	require.NoError(t, err)
 	assert.Equal(t, "foo:\n", string(data))
+
+	w = newWriter(nil)
+	w.WriteTagStart("foo bar")
+	data, err = w.Bytes()
+	require.NoError(t, err)
+	assert.Equal(t, "\"foo bar\":\n", string(data))
 }
 
 func TestWriter_WriteTagEnd(t *testing.T) {
@@ -497,7 +565,7 @@ func TestWriter_WriteItem(t *testing.T) {
 	w.WriteItem("foo")
 	data, err := w.Bytes()
 	require.NoError(t, err)
-	assert.Equal(t, "- \"foo\"\n", string(data))
+	assert.Equal(t, "- foo\n", string(data))
 
 	w = newWriter(nil)
 	w.WriteItem(1)
@@ -521,7 +589,7 @@ func TestWriter_WriteItem(t *testing.T) {
 	w.WriteItem("aaa\nbbb\nccc")
 	data, err = w.Bytes()
 	require.NoError(t, err)
-	assert.Equal(t, `- >-
+	assert.Equal(t, `- |-
   aaa
   bbb
   ccc
@@ -533,7 +601,14 @@ func TestWriter_WriteItemValue(t *testing.T) {
 	w.WriteItemValue("foo", "bar")
 	data, err := w.Bytes()
 	require.NoError(t, err)
-	assert.Equal(t, "- foo: \"bar\"\n", string(data))
+	assert.Equal(t, "- foo: bar\n", string(data))
+	assert.Equal(t, 0, len(w.indent))
+
+	w = newWriter(nil)
+	w.WriteItemValue("foo bar", "baz")
+	data, err = w.Bytes()
+	require.NoError(t, err)
+	assert.Equal(t, "- \"foo bar\": baz\n", string(data))
 	assert.Equal(t, 0, len(w.indent))
 
 	w = newWriter(nil)
@@ -547,7 +622,7 @@ func TestWriter_WriteItemValue(t *testing.T) {
 	w.WriteItemValue("foo", "aaa\nbbb\nccc")
 	data, err = w.Bytes()
 	require.NoError(t, err)
-	assert.Equal(t, `- foo: >-
+	assert.Equal(t, `- foo: |-
   aaa
   bbb
   ccc
@@ -560,7 +635,14 @@ func TestWriter_WriteItemStart(t *testing.T) {
 	w.WriteItemStart("foo", "bar")
 	data, err := w.Bytes()
 	require.NoError(t, err)
-	assert.Equal(t, "- foo: \"bar\"\n", string(data))
+	assert.Equal(t, "- foo: bar\n", string(data))
+	assert.Equal(t, 2, len(w.indent))
+
+	w = newWriter(nil)
+	w.WriteItemStart("foo bar", "baz")
+	data, err = w.Bytes()
+	require.NoError(t, err)
+	assert.Equal(t, "- \"foo bar\": baz\n", string(data))
 	assert.Equal(t, 2, len(w.indent))
 
 	w = newWriter(nil)
@@ -574,7 +656,7 @@ func TestWriter_WriteItemStart(t *testing.T) {
 	w.WriteItemStart("foo", "aaa\nbbb\nccc")
 	data, err = w.Bytes()
 	require.NoError(t, err)
-	assert.Equal(t, `- foo: >-
+	assert.Equal(t, `- foo: |-
   aaa
   bbb
   ccc
@@ -626,4 +708,110 @@ type testRefChecker struct {
 
 func (r *testRefChecker) RefCheck(area, ref string) error {
 	return errors.New("fooey")
+}
+
+func TestFormattedString(t *testing.T) {
+	testCases := []struct {
+		s         string
+		expect    []string
+		expectErr bool
+	}{
+		{
+			s:      "",
+			expect: []string{`""`},
+		},
+		{
+			s:      "a\nb\nc",
+			expect: []string{"|-", "a", "b", "c"},
+		},
+		{
+			s:      "\n",
+			expect: []string{"|2+"},
+		},
+		{
+			s:      "\n\n\n",
+			expect: []string{"|2+", "", ""},
+		},
+		{
+			s:      "aaa\n\n\nbbb",
+			expect: []string{"|-", "aaa", "", "", "bbb"},
+		},
+		{
+			s:      "aaa\n\nand \"this\" is quoted\n\bbb",
+			expect: []string{"\"aaa\\n\\nand \\\"this\\\" is quoted\\n\\bbb\""},
+		},
+		{
+			s:      string(rune(119070)) + "\n",
+			expect: []string{"\"\\U0001D11E\\n\""},
+		},
+		{
+			s:      string(rune(119070)) + "\n\n\n",
+			expect: []string{"\"\\U0001D11E\\n\\n\\n\""},
+		},
+		{
+			s:      "a\n" + string(rune(119070)) + "\n" + string(rune(119070)),
+			expect: []string{"\"a\\n\\U0001D11E\\n\\U0001D11E\""},
+		},
+	}
+	for i, tc := range testCases {
+		t.Run(fmt.Sprintf("[%d]", i+1), func(t *testing.T) {
+			w := newWriter(nil)
+			actual := w.formattedString(tc.s)
+			if !tc.expectErr {
+				assert.NoError(t, w.err)
+				assert.Equal(t, tc.expect, actual)
+			} else {
+				assert.Error(t, w.err)
+			}
+		})
+	}
+}
+
+func TestSafeString(t *testing.T) {
+	testCases := map[string]string{
+		``:                       `""`,
+		`"`:                      `"\""`,
+		`:`:                      `":"`,
+		"\uABCD":                 `"\uABCD"`,
+		string(rune(119070)):     `"\U0001D11E"`,
+		string([]byte{0x1b}):     `"\e"`,
+		string([]byte{0xf}):      `"\u000F"`,
+		`foo`:                    `foo`,
+		`foo bar`:                `"foo bar"`,
+		`foo:bar`:                `"foo:bar"`,
+		`123`:                    `123`,
+		`application/json`:       `"application/json"`,
+		"\u0000\a\b\f\n\r\t\v\"": `"\0\a\b\f\n\r\t\v\""`,
+		`"foo"`:                  `"\"foo\""`,
+	}
+	for s, expect := range testCases {
+		t.Run(s, func(t *testing.T) {
+			s := safeString(s)
+			assert.Equal(t, expect, s)
+		})
+	}
+}
+
+func TestSafeStringName(t *testing.T) {
+	testCases := map[string]string{
+		`"`:                      `"\"":`,
+		`:`:                      `":":`,
+		"\uABCD":                 `"\uABCD":`,
+		string(rune(119070)):     `"\U0001D11E":`,
+		string([]byte{0x1b}):     `"\e":`,
+		string([]byte{0xf}):      `"\u000F":`,
+		`foo`:                    `foo:`,
+		`foo bar`:                `"foo bar":`,
+		`foo:bar`:                `"foo:bar":`,
+		`123`:                    `123:`,
+		`application/json`:       `"application/json":`,
+		"\u0000\a\b\f\n\r\t\v\"": `"\0\a\b\f\n\r\t\v\"":`,
+		`"foo"`:                  `"foo":`,
+	}
+	for name, expect := range testCases {
+		t.Run(name, func(t *testing.T) {
+			s := safeStringName(name)
+			assert.Equal(t, expect, s)
+		})
+	}
 }
