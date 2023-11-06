@@ -24,7 +24,35 @@ func writeSchemaRef(ref string, isArray bool, w yaml.Writer) {
 	}
 }
 
+func refCheck(area, ref string, w yaml.Writer) string {
+	area, ref, chk := needsRefCheck(area, ref)
+	if !chk {
+		return ref
+	}
+	if err := w.RefChecker(nil).RefCheck(area, ref); err != nil {
+		w.SetError(err)
+	}
+	return refComponentsPrefix + area + "/" + ref
+}
+
+func needsRefCheck(area, ref string) (string, string, bool) {
+	if strings.Contains(ref, "/") {
+		if strings.HasPrefix(ref, refComponentsPrefix) {
+			if pts := strings.Split(ref[len(refComponentsPrefix):], "/"); len(pts) == 2 {
+				return pts[0], pts[1], true
+			}
+		}
+		return area, ref, false
+	}
+	return area, ref, true
+}
+
 func writeRef(area, ref string, w yaml.Writer) {
+	area, ref, chk := needsRefCheck(area, ref)
+	if !chk {
+		w.WriteTagValue(tagNameRef, ref)
+		return
+	}
 	if err := w.RefChecker(nil).RefCheck(area, ref); err != nil {
 		w.SetError(err)
 		return
@@ -33,6 +61,11 @@ func writeRef(area, ref string, w yaml.Writer) {
 }
 
 func writeItemRef(area, ref string, w yaml.Writer) {
+	area, ref, chk := needsRefCheck(area, ref)
+	if !chk {
+		w.WriteItemValue(tagNameRef, ref)
+		return
+	}
 	if err := w.RefChecker(nil).RefCheck(area, ref); err != nil {
 		w.SetError(err)
 		return
@@ -64,6 +97,10 @@ func (d *Definition) RefCheck(area, ref string) error {
 		if d.Components.Parameters != nil {
 			_, ok = d.Components.Parameters[ref]
 		}
+	case tagNameExamples:
+		ok = slices.ContainsFunc(d.Components.Examples, func(eg Example) bool {
+			return eg.Name == ref
+		})
 	}
 	if !ok {
 		return fmt.Errorf("$ref '%s%s/%s' invalid", refComponentsPrefix, area, ref)

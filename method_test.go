@@ -29,63 +29,63 @@ func TestMethods_WriteYaml(t *testing.T) {
 	const expect = `get:
   responses:
     200:
-      description: "OK"
+      description: OK
       content:
-        application/json:
+        "application/json":
           schema:
-            type: "object"
+            type: object
 head:
   responses:
     200:
-      description: "OK"
+      description: OK
 options:
   responses:
     200:
-      description: "OK"
+      description: OK
       content:
-        application/json:
+        "application/json":
           schema:
-            type: "object"
+            type: object
 post:
   responses:
     200:
-      description: "OK"
+      description: OK
       content:
-        application/json:
+        "application/json":
           schema:
-            type: "object"
+            type: object
 put:
   responses:
     200:
-      description: "OK"
+      description: OK
       content:
-        application/json:
+        "application/json":
           schema:
-            type: "object"
+            type: object
 patch:
   responses:
     200:
-      description: "OK"
+      description: OK
       content:
-        application/json:
+        "application/json":
           schema:
-            type: "object"
+            type: object
 delete:
   responses:
     200:
-      description: "OK"
+      description: OK
       content:
-        application/json:
+        "application/json":
           schema:
-            type: "object"
+            type: object
 trace:
   responses:
     200:
-      description: "OK"
+      description: OK
       content:
-        application/json:
+        "application/json":
           schema:
-            type: "object"
+            type: object
 `
 	assert.Equal(t, expect, string(data))
 }
@@ -128,11 +128,11 @@ func TestMethods_WriteYaml_HideMethod(t *testing.T) {
 	const expect = `get:
   responses:
     200:
-      description: "OK"
+      description: OK
       content:
-        application/json:
+        "application/json":
           schema:
-            type: "object"
+            type: object
 `
 	assert.Equal(t, expect, string(data))
 }
@@ -149,15 +149,15 @@ func TestMethods_WriteYaml_AutoHead(t *testing.T) {
 	const expect = `get:
   responses:
     200:
-      description: "OK"
+      description: OK
       content:
-        application/json:
+        "application/json":
           schema:
-            type: "object"
+            type: object
 head:
   responses:
     200:
-      description: "OK"
+      description: OK
 `
 	assert.Equal(t, expect, string(data))
 }
@@ -188,23 +188,23 @@ func TestMethod_WriteYaml(t *testing.T) {
   #test comment
   summary: "test summary"
   description: "test desc"
-  operationId: "testOp"
+  operationId: testOp
   tags:
-    - "foo"
+    - foo
   requestBody:
     required: false
     content:
-      application/json:
+      "application/json":
         schema:
           $ref: "#/components/schemas/foo"
   responses:
     201:
-      description: "Created"
+      description: Created
       content:
-        application/json:
+        "application/json":
           schema:
             $ref: "#/components/schemas/foo"
-  foo: "bar"
+  foo: bar
 `
 	assert.Equal(t, expect, string(data))
 }
@@ -227,16 +227,16 @@ func TestMethod_WriteYaml_WithDefaultResponses(t *testing.T) {
 	const expect = `get:
   summary: "test summary"
   description: "test desc"
-  operationId: "testOp"
+  operationId: testOp
   tags:
-    - "foo"
+    - foo
   responses:
     200:
-      description: "OK"
+      description: OK
       content:
-        application/json:
+        "application/json":
           schema:
-            type: "object"
+            type: object
 `
 	assert.Equal(t, expect, string(data))
 }
@@ -265,14 +265,14 @@ func TestMethod_WriteYaml_WithOperationIdentifier(t *testing.T) {
   description: "test desc"
   operationId: "GET_root_foo"
   tags:
-    - "foo"
+    - foo
   responses:
     200:
-      description: "OK"
+      description: OK
       content:
-        application/json:
+        "application/json":
           schema:
-            type: "object"
+            type: object
 `
 	assert.Equal(t, expect, string(data))
 }
@@ -293,11 +293,11 @@ func TestMethod_WriteYaml_Deprecated(t *testing.T) {
   deprecated: true
   responses:
     200:
-      description: "OK"
+      description: OK
       content:
-        application/json:
+        "application/json":
           schema:
-            type: "object"
+            type: object
 `
 	assert.Equal(t, expect, string(data))
 }
@@ -319,11 +319,11 @@ func TestMethod_WriteYaml_OptionalSecurity(t *testing.T) {
     - {}
   responses:
     200:
-      description: "OK"
+      description: OK
       content:
-        application/json:
+        "application/json":
           schema:
-            type: "object"
+            type: object
 `
 	assert.Equal(t, expect, string(data))
 }

@@ -48,8 +48,8 @@ func TestServer_WriteYaml(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, `- url: "api/v1"
   #test comment
-  description: "foo"
-  x-foo: "bar"
-  foo: "bar"
+  description: foo
+  x-foo: bar
+  foo: bar
 `, string(data))
 }

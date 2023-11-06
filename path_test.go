@@ -31,14 +31,14 @@ func TestPaths_WriteYaml(t *testing.T) {
   get:
     description: "this is a test"
     tags:
-      - "tests"
+      - tests
     responses:
       200:
-        description: "OK"
+        description: OK
         content:
-          application/json:
+          "application/json":
             schema:
-              type: "object"
+              type: object
 `
 	assert.Equal(t, expected, string(data))
 }
@@ -106,23 +106,23 @@ func TestPaths_WriteYaml_WithHidden(t *testing.T) {
   get:
     description: "this is a test"
     tags:
-      - "tests"
+      - tests
     responses:
       200:
-        description: "OK"
+        description: OK
         content:
-          application/json:
+          "application/json":
             schema:
-              type: "object"
+              type: object
 "/buzz/buzz/foo":
   get:
     responses:
       200:
-        description: "OK"
+        description: OK
         content:
-          application/json:
+          "application/json":
             schema:
-              type: "object"
+              type: object
 `
 	assert.Equal(t, expected, string(data))
 }

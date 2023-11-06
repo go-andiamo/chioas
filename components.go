@@ -18,8 +18,12 @@ type Components struct {
 	Requests CommonRequests
 	// Responses is the OAS reusable responses
 	//
-	// To reference one of these, use Method.Responses.Ref with the name
+	// To reference one of these, use Method.Response.Ref with the name
 	Responses CommonResponses
+	// Examples is the OAS reusable examples
+	//
+	// To reference one of these, use Example.Ref with the name
+	Examples Examples
 	// Parameters is the OAS reusable parameters
 	Parameters CommonParameters
 	// SecuritySchemes is the OAS security schemes
@@ -44,6 +48,7 @@ func (c *Components) writeYaml(w yaml.Writer) {
 	if c.Parameters != nil {
 		c.Parameters.writeYaml(w)
 	}
+	c.Examples.writeYaml(w)
 	c.SecuritySchemes.writeYaml(w, false)
 	writeExtensions(c.Extensions, w)
 	writeAdditional(c.Additional, c, w)

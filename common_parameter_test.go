@@ -21,11 +21,11 @@ func TestCommonParameters_WriteYaml(t *testing.T) {
 	require.NoError(t, err)
 	const expect = `parameters:
   Fooey:
-    name: "foo"
-    in: "query"
+    name: foo
+    in: query
     required: true
     schema:
-      type: "string"
+      type: string
 `
 	assert.Equal(t, expect, string(data))
 }
@@ -39,11 +39,11 @@ func TestCommonParameter_WriteYaml(t *testing.T) {
 			param: CommonParameter{
 				Name: "foo",
 			},
-			expect: `name: "foo"
-  in: "query"
+			expect: `name: foo
+  in: query
   required: false
   schema:
-    type: "string"
+    type: string
 `,
 		},
 		{
@@ -51,12 +51,12 @@ func TestCommonParameter_WriteYaml(t *testing.T) {
 				Name:        "foo",
 				Description: "foo param",
 			},
-			expect: `name: "foo"
+			expect: `name: foo
   description: "foo param"
-  in: "query"
+  in: query
   required: false
   schema:
-    type: "string"
+    type: string
 `,
 		},
 		{
@@ -65,12 +65,12 @@ func TestCommonParameter_WriteYaml(t *testing.T) {
 				Description: "foo param",
 				Required:    true,
 			},
-			expect: `name: "foo"
+			expect: `name: foo
   description: "foo param"
-  in: "query"
+  in: query
   required: true
   schema:
-    type: "string"
+    type: string
 `,
 		},
 		{
@@ -80,13 +80,13 @@ func TestCommonParameter_WriteYaml(t *testing.T) {
 				Example:     "foo example",
 				Required:    true,
 			},
-			expect: `name: "foo"
+			expect: `name: foo
   description: "foo param"
-  in: "query"
+  in: query
   required: true
   example: "foo example"
   schema:
-    type: "string"
+    type: string
 `,
 		},
 		{
@@ -94,8 +94,8 @@ func TestCommonParameter_WriteYaml(t *testing.T) {
 				Name:      "foo",
 				SchemaRef: "FooRef",
 			},
-			expect: `name: "foo"
-  in: "query"
+			expect: `name: foo
+  in: query
   required: false
   schema:
     $ref: "#/components/schemas/FooRef"
@@ -109,11 +109,11 @@ func TestCommonParameter_WriteYaml(t *testing.T) {
 					Type: "string",
 				},
 			},
-			expect: `name: "foo"
-  in: "query"
+			expect: `name: foo
+  in: query
   required: false
   schema:
-    type: "string"
+    type: string
 `,
 		},
 		{
@@ -121,12 +121,12 @@ func TestCommonParameter_WriteYaml(t *testing.T) {
 				Name:       "foo",
 				Additional: &testAdditional{},
 			},
-			expect: `name: "foo"
-  in: "query"
+			expect: `name: foo
+  in: query
   required: false
   schema:
-    type: "string"
-  foo: "bar"
+    type: string
+  foo: bar
 `,
 		},
 	}
@@ -152,11 +152,11 @@ func TestCommonParameter_WriteYaml_WithComment(t *testing.T) {
 	require.NoError(t, err)
 	const expect = `#test comment
 Test:
-  name: "foo"
-  in: "query"
+  name: foo
+  in: query
   required: false
   schema:
-    type: "string"
+    type: string
 `
 	assert.Equal(t, expect, string(data))
 }

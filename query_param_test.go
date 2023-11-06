@@ -22,16 +22,16 @@ func TestQueryParams_WriteYaml(t *testing.T) {
 	ps.writeYaml(w)
 	data, err := w.Bytes()
 	require.NoError(t, err)
-	const expect = `- name: "foo"
-  in: "query"
+	const expect = `- name: foo
+  in: query
   required: false
   schema:
-    type: "string"
-- name: "bar"
-  in: "query"
+    type: string
+- name: bar
+  in: query
   required: true
   schema:
-    type: "string"
+    type: string
 `
 	assert.Equal(t, expect, string(data))
 }
@@ -45,11 +45,11 @@ func TestQueryParam_WriteYaml(t *testing.T) {
 			queryParam: QueryParam{
 				Name: "foo",
 			},
-			expect: `- name: "foo"
-  in: "query"
+			expect: `- name: foo
+  in: query
   required: false
   schema:
-    type: "string"
+    type: string
 `,
 		},
 		{
@@ -57,12 +57,12 @@ func TestQueryParam_WriteYaml(t *testing.T) {
 				Name:        "foo",
 				Description: "foo param",
 			},
-			expect: `- name: "foo"
+			expect: `- name: foo
   description: "foo param"
-  in: "query"
+  in: query
   required: false
   schema:
-    type: "string"
+    type: string
 `,
 		},
 		{
@@ -71,12 +71,12 @@ func TestQueryParam_WriteYaml(t *testing.T) {
 				Description: "foo param",
 				Required:    true,
 			},
-			expect: `- name: "foo"
+			expect: `- name: foo
   description: "foo param"
-  in: "query"
+  in: query
   required: true
   schema:
-    type: "string"
+    type: string
 `,
 		},
 		{
@@ -86,13 +86,13 @@ func TestQueryParam_WriteYaml(t *testing.T) {
 				Example:     "foo example",
 				Required:    true,
 			},
-			expect: `- name: "foo"
+			expect: `- name: foo
   description: "foo param"
-  in: "query"
+  in: query
   required: true
   example: "foo example"
   schema:
-    type: "string"
+    type: string
 `,
 		},
 		{
@@ -100,8 +100,8 @@ func TestQueryParam_WriteYaml(t *testing.T) {
 				Name:      "foo",
 				SchemaRef: "FooRef",
 			},
-			expect: `- name: "foo"
-  in: "query"
+			expect: `- name: foo
+  in: query
   required: false
   schema:
     $ref: "#/components/schemas/FooRef"
@@ -115,11 +115,11 @@ func TestQueryParam_WriteYaml(t *testing.T) {
 					Type: "string",
 				},
 			},
-			expect: `- name: "foo"
-  in: "query"
+			expect: `- name: foo
+  in: query
   required: false
   schema:
-    type: "string"
+    type: string
 `,
 		},
 		{
@@ -127,12 +127,12 @@ func TestQueryParam_WriteYaml(t *testing.T) {
 				Name:       "foo",
 				Additional: &testAdditional{},
 			},
-			expect: `- name: "foo"
-  in: "query"
+			expect: `- name: foo
+  in: query
   required: false
   schema:
-    type: "string"
-  foo: "bar"
+    type: string
+  foo: bar
 `,
 		},
 		{
@@ -149,12 +149,12 @@ func TestQueryParam_WriteYaml(t *testing.T) {
 				Name:    "foo",
 				Comment: "test comment",
 			},
-			expect: `- name: "foo"
+			expect: `- name: foo
   #test comment
-  in: "query"
+  in: query
   required: false
   schema:
-    type: "string"
+    type: string
 `,
 		},
 	}

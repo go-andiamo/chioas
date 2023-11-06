@@ -143,11 +143,11 @@ paths:
     get:
       responses:
         200:
-          description: "OK"
+          description: OK
           content:
-            application/json:
+            "application/json":
               schema:
-                type: "object"
+                type: object
 `
 	assert.Equal(t, expectYaml, string(body))
 }
@@ -226,11 +226,11 @@ paths:
     get:
       responses:
         200:
-          description: "OK"
+          description: OK
           content:
-            application/json:
+            "application/json":
               schema:
-                type: "object"
+                type: object
 `
 	assert.Equal(t, expectYaml, string(body))
 }

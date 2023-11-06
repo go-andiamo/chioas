@@ -24,9 +24,9 @@ func TestProperty_WriteYaml(t *testing.T) {
 			expect: `"foo":
   #test comment
   description: "foo desc"
-  type: "number"
+  type: number
   example: 1
-  foo: "bar"
+  foo: bar
 `,
 		},
 		{
@@ -48,7 +48,7 @@ func TestProperty_WriteYaml(t *testing.T) {
 				Type:      "array",
 			},
 			expect: `"foo":
-  type: "array"
+  type: array
   items:
     $ref: "#/components/schemas/foo"
 `,
@@ -60,7 +60,7 @@ func TestProperty_WriteYaml(t *testing.T) {
 			},
 			expect: `"foo":
   description: "foo desc"
-  type: "string"
+  type: string
 `,
 		},
 		{
@@ -72,10 +72,10 @@ func TestProperty_WriteYaml(t *testing.T) {
 				},
 			},
 			expect: `"foo":
-  type: "string"
+  type: string
   example:
     foo: bar
-  format: "email"
+  format: email
 `,
 		},
 		{
@@ -90,10 +90,10 @@ func TestProperty_WriteYaml(t *testing.T) {
 				},
 			},
 			expect: `"foo":
-  type: "object"
+  type: object
   properties:
     "bar":
-      type: "string"
+      type: string
       required: true
 `,
 		},
@@ -110,12 +110,12 @@ func TestProperty_WriteYaml(t *testing.T) {
 				},
 			},
 			expect: `"foo":
-  type: "array"
+  type: array
   items:
-    type: "object"
+    type: object
     properties:
       "bar":
-        type: "string"
+        type: string
         required: true
 `,
 		},
@@ -125,7 +125,7 @@ func TestProperty_WriteYaml(t *testing.T) {
 				Deprecated: true,
 			},
 			expect: `"foo":
-  type: "string"
+  type: string
   deprecated: true
 `,
 		},
@@ -143,12 +143,12 @@ func TestProperty_WriteYaml(t *testing.T) {
 				},
 			},
 			expect: `"foo":
-  type: "string"
+  type: string
   pattern: "???"
   maximum: 1.1
   minimum: 1
   multipleOf: 3
-  foo: "bar"
+  foo: bar
 `,
 		},
 		{
@@ -158,16 +158,16 @@ func TestProperty_WriteYaml(t *testing.T) {
 					true,
 					1,
 					"foo",
-					yaml.LiteralValue{Value: "foo"},
+					yaml.LiteralValue{Value: "\"foo\""},
 				},
 			},
 			expect: `"foo":
-  type: "string"
+  type: string
   enum:
     - true
     - 1
-    - "foo"
     - foo
+    - "foo"
 `,
 		},
 	}

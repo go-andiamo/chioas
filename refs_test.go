@@ -23,7 +23,7 @@ func TestWriteSchemaRef(t *testing.T) {
 		{
 			ref:     "foo",
 			isArray: true,
-			expect: `type: "array"
+			expect: `type: array
 items:
   $ref: "#/components/schemas/foo"
 `,
@@ -36,7 +36,7 @@ items:
 		{
 			ref:     "some/uri",
 			isArray: true,
-			expect: `type: "array"
+			expect: `type: array
 items:
   $ref: "some/uri"
 `,
@@ -61,8 +61,21 @@ func TestWriteRef_Errors(t *testing.T) {
 	assert.Error(t, err)
 
 	w = yaml.NewWriter(nil)
-	writeRef("foo", "bar", w)
+	w.RefChecker(&testRefErrorringChecker{})
+	writeRef("", "/my-schema", w)
 	data, err := w.Bytes()
+	assert.NoError(t, err)
+	assert.Equal(t, tagNameRef+": \"/my-schema\"\n", string(data))
+
+	w = yaml.NewWriter(nil)
+	w.RefChecker(&testRefErrorringChecker{})
+	writeRef("", refComponentsPrefix+tagNameSchemas+"/my-schema", w)
+	_, err = w.Bytes()
+	assert.Error(t, err)
+
+	w = yaml.NewWriter(nil)
+	writeRef("foo", "bar", w)
+	data, err = w.Bytes()
 	assert.NoError(t, err)
 	assert.Equal(t, tagNameRef+": \""+refComponentsPrefix+"foo/bar\"\n", string(data))
 }
@@ -75,8 +88,21 @@ func TestWriteItemRef_Errors(t *testing.T) {
 	assert.Error(t, err)
 
 	w = yaml.NewWriter(nil)
-	writeItemRef("foo", "bar", w)
+	w.RefChecker(&testRefErrorringChecker{})
+	writeItemRef("", "/my-schema", w)
 	data, err := w.Bytes()
+	assert.NoError(t, err)
+	assert.Equal(t, "- "+tagNameRef+": \"/my-schema\"\n", string(data))
+
+	w = yaml.NewWriter(nil)
+	w.RefChecker(&testRefErrorringChecker{})
+	writeItemRef("", refComponentsPrefix+tagNameSchemas+"/my-schema", w)
+	_, err = w.Bytes()
+	assert.Error(t, err)
+
+	w = yaml.NewWriter(nil)
+	writeItemRef("foo", "bar", w)
+	data, err = w.Bytes()
 	assert.NoError(t, err)
 	assert.Equal(t, "- "+tagNameRef+": \""+refComponentsPrefix+"foo/bar\"\n", string(data))
 }
@@ -97,6 +123,11 @@ func TestDefinition_RefCheck(t *testing.T) {
 			},
 			Parameters: CommonParameters{
 				"good": {},
+			},
+			Examples: Examples{
+				{
+					Name: "good",
+				},
 			},
 		},
 	}
@@ -128,6 +159,13 @@ func TestDefinition_RefCheck(t *testing.T) {
 	err = defWithComponents.RefCheck(tagNameParameters, "bad")
 	assert.Error(t, err)
 	err = defWithoutComponents.RefCheck(tagNameParameters, "good")
+	assert.Error(t, err)
+
+	err = defWithComponents.RefCheck(tagNameExamples, "good")
+	assert.NoError(t, err)
+	err = defWithComponents.RefCheck(tagNameExamples, "bad")
+	assert.Error(t, err)
+	err = defWithoutComponents.RefCheck(tagNameExamples, "good")
 	assert.Error(t, err)
 
 	err = defWithComponents.RefCheck("unknown", "good")
@@ -378,6 +416,79 @@ func TestDefinition_WithRefCheck(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 			}
+		})
+	}
+}
+
+func TestRefCheck(t *testing.T) {
+	testCases := []struct {
+		area      string
+		ref       string
+		expect    string
+		expectErr bool
+	}{
+		{
+			expectErr: true,
+		},
+		{
+			ref:    "/my-schema",
+			expect: "/my-schema",
+		},
+		{
+			ref:       refComponentsPrefix + tagNameSchemas + "/my-schema",
+			expectErr: true,
+		},
+	}
+	for i, tc := range testCases {
+		t.Run(fmt.Sprintf("[%d]", i+1), func(t *testing.T) {
+			w := yaml.NewWriter(nil)
+			w.RefChecker(&testRefErrorringChecker{})
+			actual := refCheck(tc.area, tc.ref, w)
+			if tc.expectErr {
+				assert.Error(t, w.Errored())
+			} else {
+				assert.NoError(t, w.Errored())
+				assert.Equal(t, tc.expect, actual)
+			}
+		})
+	}
+}
+
+func TestNeedsRefCheck(t *testing.T) {
+	testCases := []struct {
+		area       string
+		ref        string
+		expect     bool
+		expectArea string
+		expectRef  string
+	}{
+		{
+			expect: true,
+		},
+		{
+			ref:       "/my-schema.yaml",
+			expectRef: "/my-schema.yaml",
+		},
+		{
+			area:       tagNameSchemas,
+			ref:        "my-schema",
+			expect:     true,
+			expectArea: tagNameSchemas,
+			expectRef:  "my-schema",
+		},
+		{
+			ref:        refComponentsPrefix + tagNameSchemas + "/my-schema",
+			expect:     true,
+			expectArea: tagNameSchemas,
+			expectRef:  "my-schema",
+		},
+	}
+	for i, tc := range testCases {
+		t.Run(fmt.Sprintf("[%d]", i+1), func(t *testing.T) {
+			area, ref, check := needsRefCheck(tc.area, tc.ref)
+			assert.Equal(t, tc.expect, check)
+			assert.Equal(t, tc.expectArea, area)
+			assert.Equal(t, tc.expectRef, ref)
 		})
 	}
 }

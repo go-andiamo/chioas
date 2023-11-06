@@ -26,6 +26,11 @@ func TestComponents_WriteYaml(t *testing.T) {
 		Parameters: CommonParameters{
 			"baz": {},
 		},
+		Examples: Examples{
+			{
+				Name: "foo",
+			},
+		},
 		Additional: &testAdditional{},
 		Extensions: Extensions{
 			"foo": "bar",
@@ -41,31 +46,66 @@ func TestComponents_WriteYaml(t *testing.T) {
 components:
   schemas:
     "test":
-      type: "object"
+      type: object
   requestBodies:
     foo:
       description: "foo request"
       required: false
       content:
-        application/json:
+        "application/json":
           schema:
-            type: "object"
+            type: object
   responses:
     bar:
       description: "bar response"
       content:
-        application/json:
+        "application/json":
           schema:
-            type: "object"
+            type: object
   parameters:
     baz:
-      name: "baz"
-      in: "query"
+      name: baz
+      in: query
       required: false
       schema:
-        type: "string"
-  x-foo: "bar"
-  foo: "bar"
+        type: string
+  examples:
+    foo:
+      value: null
+  x-foo: bar
+  foo: bar
 `
 	assert.Equal(t, expect, string(data))
+}
+
+func TestComponents_WriteYaml_ErrorOnDuplicates(t *testing.T) {
+	c := &Components{
+		Schemas: Schemas{
+			{
+				Name: "foo",
+			},
+			{
+				Name: "foo",
+			},
+		},
+	}
+	w := yaml.NewWriter(nil)
+	c.writeYaml(w)
+	_, err := w.Bytes()
+	assert.Error(t, err)
+
+	c = &Components{
+		Examples: Examples{
+			{
+				Name: "foo",
+			},
+			{
+				Name: "foo",
+			},
+		},
+	}
+	w = yaml.NewWriter(nil)
+	c.writeYaml(w)
+	_, err = w.Bytes()
+	assert.Error(t, err)
 }
