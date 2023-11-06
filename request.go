@@ -53,6 +53,8 @@ type Request struct {
 	SchemaRef string
 	// IsArray indicates that request is an array of items
 	IsArray bool
+	// Examples is the ordered list of examples for the request
+	Examples Examples
 	// Extensions is extension OAS yaml properties
 	Extensions Extensions
 	// Additional is any additional OAS spec yaml to be written
@@ -61,13 +63,33 @@ type Request struct {
 	Comment string
 }
 
+func (r *Request) isArray() bool {
+	return r.IsArray
+}
+
+func (r *Request) schema() any {
+	return r.Schema
+}
+
+func (r *Request) schemaRef() string {
+	return r.SchemaRef
+}
+
+func (r *Request) examples() Examples {
+	return r.Examples
+}
+
+func (r *Request) alternatives() ContentTypes {
+	return r.AlternativeContentTypes
+}
+
 func (r *Request) writeYaml(w yaml.Writer) {
 	w.WriteTagStart(tagNameRequestBody)
 	if r.Ref == "" {
 		w.WriteComments(r.Comment).
 			WriteTagValue(tagNameDescription, r.Description).
 			WriteTagValue(tagNameRequired, r.Required)
-		writeContent(r.ContentType, r.Schema, r.SchemaRef, r.IsArray, r.AlternativeContentTypes, w)
+		writeContent(r.ContentType, r, w)
 		writeExtensions(r.Extensions, w)
 		writeAdditional(r.Additional, r, w)
 	} else {
@@ -80,7 +102,7 @@ func (r *Request) componentsWriteYaml(name string, w yaml.Writer) {
 	w.WriteTagStart(name).
 		WriteTagValue(tagNameDescription, r.Description).
 		WriteTagValue(tagNameRequired, r.Required)
-	writeContent(r.ContentType, r.Schema, r.SchemaRef, r.IsArray, r.AlternativeContentTypes, w)
+	writeContent(r.ContentType, r, w)
 	writeExtensions(r.Extensions, w)
 	writeAdditional(r.Additional, r, w)
 	w.WriteTagEnd()

@@ -10,159 +10,192 @@ import (
 func TestWriteContentType(t *testing.T) {
 	testCases := []struct {
 		contentType string
-		schema      any
-		schemaRef   string
-		isArray     bool
+		ct          ContentType
 		expect      string
 	}{
 		{
-			expect: `application/json:
+			expect: `"application/json":
   schema:
-    type: "object"
+    type: object
 `,
 		},
 		{
-			isArray: true,
-			expect: `application/json:
+			ct: ContentType{
+				IsArray: true,
+			},
+			expect: `"application/json":
   schema:
-    type: "object"
+    type: object
 `,
 		},
 		{
-			schemaRef: "foo",
-			expect: `application/json:
+			ct: ContentType{
+				SchemaRef: "foo",
+			},
+			expect: `"application/json":
   schema:
     $ref: "#/components/schemas/foo"
 `,
 		},
 		{
-			schemaRef: "foo",
-			isArray:   true,
-			expect: `application/json:
+			ct: ContentType{
+				SchemaRef: "foo",
+				IsArray:   true,
+			},
+			expect: `"application/json":
   schema:
-    type: "array"
+    type: array
     items:
       $ref: "#/components/schemas/foo"
 `,
 		},
 		{
-			schema: &mySchemaConverter{},
-			expect: `application/json:
+			ct: ContentType{
+				Schema: &mySchemaConverter{},
+			},
+			expect: `"application/json":
   schema:
-    type: "object"
+    type: object
     required:
-      - "foo"
+      - foo
     properties:
       "foo":
-        type: "string"
+        type: string
 `,
 		},
 		{
-			schema:  &mySchemaConverter{},
-			isArray: true,
-			expect: `application/json:
+			ct: ContentType{
+				Schema:  &mySchemaConverter{},
+				IsArray: true,
+			},
+			expect: `"application/json":
   schema:
-    type: "array"
+    type: array
     items:
-      type: "object"
+      type: object
       required:
-        - "foo"
+        - foo
       properties:
         "foo":
-          type: "string"
+          type: string
 `,
 		},
 		{
-			schema: &mySchemaWriter{},
-			expect: `application/json:
+			ct: ContentType{
+				Schema: &mySchemaWriter{},
+			},
+			expect: `"application/json":
   schema:
-    type: "object"
+    type: object
     properties:
       "foo":
-        type: "string"
+        type: string
 `,
 		},
 		{
-			schema: myTestResponse{},
-			expect: `application/json:
+			ct: ContentType{
+				Schema: myTestResponse{},
+			},
+			expect: `"application/json":
   schema:
-    type: "object"
+    type: object
     required:
-      - "bar"
+      - bar
     properties:
       "foo":
-        type: "string"
+        type: string
       "bar":
-        type: "boolean"
+        type: boolean
         example: false
       "baz":
-        type: "integer"
+        type: integer
       "float":
-        type: "number"
+        type: number
       "slice":
-        type: "array"
+        type: array
         items:
-          type: "string"
+          type: string
       "map":
-        type: "object"
+        type: object
 `,
 		},
 		{
-			schema: &myTestResponse{},
-			expect: `application/json:
+			ct: ContentType{
+				Schema: &myTestResponse{},
+			},
+			expect: `"application/json":
   schema:
-    type: "object"
+    type: object
     required:
-      - "bar"
+      - bar
     properties:
       "foo":
-        type: "string"
+        type: string
       "bar":
-        type: "boolean"
+        type: boolean
         example: false
       "baz":
-        type: "integer"
+        type: integer
       "float":
-        type: "number"
+        type: number
       "slice":
-        type: "array"
+        type: array
         items:
-          type: "string"
+          type: string
       "map":
-        type: "object"
+        type: object
 `,
 		},
 		{
-			schema: []myTestResponse{},
-			expect: `application/json:
+			ct: ContentType{
+				Schema: []myTestResponse{},
+			},
+			expect: `"application/json":
   schema:
-    type: "array"
+    type: array
     items:
-      type: "object"
+      type: object
       required:
-        - "bar"
+        - bar
       properties:
         "foo":
-          type: "string"
+          type: string
         "bar":
-          type: "boolean"
+          type: boolean
         "baz":
-          type: "integer"
+          type: integer
         "float":
-          type: "number"
+          type: number
         "slice":
-          type: "array"
+          type: array
           items:
-            type: "string"
+            type: string
         "map":
-          type: "object"
+          type: object
+`,
+		},
+		{
+			ct: ContentType{
+				SchemaRef: "foo",
+				Examples: Examples{
+					{
+						Name: "eg",
+					},
+				},
+			},
+			expect: `"application/json":
+  schema:
+    $ref: "#/components/schemas/foo"
+  examples:
+    eg:
+      value: null
 `,
 		},
 	}
 	for i, tc := range testCases {
 		t.Run(fmt.Sprintf("[%d]", i+1), func(t *testing.T) {
 			w := yaml.NewWriter(nil)
-			writeContentType(tc.contentType, tc.schema, tc.schemaRef, tc.isArray, w)
+			writeContentType(tc.contentType, tc.ct, w)
 			data, err := w.Bytes()
 			assert.NoError(t, err)
 			assert.Equal(t, tc.expect, string(data))
@@ -170,56 +203,11 @@ func TestWriteContentType(t *testing.T) {
 	}
 }
 
-func TestWriteContent(t *testing.T) {
-	testCases := []struct {
-		contentType     string
-		schema          any
-		schemaRef       string
-		isArray         bool
-		altContentTypes ContentTypes
-		expect          string
-	}{
-		{
-			expect: `content:
-  application/json:
-    schema:
-      type: "object"
-`,
-		},
-		{
-			schemaRef: "foo",
-			expect: `content:
-  application/json:
-    schema:
-      $ref: "#/components/schemas/foo"
-`,
-		},
-		{
-			schemaRef: "foo",
-			altContentTypes: ContentTypes{
-				"application/xml": {
-					SchemaRef: "foo",
-				},
-			},
-			expect: `content:
-  application/json:
-    schema:
-      $ref: "#/components/schemas/foo"
-  application/xml:
-    schema:
-      $ref: "#/components/schemas/foo"
-`,
-		},
-	}
-	for i, tc := range testCases {
-		t.Run(fmt.Sprintf("[%d]", i+1), func(t *testing.T) {
-			w := yaml.NewWriter(nil)
-			writeContent(tc.contentType, tc.schema, tc.schemaRef, tc.isArray, tc.altContentTypes, w)
-			data, err := w.Bytes()
-			assert.NoError(t, err)
-			assert.Equal(t, tc.expect, string(data))
-		})
-	}
+func TestContentType_Alternatives_Panics(t *testing.T) {
+	ct := ContentType{}
+	assert.Panics(t, func() {
+		_ = ct.alternatives()
+	})
 }
 
 type mySchemaConverter struct {

@@ -18,7 +18,7 @@ func TestSecurityScheme_WriteYaml(t *testing.T) {
 				Name: "test",
 			},
 			expect: `test:
-  type: "http"
+  type: http
 `,
 		},
 		{
@@ -55,12 +55,12 @@ func TestSecurityScheme_WriteYaml(t *testing.T) {
 			expect: `test:
   #test comment
   description: "test desc"
-  type: "apiKey"
-  scheme: "basic"
-  in: "header"
-  name: "X-API-KEY"
-  x-foo: "bar"
-  foo: "bar"
+  type: apiKey
+  scheme: basic
+  in: header
+  name: X-API-KEY
+  x-foo: bar
+  foo: bar
 `,
 		},
 	}

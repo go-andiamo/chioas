@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 )
 
 type Writer interface {
@@ -58,6 +59,9 @@ func newWriter(w *bufio.Writer) *writer {
 	return res
 }
 
+// NewWriter creates a new yaml writer using the provided *bufio.Writer
+//
+// If the *bufio.Writer is nil, an internal buffered writer is used
 func NewWriter(w *bufio.Writer) Writer {
 	return newWriter(w)
 }
@@ -96,25 +100,45 @@ func (y *writer) writeIndent() bool {
 	return y.err == nil
 }
 
+// LiteralValue enables unadulterated values to be written to yaml
 type LiteralValue struct {
+	// Value is the actual value to be written
+	//
+	// for example:
+	//  yw := NewWriter(nil)
+	//  yw.WriteTagValue("foo", LiteralValue{Value: "[]"})
+	// would result in yaml:
+	//  foo: []
 	Value string
+	// SafeEncodeString if set to true, indicates that the Value is an actual string value and should be safely yanl encoded accordingly
+	SafeEncodeString bool
 }
 
 func (y *writer) yamlValue(value any, allowEmpty bool) []string {
 	result := make([]string, 0)
 	switch vt := value.(type) {
 	case LiteralValue:
-		result = append(result, vt.Value)
+		if vt.SafeEncodeString {
+			result = y.yamlValue(vt.Value, true)
+		} else {
+			result = append(result, vt.Value)
+		}
 	case *LiteralValue:
-		result = append(result, vt.Value)
+		if vt.SafeEncodeString {
+			result = y.yamlValue(vt.Value, true)
+		} else {
+			result = append(result, vt.Value)
+		}
 	case json.Number:
 		result = append(result, vt.String())
 	case string:
-		if vt != "" || allowEmpty {
-			if strings.Contains(vt, "\n") {
+		if vt == "" && allowEmpty {
+			result = append(result, `""`)
+		} else if vt != "" {
+			if strings.Contains(vt, "\n") || strings.Contains(vt, "\r") {
 				result = append(result, y.formattedString(vt)...)
 			} else {
-				result = append(result, `"`+strings.ReplaceAll(vt, `"`, `\"`)+`"`)
+				result = append(result, safeString(vt))
 			}
 		}
 	case *string:
@@ -153,12 +177,35 @@ func (y *writer) yamlValue(value any, allowEmpty bool) []string {
 	return result
 }
 
+func (y *writer) formattedString(s string) []string {
+	result := make([]string, 0)
+	var w bytes.Buffer
+	enc := goyaml.NewEncoder(&w)
+	enc.SetIndent(2)
+	if y.err = enc.Encode(map[string]string{"v": s}); y.err == nil {
+		y.err = enc.Close()
+		ys := w.String()
+		ys = ys[3 : len(ys)-1]
+		lns := strings.Split(ys, "\n")
+		result = append(result, lns[0])
+		for l := 1; l < len(lns); l++ {
+			if len(lns[l]) >= 2 {
+				result = append(result, lns[l][2:])
+			} else {
+				result = append(result, "")
+			}
+		}
+	}
+	return result
+}
+
 func (y *writer) marshalYaml(v any) []string {
 	result := []string{""}
 	var buffer bytes.Buffer
 	enc := goyaml.NewEncoder(&buffer)
 	enc.SetIndent(2)
 	if y.err = enc.Encode(v); y.err == nil {
+		y.err = enc.Close()
 		lines := strings.Split(buffer.String(), "\n")
 		if len(lines) > 0 && lines[len(lines)-1] == "" {
 			lines = lines[:len(lines)-1]
@@ -168,21 +215,11 @@ func (y *writer) marshalYaml(v any) []string {
 	return result
 }
 
-func (y *writer) formattedString(s string) []string {
-	lines := strings.Split(s, "\n")
-	result := make([]string, len(lines)+1)
-	result[0] = `>-`
-	for i, line := range lines {
-		result[i+1] = line
-	}
-	return result
-}
-
 func (y *writer) WriteTagValue(name string, value any) Writer {
 	if y.err == nil && value != nil {
 		wv := y.yamlValue(value, false)
 		if len(wv) > 0 && y.writeIndent() {
-			_, y.err = y.w.WriteString(name + ":" + padFirst(wv[0]) + "\n")
+			_, y.err = y.w.WriteString(safeStringName(name) + padFirst(wv[0]) + "\n")
 			for i := 1; i < len(wv); i++ {
 				_, y.err = y.w.WriteString(string(y.indent) + "  " + wv[i] + "\n")
 			}
@@ -193,7 +230,7 @@ func (y *writer) WriteTagValue(name string, value any) Writer {
 
 func (y *writer) WriteTagStart(name string) Writer {
 	if y.writeIndent() {
-		_, y.err = y.w.WriteString(name + ":\n")
+		_, y.err = y.w.WriteString(safeStringName(name) + "\n")
 		y.incIndent()
 	}
 	return y
@@ -205,15 +242,13 @@ func (y *writer) WriteTagEnd() Writer {
 }
 
 func (y *writer) WritePathStart(context string, path string) Writer {
-	if y.err == nil {
-		if y.writeIndent() {
-			if context != "" {
-				_, y.err = y.w.WriteString(`"/` + context + path + "\":\n")
-			} else {
-				_, y.err = y.w.WriteString(`"` + path + "\":\n")
-			}
-			y.incIndent()
+	if y.writeIndent() {
+		if context != "" {
+			_, y.err = y.w.WriteString(safeString(`/`+context+path) + ":\n")
+		} else {
+			_, y.err = y.w.WriteString(safeString(path) + ":\n")
 		}
+		y.incIndent()
 	}
 	return y
 }
@@ -235,12 +270,12 @@ func (y *writer) WriteItemValue(name string, value any) Writer {
 	if y.err == nil {
 		if value == nil {
 			if y.writeIndent() {
-				_, y.err = y.w.WriteString("- " + name + ":\n")
+				_, y.err = y.w.WriteString("- " + safeStringName(name) + "\n")
 			}
 		} else {
 			wv := y.yamlValue(value, true)
 			if len(wv) > 0 && y.writeIndent() {
-				_, y.err = y.w.WriteString("- " + name + ":" + padFirst(wv[0]) + "\n")
+				_, y.err = y.w.WriteString("- " + safeStringName(name) + padFirst(wv[0]) + "\n")
 				for i := 1; i < len(wv); i++ {
 					_, y.err = y.w.WriteString(string(y.indent) + "  " + wv[i] + "\n")
 				}
@@ -255,12 +290,12 @@ func (y *writer) WriteItemStart(name string, value any) Writer {
 		if y.writeIndent() {
 			wv := y.yamlValue(value, true)
 			if len(wv) > 0 {
-				_, y.err = y.w.WriteString("- " + name + ":" + padFirst(wv[0]) + "\n")
+				_, y.err = y.w.WriteString("- " + safeStringName(name) + padFirst(wv[0]) + "\n")
 				for i := 1; i < len(wv); i++ {
 					_, y.err = y.w.WriteString(string(y.indent) + "  " + wv[i] + "\n")
 				}
 			} else {
-				_, y.err = y.w.WriteString(`- ` + name + ":\n")
+				_, y.err = y.w.WriteString(`- ` + safeStringName(name) + "\n")
 			}
 			y.incIndent()
 		}
@@ -316,6 +351,90 @@ func (y *writer) SetError(err error) {
 
 func (y *writer) Errored() error {
 	return y.err
+}
+
+func safeStringName(name string) string {
+	if strings.HasPrefix(name, `"`) && strings.HasSuffix(name, `"`) && len(name) > 1 {
+		return name + `:`
+	} else if needsEscaping(name) {
+		return escapeString(name) + `:`
+	}
+	return name + `:`
+}
+
+func safeString(s string) string {
+	if len(s) == 0 {
+		return `""`
+	} else if needsEscaping(s) {
+		return escapeString(s)
+	}
+	return s
+}
+
+func needsEscaping(s string) bool {
+	for _, b := range s {
+		if !(b == '$' || b == '-' || (b >= '0' && b <= '9') || (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z')) {
+			return true
+		}
+	}
+	return false
+}
+
+const hexDigits = "0123456789ABCDEF"
+
+func escapeString(s string) string {
+	var buff bytes.Buffer
+	buff.Grow(2 + (len(s) * 2))
+	_ = buff.WriteByte('"')
+	w := make([]byte, 10)
+	l := 0
+	for i := 0; i < len(s); {
+		if b := s[i]; b < utf8.RuneSelf {
+			i++
+			if b < 32 || b == 34 {
+				switch b {
+				case 0:
+					l, w[0], w[1] = 2, '\\', '0'
+				case '\a':
+					l, w[0], w[1] = 2, '\\', 'a'
+				case '\b':
+					l, w[0], w[1] = 2, '\\', 'b'
+				case 0x1b:
+					l, w[0], w[1] = 2, '\\', 'e'
+				case '\f':
+					l, w[0], w[1] = 2, '\\', 'f'
+				case '\n':
+					l, w[0], w[1] = 2, '\\', 'n'
+				case '\r':
+					l, w[0], w[1] = 2, '\\', 'r'
+				case '\t':
+					l, w[0], w[1] = 2, '\\', 't'
+				case '\v':
+					l, w[0], w[1] = 2, '\\', 'v'
+				case '"':
+					l, w[0], w[1] = 2, '\\', '"'
+				default:
+					l, w[0], w[1], w[2], w[3], w[4], w[5] = 6, '\\', 'u', '0', '0', hexDigits[b>>4], hexDigits[b&0xF]
+				}
+			} else {
+				l, w[0] = 1, b
+			}
+		} else {
+			r, size := utf8.DecodeRuneInString(s[i:])
+			i += size
+			if r <= 0xFFFF {
+				l, w[0], w[1] = 6, '\\', 'u'
+				w[2], w[3], w[4], w[5] = hexDigits[(r>>12)&0xF], hexDigits[(r>>8)&0xF], hexDigits[(r>>4)&0xF], hexDigits[r&0xF]
+			} else {
+				l, w[0], w[1] = 10, '\\', 'U'
+				w[2], w[3], w[4], w[5] = hexDigits[(r>>28)&0xF], hexDigits[(r>>24)&0xF], hexDigits[(r>>20)&0xF], hexDigits[(r>>16)&0xF]
+				w[6], w[7], w[8], w[9] = hexDigits[(r>>12)&0xF], hexDigits[(r>>8)&0xF], hexDigits[(r>>4)&0xF], hexDigits[r&0xF]
+			}
+		}
+		_, _ = buff.Write(w[:l])
+	}
+	buff.WriteByte('"')
+	return buff.String()
 }
 
 func (y *writer) RefChecker(rc RefChecker) RefChecker {

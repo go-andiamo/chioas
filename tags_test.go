@@ -19,11 +19,11 @@ func TestTag_WriteYaml(t *testing.T) {
 	tag.writeYaml(w)
 	data, err := w.Bytes()
 	require.NoError(t, err)
-	const expect = `- name: "foo"
+	const expect = `- name: foo
   #test comment
-  description: "test"
-  x-foo: "bar"
-  foo: "bar"
+  description: test
+  x-foo: bar
+  foo: bar
 `
 	assert.Equal(t, expect, string(data))
 }
@@ -41,8 +41,8 @@ func TestTag_WriteYaml_WithExternalDocs(t *testing.T) {
 	tag.writeYaml(w)
 	data, err := w.Bytes()
 	require.NoError(t, err)
-	const expect = `- name: "foo"
-  description: "test"
+	const expect = `- name: foo
+  description: test
   externalDocs:
     description: "ext desc"
     url: "https://example.com"

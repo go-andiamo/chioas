@@ -2,6 +2,7 @@ package chioas
 
 import (
 	"errors"
+	"fmt"
 	"github.com/go-andiamo/chioas/yaml"
 	"reflect"
 	"strings"
@@ -11,6 +12,17 @@ type Schemas []Schema
 
 func (ss Schemas) writeYaml(w yaml.Writer) {
 	if len(ss) > 0 {
+		// check for duplicates...
+		m := map[string]struct{}{}
+		for _, s := range ss {
+			if s.Name != "" {
+				if _, ok := m[s.Name]; ok {
+					w.SetError(fmt.Errorf("duplicate schema name '%s' in components", s.Name))
+					return
+				}
+				m[s.Name] = struct{}{}
+			}
+		}
 		w.WriteTagStart(tagNameSchemas)
 		for _, s := range ss {
 			s.writeYaml(true, w)
@@ -68,6 +80,22 @@ type Schema struct {
 	//   schema:
 	//     $ref: "#/components/schemas/foo"
 	SchemaRef string
+	// Discriminator is the optional OAS discriminator for the schema
+	Discriminator *Discriminator
+	// Ofs is the optional OAS ofs (oneOf, anyOf or allOf) for the schema
+	Ofs *Ofs
+}
+
+func (s *Schema) Ref() string {
+	panic("*Schema does not contain Ref() string")
+}
+
+func (s *Schema) Schema() *Schema {
+	return s
+}
+
+func (s *Schema) IsRef() bool {
+	return false
 }
 
 func (s *Schema) writeYaml(withName bool, w yaml.Writer) {
@@ -82,11 +110,13 @@ func (s *Schema) writeYaml(withName bool, w yaml.Writer) {
 	if s.SchemaRef != "" {
 		writeSchemaRef(s.SchemaRef, s.Type == tagValueTypeArray, w)
 	} else {
-		w.WriteTagValue(tagNameDescription, s.Description)
-		if s.Type != "" {
-			w.WriteTagValue(tagNameType, s.Type)
-		} else {
-			w.WriteTagValue(tagNameType, tagValueTypeObject)
+		w.WriteTagValue(tagNameDescription, s.Description).
+			WriteTagValue(tagNameType, defValue(s.Type, tagValueTypeObject))
+		if s.Ofs != nil {
+			s.Ofs.writeYaml(w)
+		}
+		if s.Discriminator != nil {
+			s.Discriminator.writeYaml(w)
 		}
 		if reqs, has := s.getRequiredProperties(); has {
 			w.WriteTagStart(tagNameRequired)
@@ -117,6 +147,37 @@ func (s *Schema) writeYaml(withName bool, w yaml.Writer) {
 	if withName {
 		w.WriteTagEnd()
 	}
+}
+
+func (s *Schema) writeOfYaml(w yaml.Writer) {
+	w.WriteItemStart(tagNameType, defValue(s.Type, tagValueTypeObject)).
+		WriteTagValue(tagNameDescription, s.Description)
+	if reqs, has := s.getRequiredProperties(); has {
+		w.WriteTagStart(tagNameRequired)
+		for _, rp := range reqs {
+			w.WriteItem(rp)
+		}
+		w.WriteTagEnd()
+	}
+	if len(s.Properties) > 0 {
+		w.WriteTagStart(tagNameProperties)
+		for _, p := range s.Properties {
+			p.writeYaml(w, true)
+		}
+		w.WriteTagEnd()
+	}
+	w.WriteTagValue(tagNameDefault, s.Default).
+		WriteTagValue(tagNameExample, s.Example)
+	if len(s.Enum) > 0 {
+		w.WriteTagStart(tagNameEnum)
+		for _, e := range s.Enum {
+			w.WriteItem(e)
+		}
+		w.WriteTagEnd()
+	}
+	writeExtensions(s.Extensions, w)
+	writeAdditional(s.Additional, s, w)
+	w.WriteTagEnd()
 }
 
 func (s *Schema) getRequiredProperties() ([]string, bool) {

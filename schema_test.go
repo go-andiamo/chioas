@@ -9,7 +9,6 @@ import (
 
 func TestSchemas_WriteYaml(t *testing.T) {
 	w := yaml.NewWriter(nil)
-
 	s := Schemas{
 		{
 			Name:               "test",
@@ -24,9 +23,9 @@ func TestSchemas_WriteYaml(t *testing.T) {
 	const expect = `schemas:
   "test":
     description: "test desc"
-    type: "object"
+    type: object
     required:
-      - "foo"
+      - foo
 `
 	assert.Equal(t, expect, string(data))
 }
@@ -39,7 +38,7 @@ func TestSchema_WriteYaml(t *testing.T) {
 		expectErr string
 	}{
 		{
-			expect: `type: "object"
+			expect: `type: object
 `,
 		},
 		{
@@ -61,14 +60,14 @@ func TestSchema_WriteYaml(t *testing.T) {
 				},
 			},
 			expect: `description: "test desc"
-type: "object"
+type: object
 required:
-  - "foo"
+  - foo
 properties:
   "foo":
-    type: "string"
+    type: string
   "bar":
-    type: "string"
+    type: string
 `,
 		},
 		{
@@ -87,14 +86,14 @@ properties:
 				},
 			},
 			expect: `description: "test desc"
-type: "array"
+type: array
 required:
-  - "foo"
+  - foo
 properties:
   "foo":
-    type: "string"
+    type: string
   "bar":
-    type: "string"
+    type: string
 `,
 		},
 		{
@@ -102,10 +101,10 @@ properties:
 				Type: "string",
 				Enum: []any{"foo", "bar", 0},
 			},
-			expect: `type: "string"
+			expect: `type: string
 enum:
-  - "foo"
-  - "bar"
+  - foo
+  - bar
   - 0
 `,
 		},
@@ -116,8 +115,8 @@ enum:
 			},
 			withName: true,
 			expect: `"test":
-  type: "object"
-  foo: "bar"
+  type: object
+  foo: bar
 `,
 		},
 		{
@@ -126,7 +125,7 @@ enum:
 				Comment: "test comment",
 			},
 			expect: `#test comment
-type: "object"
+type: object
 `,
 		},
 		{
@@ -137,7 +136,7 @@ type: "object"
 			withName: true,
 			expect: `"test":
   #test comment
-  type: "object"
+  type: object
 `,
 		},
 		{
@@ -149,7 +148,7 @@ type: "object"
 			},
 			withName: true,
 			expect: `"test":
-  type: "object"
+  type: object
   example:
     foo: bar
 `,
@@ -164,12 +163,12 @@ type: "object"
 					},
 				},
 			},
-			expect: `type: "object"
+			expect: `type: object
 required:
-  - "foo"
+  - foo
 properties:
   "foo":
-    type: "string"
+    type: string
 `,
 		},
 		{
@@ -183,12 +182,12 @@ properties:
 					},
 				},
 			},
-			expect: `type: "object"
+			expect: `type: object
 required:
-  - "foo"
+  - foo
 properties:
   "foo":
-    type: "string"
+    type: string
 `,
 		},
 		{
@@ -199,6 +198,48 @@ properties:
 			withName: true,
 			expect: `"Foo":
   $ref: "#/components/schemas/Foo2"
+`,
+		},
+		{
+			schema: Schema{
+				Name: "Foo",
+				Discriminator: &Discriminator{
+					PropertyName: "foo",
+				},
+			},
+			withName: true,
+			expect: `"Foo":
+  type: object
+  discriminator:
+    propertyName: foo
+`,
+		},
+		{
+			schema: Schema{
+				Name: "Foo",
+				Ofs:  &Ofs{},
+			},
+			withName: true,
+			expect: `"Foo":
+  type: object
+`,
+		},
+		{
+			schema: Schema{
+				Name: "Foo",
+				Ofs: &Ofs{
+					Of: []OfSchema{
+						OfRef("foo"),
+						OfRef("bar"),
+					},
+				},
+			},
+			withName: true,
+			expect: `"Foo":
+  type: object
+  oneOf:
+    - $ref: "#/components/schemas/foo"
+    - $ref: "#/components/schemas/bar"
 `,
 		},
 	}

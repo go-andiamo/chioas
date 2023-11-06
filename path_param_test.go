@@ -18,15 +18,15 @@ func TestPathParam_WriteYaml(t *testing.T) {
 	pp.writeYaml("foo", w)
 	data, err := w.Bytes()
 	require.NoError(t, err)
-	const expect = `- name: "foo"
+	const expect = `- name: foo
   #test comment
   description: "test desc"
-  in: "path"
+  in: path
   required: true
-  example: "fooey"
+  example: fooey
   schema:
-    type: "string"
-  foo: "bar"
+    type: string
+  foo: bar
 `
 	assert.Equal(t, expect, string(data))
 }
@@ -42,12 +42,12 @@ func TestPathParam_WriteYaml_Schema(t *testing.T) {
 	pp.writeYaml("foo", w)
 	data, err := w.Bytes()
 	require.NoError(t, err)
-	const expect = `- name: "foo"
+	const expect = `- name: foo
   description: "test desc"
-  in: "path"
+  in: path
   required: true
   schema:
-    type: "object"
+    type: object
 `
 	assert.Equal(t, expect, string(data))
 }
@@ -61,9 +61,9 @@ func TestPathParam_WriteYaml_SchemaRef(t *testing.T) {
 	pp.writeYaml("foo", w)
 	data, err := w.Bytes()
 	require.NoError(t, err)
-	const expect = `- name: "foo"
+	const expect = `- name: foo
   description: "test desc"
-  in: "path"
+  in: path
   required: true
   schema:
     $ref: "#/components/schemas/foo"

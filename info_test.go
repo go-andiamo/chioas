@@ -25,8 +25,8 @@ func TestInfo_WriteYaml(t *testing.T) {
 				Version:     "1.0.1",
 			},
 			expect: `info:
-  title: "foo"
-  description: "bar"
+  title: foo
+  description: bar
   version: "1.0.1"
 `,
 		},
@@ -51,7 +51,7 @@ func TestInfo_WriteYaml(t *testing.T) {
   title: "API Documentation"
   version: "1.0.0"
   contact:
-    name: "me"
+    name: me
     url: "https://example.com"
     email: "me@example.com"
 `,
@@ -111,7 +111,7 @@ func TestInfo_WriteYaml(t *testing.T) {
   title: "API Documentation"
   version: "1.0.0"
 externalDocs:
-  description: "foo"
+  description: foo
   url: "https://example.com"
 `,
 		},
@@ -122,7 +122,7 @@ externalDocs:
 			expect: `info:
   title: "API Documentation"
   version: "1.0.0"
-  foo: "bar"
+  foo: bar
 `,
 		},
 		{
@@ -147,10 +147,10 @@ externalDocs:
   version: "1.0.0"
   contact:
     #test comment
-    name: "me"
+    name: me
   license:
     #test comment
-    name: "test"
+    name: test
 externalDocs:
   #test comment
   url: "http://example.com"

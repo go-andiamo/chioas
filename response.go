@@ -76,12 +76,34 @@ type Response struct {
 	SchemaRef string
 	// IsArray indicates that request is an array of items
 	IsArray bool
+	// Examples is the ordered list of examples for the response
+	Examples Examples
 	// Extensions is extension OAS yaml properties
 	Extensions Extensions
 	// Additional is any additional OAS spec yaml to be written
 	Additional Additional
 	// Comment is any comment(s) to appear in the OAS spec yaml (not used with Ref)
 	Comment string
+}
+
+func (r Response) isArray() bool {
+	return r.IsArray
+}
+
+func (r Response) schema() any {
+	return r.Schema
+}
+
+func (r Response) schemaRef() string {
+	return r.SchemaRef
+}
+
+func (r Response) examples() Examples {
+	return r.Examples
+}
+
+func (r Response) alternatives() ContentTypes {
+	return r.AlternativeContentTypes
 }
 
 func (r Response) writeYaml(statusCode int, isHead bool, w yaml.Writer) {
@@ -94,7 +116,7 @@ func (r Response) writeYaml(statusCode int, isHead bool, w yaml.Writer) {
 		}
 		w.WriteTagValue(tagNameDescription, desc)
 		if !isHead && !r.NoContent && statusCode != http.StatusNoContent {
-			writeContent(r.ContentType, r.Schema, r.SchemaRef, r.IsArray, r.AlternativeContentTypes, w)
+			writeContent(r.ContentType, r, w)
 		}
 		writeExtensions(r.Extensions, w)
 		writeAdditional(r.Additional, r, w)
@@ -108,7 +130,7 @@ func (r Response) componentsWriteYaml(name string, w yaml.Writer) {
 	w.WriteTagStart(name)
 	w.WriteTagValue(tagNameDescription, r.Description)
 	if !r.NoContent {
-		writeContent(r.ContentType, r.Schema, r.SchemaRef, r.IsArray, r.AlternativeContentTypes, w)
+		writeContent(r.ContentType, r, w)
 	}
 	writeExtensions(r.Extensions, w)
 	writeAdditional(r.Additional, r, w)

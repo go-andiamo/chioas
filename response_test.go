@@ -32,15 +32,15 @@ func TestResponses_WriteYaml(t *testing.T) {
 	const expect = `responses:
   200:
     #test comment
-    description: "OK"
+    description: OK
     content:
-      application/json:
+      "application/json":
         schema:
           $ref: "#/components/schemas/test_ok"
   201:
-    description: "Created"
+    description: Created
     content:
-      application/json:
+      "application/json":
         schema:
           $ref: "#/components/schemas/test_created"
 `
@@ -94,10 +94,10 @@ func TestResponse_WriteYaml(t *testing.T) {
 			expect: `200:
   description: "req desc"
   content:
-    application/json:
+    "application/json":
       schema:
-        type: "object"
-  foo: "bar"
+        type: object
+  foo: bar
 `,
 		},
 		{
@@ -108,7 +108,7 @@ func TestResponse_WriteYaml(t *testing.T) {
 			},
 			expect: `200:
   description: "req desc"
-  foo: "bar"
+  foo: bar
 `,
 		},
 		{
@@ -121,9 +121,9 @@ func TestResponse_WriteYaml(t *testing.T) {
 			expect: `200:
   description: "req desc"
   content:
-    text/csv:
+    "text/csv":
       schema:
-        type: "array"
+        type: array
         items:
           $ref: "#/components/schemas/req_ref"
 `,
@@ -136,7 +136,7 @@ func TestResponse_WriteYaml(t *testing.T) {
 			expect: `200:
   description: "req desc"
   content:
-    application/json:
+    "application/json":
       schema:
         $ref: "/my/req_ref.yaml"
 `,
@@ -161,18 +161,18 @@ func TestResponse_WriteYaml(t *testing.T) {
 			expect: `200:
   description: "req desc"
   content:
-    application/json:
+    "application/json":
       schema:
-        type: "array"
+        type: array
         items:
-          type: "object"
+          type: object
           required:
-            - "foo"
+            - foo
           properties:
             "foo":
-              type: "string"
+              type: string
             "bar":
-              type: "string"
+              type: string
 `,
 		},
 		{
@@ -195,18 +195,18 @@ func TestResponse_WriteYaml(t *testing.T) {
 			expect: `200:
   description: "req desc"
   content:
-    application/json:
+    "application/json":
       schema:
-        type: "array"
+        type: array
         items:
-          type: "object"
+          type: object
           required:
-            - "foo"
+            - foo
           properties:
             "foo":
-              type: "string"
+              type: string
             "bar":
-              type: "string"
+              type: string
 `,
 		},
 		{
@@ -218,29 +218,29 @@ func TestResponse_WriteYaml(t *testing.T) {
 			expect: `200:
   description: "req desc"
   content:
-    application/json:
+    "application/json":
       schema:
-        type: "array"
+        type: array
         items:
-          type: "object"
+          type: object
           required:
-            - "bar"
+            - bar
           properties:
             "foo":
-              type: "string"
+              type: string
             "bar":
-              type: "boolean"
+              type: boolean
               example: false
             "baz":
-              type: "integer"
+              type: integer
             "float":
-              type: "number"
+              type: number
             "slice":
-              type: "array"
+              type: array
               items:
-                type: "string"
+                type: string
             "map":
-              type: "object"
+              type: object
 `,
 		},
 		{
@@ -257,32 +257,32 @@ func TestResponse_WriteYaml(t *testing.T) {
 			expect: `200:
   description: "req desc"
   content:
-    application/json:
+    "application/json":
       schema:
-        type: "array"
+        type: array
         items:
-          type: "object"
+          type: object
           required:
-            - "bar"
+            - bar
           properties:
             "foo":
-              type: "string"
+              type: string
               example: "foo eg"
             "bar":
-              type: "boolean"
+              type: boolean
               example: true
             "baz":
-              type: "integer"
+              type: integer
               example: 16
             "float":
-              type: "number"
+              type: number
               example: 16.16
             "slice":
-              type: "array"
+              type: array
               items:
-                type: "string"
+                type: string
             "map":
-              type: "object"
+              type: object
 `,
 		},
 		{
@@ -294,16 +294,16 @@ func TestResponse_WriteYaml(t *testing.T) {
 			expect: `200:
   description: "req desc"
   content:
-    application/json:
+    "application/json":
       schema:
-        type: "array"
+        type: array
         items:
-          type: "object"
+          type: object
           required:
-            - "foo"
+            - foo
           properties:
             "foo":
-              type: "string"
+              type: string
 `,
 		},
 		{
@@ -315,14 +315,14 @@ func TestResponse_WriteYaml(t *testing.T) {
 			expect: `200:
   description: "req desc"
   content:
-    application/json:
+    "application/json":
       schema:
-        type: "array"
+        type: array
         items:
-          type: "object"
+          type: object
           properties:
             "foo":
-              type: "string"
+              type: string
 `,
 		},
 		{
@@ -334,9 +334,9 @@ func TestResponse_WriteYaml(t *testing.T) {
 			expect: `200:
   description: "req desc"
   content:
-    application/json:
+    "application/json":
       schema:
-        type: "null"
+        type: null
 `,
 		},
 		{
@@ -347,28 +347,28 @@ func TestResponse_WriteYaml(t *testing.T) {
 			expect: `200:
   description: "req desc"
   content:
-    application/json:
+    "application/json":
       schema:
-        type: "array"
+        type: array
         items:
-          type: "object"
+          type: object
           required:
-            - "bar"
+            - bar
           properties:
             "foo":
-              type: "string"
+              type: string
             "bar":
-              type: "boolean"
+              type: boolean
             "baz":
-              type: "integer"
+              type: integer
             "float":
-              type: "number"
+              type: number
             "slice":
-              type: "array"
+              type: array
               items:
-                type: "string"
+                type: string
             "map":
-              type: "object"
+              type: object
 `,
 		},
 		{
@@ -386,32 +386,32 @@ func TestResponse_WriteYaml(t *testing.T) {
 			expect: `200:
   description: "req desc"
   content:
-    application/json:
+    "application/json":
       schema:
-        type: "array"
+        type: array
         items:
-          type: "object"
+          type: object
           required:
-            - "bar"
+            - bar
           properties:
             "foo":
-              type: "string"
+              type: string
               example: "foo eg"
             "bar":
-              type: "boolean"
+              type: boolean
               example: true
             "baz":
-              type: "integer"
+              type: integer
               example: 16
             "float":
-              type: "number"
+              type: number
               example: 16.16
             "slice":
-              type: "array"
+              type: array
               items:
-                type: "string"
+                type: string
             "map":
-              type: "object"
+              type: object
 `,
 		},
 		{
@@ -424,14 +424,69 @@ func TestResponse_WriteYaml(t *testing.T) {
 				},
 			},
 			expect: `200:
-  description: "OK"
+  description: OK
   content:
-    application/json:
+    "application/json":
       schema:
         $ref: "#/components/schemas/foo"
-    application/xml:
+    "application/xml":
       schema:
         $ref: "#/components/schemas/foo"
+`,
+		},
+		{
+			response: Response{
+				SchemaRef: "foo",
+				Examples: Examples{
+					{
+						Name: "eg",
+					},
+				},
+			},
+			expect: `200:
+  description: OK
+  content:
+    "application/json":
+      schema:
+        $ref: "#/components/schemas/foo"
+      examples:
+        eg:
+          value: null
+`,
+		},
+		{
+			response: Response{
+				SchemaRef: "foo",
+				Examples: Examples{
+					{
+						Name: "eg",
+					},
+				},
+				AlternativeContentTypes: ContentTypes{
+					"application/xml": {
+						Examples: Examples{
+							{
+								Name: "egXml",
+							},
+						},
+					},
+				},
+			},
+			expect: `200:
+  description: OK
+  content:
+    "application/json":
+      schema:
+        $ref: "#/components/schemas/foo"
+      examples:
+        eg:
+          value: null
+    "application/xml":
+      schema:
+        type: object
+      examples:
+        egXml:
+          value: null
 `,
 		},
 	}

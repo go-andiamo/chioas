@@ -45,34 +45,34 @@ components:
   schemas:
     "MyRequest":
       description: "My request"
-      type: "object"
+      type: object
       required:
-        - "givenName"
-        - "familyName"
-        - "age"
+        - givenName
+        - familyName
+        - age
       properties:
         "givenName":
           description: "Your first/given name"
-          type: "string"
-          example: "Bilbo"
+          type: string
+          example: Bilbo
           pattern: "^[A-Z][a-zA-Z]+$"
         "familyName":
           description: "Your family name/surname"
-          type: "string"
-          example: "Baggins"
+          type: string
+          example: Baggins
           pattern: "^[A-Z][a-zA-Z]+$"
         "age":
           #this is a comment
           #this is another, with commas in it, comment
-          type: "integer"
+          type: integer
           example: 50
         "siblings":
-          type: "array"
+          type: array
           items:
             $ref: "#/components/schemas/Siblings"
         "status":
-          type: "string"
-          example: "single"
+          type: string
+          example: single
           enum:
             - "single"
             - "married"
@@ -129,30 +129,30 @@ func TestSchemaFrom_Basic(t *testing.T) {
 	data, err := w.Bytes()
 	assert.NoError(t, err)
 	const expect = `"test":
-  type: "object"
+  type: object
   required:
-    - "ID"
-    - "name"
+    - ID
+    - name
   properties:
     "ID":
       description: "Desc of id"
-      type: "number"
+      type: number
       example: 123
-      format: "int64"
+      format: int64
       maximum: 10
       minimum: 1
     "name":
       description: "this is the desc"
-      type: "string"
+      type: string
       example: "example name"
-      pattern: "xyz"
+      pattern: xyz
       maxLength: 10
       minLength: 1
       x-something: "foo"
     "Flag":
-      type: "boolean"
+      type: boolean
     "-":
-      type: "string"
+      type: string
 `
 	assert.Equal(t, expect, string(data))
 }
@@ -169,30 +169,30 @@ func TestSchemaFrom_BasicPtr(t *testing.T) {
 	data, err := w.Bytes()
 	assert.NoError(t, err)
 	const expect = `"test":
-  type: "object"
+  type: object
   required:
-    - "ID"
-    - "name"
+    - ID
+    - name
   properties:
     "ID":
       description: "Desc of id"
-      type: "number"
+      type: number
       example: 123
-      format: "int64"
+      format: int64
       maximum: 10
       minimum: 1
     "name":
       description: "this is the desc"
-      type: "string"
+      type: string
       example: "example name"
-      pattern: "xyz"
+      pattern: xyz
       maxLength: 10
       minLength: 1
       x-something: "foo"
     "Flag":
-      type: "boolean"
+      type: boolean
     "-":
-      type: "string"
+      type: string
 `
 	assert.Equal(t, expect, string(data))
 }
@@ -235,64 +235,64 @@ func TestSchemaFrom_Complex(t *testing.T) {
 	data, err := w.Bytes()
 	assert.NoError(t, err)
 	const expect = `"test":
-  type: "object"
+  type: object
   required:
-    - "ID"
-    - "name"
+    - ID
+    - name
   properties:
     "ID":
       description: "Desc of id"
-      type: "number"
+      type: number
       maximum: 10
       minimum: 1
     "name":
       description: "this is the desc"
-      type: "string"
-      pattern: "xyz"
+      type: string
+      pattern: xyz
       maxLength: 10
       minLength: 1
     "Flag":
-      type: "boolean"
+      type: boolean
     "-":
-      type: "string"
+      type: string
     "number":
-      type: "number"
+      type: number
     "datetime":
-      type: "string"
-      format: "date-time"
+      type: string
+      format: date-time
     "arr":
-      type: "array"
+      type: array
       items:
         $ref: "#/components/schemas/Arr"
     "subs":
-      type: "array"
+      type: array
       items:
-        type: "object"
+        type: object
         properties:
           "subName":
-            type: "string"
+            type: string
             example: "name eg (in arr)"
             required: true
           "subValue":
             description: "this is the desc, with commas!"
-            type: "number"
+            type: number
             example: 1.23
-            format: "float"
+            format: float
             required: true
             maximum: 99.9
             minimum: 0.1
     "subStruct":
-      type: "object"
+      type: object
       properties:
         "subName":
-          type: "string"
+          type: string
           example: "name eg"
           required: true
         "subValue":
           description: "this is the desc, with commas!"
-          type: "number"
+          type: number
           example: 4.56
-          format: "float"
+          format: float
           required: true
           maximum: 99.9
           minimum: 0.1

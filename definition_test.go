@@ -305,11 +305,11 @@ info:
   version: "1.0.1"
 servers:
   - url: "/api/v1"
-    description: "original"
+    description: original
 tags:
-  - name: "Foo"
+  - name: Foo
     description: "foo tag"
-  - name: "Subs"
+  - name: Subs
     description: "subs tag"
 paths:
   "/svc/":
@@ -317,84 +317,84 @@ paths:
       description: "Root discovery"
       responses:
         200:
-          description: "OK"
+          description: OK
           content:
-            application/json:
+            "application/json":
               schema:
-                type: "object"
+                type: object
   "/svc/subs":
     get:
       description: "get subs desc"
       tags:
-        - "Subs"
+        - Subs
       responses:
         200:
-          description: "OK"
+          description: OK
           content:
-            application/json:
+            "application/json":
               schema:
-                type: "object"
+                type: object
   "/svc/subs/{subId}":
     get:
       description: "get specific sub"
       tags:
-        - "Subs"
+        - Subs
       parameters:
-        - name: "subId"
+        - name: subId
           description: "id of sub"
-          in: "path"
+          in: path
           required: true
           schema:
-            type: "string"
+            type: string
       responses:
         200:
-          description: "OK"
+          description: OK
           content:
-            application/json:
+            "application/json":
               schema:
-                type: "object"
+                type: object
   "/svc/subs/{subId}/subitems/{subitemId}":
     get:
       description: "get specific sub-item of sub"
       tags:
-        - "Subs"
+        - Subs
       parameters:
-        - name: "subId"
+        - name: subId
           description: "id of sub"
-          in: "path"
+          in: path
           required: true
           schema:
-            type: "string"
-        - name: "subitemId"
-          in: "path"
+            type: string
+        - name: subitemId
+          in: path
           required: true
           schema:
-            type: "string"
+            type: string
       responses:
         200:
-          description: "OK"
+          description: OK
           content:
-            application/json:
+            "application/json":
               schema:
-                type: "object"
+                type: object
 components:
   schemas:
     "fooReq":
       description: "foo desc"
-      type: "object"
+      type: object
       required:
-        - "foo"
+        - foo
       properties:
         "foo":
-          type: "string"
+          type: string
   securitySchemes:
     ApiKey:
-      description: "foo"
-      type: "apiKey"
-      in: "header"
-      name: "X-API-KEY"
+      description: foo
+      type: apiKey
+      in: header
+      name: X-API-KEY
     MyOauth:
-      type: "oauth2"
+      type: oauth2
 security:
   - ApiKey: []
   - MyOauth:
@@ -477,7 +477,7 @@ info:
   title: "API Documentation"
   version: "1.0.0"
 paths:
-foo: "bar"
+foo: bar
 `
 	assert.Equal(t, expect, string(data))
 }

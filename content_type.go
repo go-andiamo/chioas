@@ -39,28 +39,61 @@ type ContentType struct {
 	SchemaRef string
 	// IsArray indicates that request is an array of items
 	IsArray bool
+	// Examples is the ordered list of examples for the content type
+	Examples Examples
 }
 
-func writeContent(contentType string, schema any, schemaRef string, isArray bool, contentTypes ContentTypes, w yaml.Writer) {
+func (ct ContentType) isArray() bool {
+	return ct.IsArray
+}
+
+func (ct ContentType) schema() any {
+	return ct.Schema
+}
+
+func (ct ContentType) schemaRef() string {
+	return ct.SchemaRef
+}
+
+func (ct ContentType) examples() Examples {
+	return ct.Examples
+}
+
+func (ct ContentType) alternatives() ContentTypes {
+	panic("ContentType does not have alternatives")
+}
+
+type contentWritable interface {
+	isArray() bool
+	schema() any
+	schemaRef() string
+	examples() Examples
+	alternatives() ContentTypes
+}
+
+func writeContent(contentType string, cw contentWritable, w yaml.Writer) {
 	w.WriteTagStart(tagNameContent)
-	writeContentType(contentType, schema, schemaRef, isArray, w)
-	if contentTypes != nil {
-		for k, v := range contentTypes {
-			writeContentType(k, v.Schema, v.SchemaRef, v.IsArray, w)
+	writeContentType(contentType, cw, w)
+	if alts := cw.alternatives(); alts != nil {
+		for altCt, altCw := range alts {
+			writeContentType(altCt, altCw, w)
 		}
 	}
 	w.WriteTagEnd()
 }
 
-func writeContentType(contentType string, schema any, schemaRef string, isArray bool, w yaml.Writer) {
+func writeContentType(contentType string, cw contentWritable, w yaml.Writer) {
 	w.WriteTagStart(defValue(contentType, tagNameApplicationJson))
 	w.WriteTagStart(tagNameSchema)
-	if schema != nil {
+	isArray := cw.isArray()
+	if schema := cw.schema(); schema != nil {
 		writeSchema(schema, isArray, w)
-	} else if schemaRef != "" {
+	} else if schemaRef := cw.schemaRef(); schemaRef != "" {
 		writeSchemaRef(schemaRef, isArray, w)
 	} else {
 		w.WriteTagValue(tagNameType, tagValueTypeObject)
 	}
-	w.WriteTagEnd().WriteTagEnd()
+	w.WriteTagEnd()
+	cw.examples().writeYaml(w)
+	w.WriteTagEnd()
 }

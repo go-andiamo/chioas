@@ -22,13 +22,13 @@ func TestRequest_WriteYaml(t *testing.T) {
 			},
 			expect: `requestBody:
   #test comment
-  description: "desc"
+  description: desc
   required: true
   content:
-    application/json:
+    "application/json":
       schema:
         $ref: "#/components/schemas/foo"
-  foo: "bar"
+  foo: bar
 `,
 		},
 		{
@@ -48,12 +48,12 @@ func TestRequest_WriteYaml(t *testing.T) {
 				IsArray:     true,
 			},
 			expect: `requestBody:
-  description: "desc"
+  description: desc
   required: true
   content:
-    application/json:
+    "application/json":
       schema:
-        type: "array"
+        type: array
         items:
           $ref: "#/components/schemas/foo"
 `,
@@ -70,12 +70,67 @@ func TestRequest_WriteYaml(t *testing.T) {
 			expect: `requestBody:
   required: false
   content:
-    application/json:
+    "application/json":
       schema:
         $ref: "#/components/schemas/foo"
-    application/xml:
+    "application/xml":
       schema:
         $ref: "#/components/schemas/foo"
+`,
+		},
+		{
+			request: &Request{
+				SchemaRef: "foo",
+				Examples: Examples{
+					{
+						Name: "eg",
+					},
+				},
+			},
+			expect: `requestBody:
+  required: false
+  content:
+    "application/json":
+      schema:
+        $ref: "#/components/schemas/foo"
+      examples:
+        eg:
+          value: null
+`,
+		},
+		{
+			request: &Request{
+				SchemaRef: "foo",
+				Examples: Examples{
+					{
+						Name: "eg",
+					},
+				},
+				AlternativeContentTypes: ContentTypes{
+					"application/xml": {
+						Examples: Examples{
+							{
+								Name: "egXml",
+							},
+						},
+					},
+				},
+			},
+			expect: `requestBody:
+  required: false
+  content:
+    "application/json":
+      schema:
+        $ref: "#/components/schemas/foo"
+      examples:
+        eg:
+          value: null
+    "application/xml":
+      schema:
+        type: object
+      examples:
+        egXml:
+          value: null
 `,
 		},
 	}
