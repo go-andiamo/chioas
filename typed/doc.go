@@ -1,6 +1,6 @@
 // Package typed provides for the capability of having typed handlers (methods/functions) for api endpoints
 //
-// # To utilise typed handlers, just set the MethodHandlerBuilder in chioas.Definition
+// to utilise typed handlers, just set the MethodHandlerBuilder in chioas.Definition
 //
 // For full documentation - see https://github.com/go-andiamo/chioas/blob/main/typed/README.md
 //

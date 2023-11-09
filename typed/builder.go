@@ -14,11 +14,11 @@ const (
 )
 
 // NewTypedMethodsHandlerBuilder creates a new handler for use on chioas.Definition and provides
-// capability to have typed methods/funcs for API endpoints
+// capability to have typed methods/funcs for API endpoints.
 //
-// # The options arg can be any of types ErrorHandler, ArgBuilder or Unmarshaler
+// the options arg can be any of types ErrorHandler, ArgBuilder or Unmarshaler
 //
-// # If no Unmarshaler is passed then a default JSON unmarshaler is used - and if multiple Unmarshaler are passed then only the last one is used
+// if no Unmarshaler is passed then a default JSON unmarshaler is used - and if multiple Unmarshaler are passed then only the last one is used
 //
 // For a complete example, see package docs
 func NewTypedMethodsHandlerBuilder(options ...any) chioas.MethodHandlerBuilder {
