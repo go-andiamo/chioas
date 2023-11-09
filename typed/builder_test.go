@@ -108,13 +108,13 @@ func TestTypedMethodsHandlerBuilder_Build_WithHandlerSet(t *testing.T) {
 			return nil
 		},
 	}
-	mh, err = tmhb.BuildHandler("/", http.MethodGet, m, nil)
+	_, err = tmhb.BuildHandler("/", http.MethodGet, m, nil)
 	assert.Error(t, err)
 
 	m = chioas.Method{
 		Handler: true,
 	}
-	mh, err = tmhb.BuildHandler("/", http.MethodGet, m, nil)
+	_, err = tmhb.BuildHandler("/", http.MethodGet, m, nil)
 	assert.Error(t, err)
 }
 

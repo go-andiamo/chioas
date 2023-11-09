@@ -86,7 +86,7 @@ Yes, _Chioas Typed Handlers_ uses `reflect` to make the call to your typed handl
 As with anything that uses `reflect`, there is a performance price to pay.
 Although _Chioas Typed Handlers_ attempts to minimize this by gathering all the type information for the type handler up-front - so handler args are only interrogated once.
 
-But if your concerned with ultimate performance or want to stick to convention - _Chioas Typed Handlers_ is optional and entirely your own prerogative to use it.  Or if only some endpoints in your API are performance sensitive but other endpoints would benefit from readability (or flexible content handling; or improved error handling) then you can mix-and-match. 
+But if you're concerned with ultimate performance or want to stick to convention - _Chioas Typed Handlers_ is optional and entirely your own prerogative to use it.  Or if only some endpoints in your API are performance sensitive but other endpoints would benefit from readability (or flexible content handling; or improved error handling) then you can mix-and-match. 
 
 ## Working example
 The following is a short working example of typed handlers...

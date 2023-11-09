@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// Unmarshaler is an interface that can be passes as an option to NewTypedMethodsHandlerBuilder, allowing support
+// Unmarshaler is an interface that can be passed as an option to NewTypedMethodsHandlerBuilder, allowing support
 // for unmarshalling different content types (e.g. overriding default JSON unmarshalling and/or varying the unmarshalling according to the request `Content-Type` header)
 type Unmarshaler interface {
 	Unmarshal(request *http.Request, v any) error
