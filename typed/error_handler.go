@@ -7,7 +7,7 @@ import (
 
 // ErrorHandler is an interface that can be used to write an error to the response
 //
-// # An ErrorHandler can be passed as an option to NewTypedMethodsHandlerBuilder
+// an ErrorHandler can be passed as an option to NewTypedMethodsHandlerBuilder
 //
 // The original *http.Request is passed so that responses can be written in the required content type (i.e. according to the `Accept` header)
 type ErrorHandler interface {

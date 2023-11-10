@@ -10,6 +10,7 @@ import (
 
 const (
 	hdrContentType  = "Content-Type"
+	hdrAccept       = "Accept"
 	contentTypeJson = "application/json"
 )
 
@@ -139,10 +140,10 @@ func (t *typedMethodsHandlerBuilder) handleReturnArgs(retArgs []reflect.Value, t
 func (t *typedMethodsHandlerBuilder) handleResponseArg(res any, thisApi any, writer http.ResponseWriter, request *http.Request) {
 	if rm, ok := res.(ResponseMarshaler); ok {
 		if data, sc, hdrs, err := rm.Marshal(request); err == nil {
-			if sc < http.StatusContinue && len(data) == 0 {
-				sc = http.StatusNoContent
-			} else if sc < http.StatusContinue {
-				sc = http.StatusOK
+			if len(data) == 0 {
+				sc = defaultStatusCode(sc, http.StatusNoContent)
+			} else {
+				sc = defaultStatusCode(sc, http.StatusOK)
 			}
 			writer.WriteHeader(sc)
 			for _, hd := range hdrs {
