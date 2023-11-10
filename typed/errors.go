@@ -41,11 +41,11 @@ func (err *apiError) Wrapped() error {
 
 // NewApiError creates a new ApiError with the specified status code and error message
 //
-// If the message is an empty string, the actual message is set from the status code using http.StatusText
+// # If the message is an empty string, the actual message is set from the status code using http.StatusText
+//
+// Note: If the provided status code is less than 100 (http.StatusContinue) the status code http.StatusInternalServerError is used
 func NewApiError(statusCode int, msg string) ApiError {
-	if statusCode < http.StatusContinue {
-		statusCode = http.StatusInternalServerError
-	}
+	statusCode = defaultStatusCode(statusCode, http.StatusInternalServerError)
 	if msg == "" {
 		msg = http.StatusText(statusCode)
 	}
@@ -57,11 +57,11 @@ func NewApiError(statusCode int, msg string) ApiError {
 
 // NewApiErrorf creates a new ApiError with the specified status code and error format + args
 //
-// If the message is an empty string, the actual message is set from the status code using http.StatusText
+// # If the message is an empty string, the actual message is set from the status code using http.StatusText
+//
+// Note: If the provided status code is less than 100 (http.StatusContinue) the status code http.StatusInternalServerError is used
 func NewApiErrorf(statusCode int, format string, a ...any) ApiError {
-	if statusCode < http.StatusContinue {
-		statusCode = http.StatusInternalServerError
-	}
+	statusCode = defaultStatusCode(statusCode, http.StatusInternalServerError)
 	msg := fmt.Sprintf(format, a...)
 	if msg == "" {
 		msg = http.StatusText(statusCode)
@@ -81,11 +81,8 @@ func WrapApiError(statusCode int, err error) ApiError {
 	if err == nil {
 		return nil
 	}
-	if statusCode < http.StatusContinue {
-		statusCode = http.StatusInternalServerError
-	}
 	return &apiError{
-		statusCode: statusCode,
+		statusCode: defaultStatusCode(statusCode, http.StatusInternalServerError),
 		err:        err,
 	}
 }
@@ -99,11 +96,8 @@ func WrapApiErrorMsg(statusCode int, err error, msg string) ApiError {
 	if err == nil {
 		return nil
 	}
-	if statusCode < http.StatusContinue {
-		statusCode = http.StatusInternalServerError
-	}
 	return &apiError{
-		statusCode: statusCode,
+		statusCode: defaultStatusCode(statusCode, http.StatusInternalServerError),
 		msg:        msg,
 		err:        err,
 	}
