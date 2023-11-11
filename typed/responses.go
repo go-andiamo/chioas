@@ -63,11 +63,11 @@ func (jr *JsonResponse) write(writer http.ResponseWriter) error {
 		sc = defaultStatusCode(sc, http.StatusNoContent)
 	}
 	sc = defaultStatusCode(sc, http.StatusOK)
-	writer.WriteHeader(sc)
 	writer.Header().Set(hdrContentType, contentTypeJson)
 	for _, hd := range jr.Headers {
 		writer.Header().Set(hd[0], hd[1])
 	}
+	writer.WriteHeader(sc)
 	_, _ = writer.Write(data)
 	return nil
 }
