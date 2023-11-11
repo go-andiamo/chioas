@@ -20,20 +20,21 @@ type errorHandler struct {
 }
 
 func (eh *errorHandler) HandleError(writer http.ResponseWriter, request *http.Request, err error) {
-	switch et := err.(type) {
-	case ApiError:
-		writer.WriteHeader(et.StatusCode())
-	default:
-		writer.WriteHeader(http.StatusInternalServerError)
+	sc := http.StatusInternalServerError
+	if apiErr, ok := err.(ApiError); ok {
+		sc = defaultStatusCode(apiErr.StatusCode(), sc)
 	}
 	if em, ok := err.(json.Marshaler); ok {
 		if data, mErr := em.MarshalJSON(); mErr == nil {
 			writer.Header().Set(hdrContentType, contentTypeJson)
+			writer.WriteHeader(sc)
 			_, _ = writer.Write(data)
 		} else {
+			writer.WriteHeader(sc)
 			_, _ = writer.Write([]byte(err.Error() + "\n" + mErr.Error()))
 		}
 		return
 	}
+	writer.WriteHeader(sc)
 	_, _ = writer.Write([]byte(err.Error()))
 }

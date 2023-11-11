@@ -145,10 +145,10 @@ func (t *typedMethodsHandlerBuilder) handleResponseArg(res any, thisApi any, wri
 			} else {
 				sc = defaultStatusCode(sc, http.StatusOK)
 			}
-			writer.WriteHeader(sc)
 			for _, hd := range hdrs {
 				writer.Header().Set(hd[0], hd[1])
 			}
+			writer.WriteHeader(sc)
 			_, _ = writer.Write(data)
 		} else {
 			t.getErrorHandler(thisApi).HandleError(writer, request, err)
@@ -177,8 +177,8 @@ func (t *typedMethodsHandlerBuilder) handleResponseArg(res any, thisApi any, wri
 		_, _ = writer.Write(rt)
 	default:
 		if data, err := json.Marshal(res); err == nil {
-			writer.WriteHeader(http.StatusOK)
 			writer.Header().Set(hdrContentType, contentTypeJson)
+			writer.WriteHeader(http.StatusOK)
 			_, _ = writer.Write(data)
 		} else {
 			t.getErrorHandler(thisApi).HandleError(writer, request, err)
