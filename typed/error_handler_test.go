@@ -21,21 +21,21 @@ func TestDefaultErrorHandler(t *testing.T) {
 	defaultErrorHandler.HandleError(res, req, &testApiError{"fooey", http.StatusPaymentRequired})
 	assert.Equal(t, http.StatusPaymentRequired, res.Code)
 	assert.Equal(t, "fooey", res.Body.String())
-	assert.Equal(t, "", res.Header().Get(hdrContentType))
+	assert.Equal(t, "", res.Result().Header.Get(hdrContentType))
 
 	req, _ = http.NewRequest(http.MethodGet, "/", nil)
 	res = httptest.NewRecorder()
 	defaultErrorHandler.HandleError(res, req, &testApiJsonError{"fooey", http.StatusPaymentRequired, false})
 	assert.Equal(t, http.StatusPaymentRequired, res.Code)
 	assert.Equal(t, "{\"$error\":\"fooey\"}", res.Body.String())
-	assert.Equal(t, contentTypeJson, res.Header().Get(hdrContentType))
+	assert.Equal(t, contentTypeJson, res.Result().Header.Get(hdrContentType))
 
 	req, _ = http.NewRequest(http.MethodGet, "/", nil)
 	res = httptest.NewRecorder()
 	defaultErrorHandler.HandleError(res, req, &testApiJsonError{"fooey", http.StatusPaymentRequired, true})
 	assert.Equal(t, http.StatusPaymentRequired, res.Code)
 	assert.Equal(t, "fooey\nfailed to marshal", res.Body.String())
-	assert.Equal(t, "", res.Header().Get(hdrContentType))
+	assert.Equal(t, "", res.Result().Header.Get(hdrContentType))
 }
 
 type testApiError struct {

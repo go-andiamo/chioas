@@ -19,11 +19,10 @@ type insBuilder struct {
 	method        string
 	pathTemplate  urit.Template
 	isVaradic     bool
-	unmarshaler   Unmarshaler
-	additional    []ArgBuilder
+	parentBuilder *builder
 }
 
-func newInsBuilder(mf reflect.Value, path string, method string, unmarshaler Unmarshaler, additional ...ArgBuilder) (*insBuilder, error) {
+func newInsBuilder(mf reflect.Value, path string, method string, parentBuilder *builder) (*insBuilder, error) {
 	pathTemplate, err := urit.NewTemplate(path)
 	if err != nil {
 		return nil, err
@@ -38,8 +37,7 @@ func newInsBuilder(mf reflect.Value, path string, method string, unmarshaler Unm
 		method:        method,
 		pathTemplate:  pathTemplate,
 		isVaradic:     mft.IsVariadic(),
-		unmarshaler:   unmarshaler,
-		additional:    additional,
+		parentBuilder: parentBuilder,
 	}
 	if err := result.makeBuilders(mft); err != nil {
 		return nil, err
@@ -53,77 +51,37 @@ func (inb *insBuilder) makeBuilders(mft reflect.Type) error {
 	for i := 0; i < inb.len; i++ {
 		arg := mft.In(i)
 		inb.argTypes[i] = arg
-		ok := true
-		switch arg.String() {
-		case "http.ResponseWriter":
-			inb.valueBuilders[i] = commonBuilderHttpResponseWriter
-		case "*http.Request":
-			inb.valueBuilders[i] = commonBuilderHttpRequest
-		case "context.Context":
-			inb.valueBuilders[i] = commonBuilderContext
-		case "*chi.Context":
-			inb.valueBuilders[i] = commonBuilderChiContextPtr
-		case "chi.Context":
-			inb.valueBuilders[i] = commonBuilderChiContext
-		case "http.Header":
-			inb.valueBuilders[i] = commonBuilderHttpHeader
-		case "typed.Headers":
-			inb.valueBuilders[i] = commonBuilderTypedHeaders
-		case "map[string][]string":
-			inb.valueBuilders[i] = commonBuilderMapHeaders
-		case "typed.PathParams":
-			inb.valueBuilders[i] = commonBuilderTypedPathParams
-		case "typed.QueryParams":
-			inb.valueBuilders[i] = commonBuilderQueryParams
-		case "typed.RawQuery":
-			inb.valueBuilders[i] = commonBuilderRawQuery
-		case "json.RawMessage":
-			inb.valueBuilders[i] = commonBuilderJsonRawMessage
-			seenBody++
-		case "[]uint8", "[]byte":
-			inb.valueBuilders[i] = commonBuilderByteBody
-			seenBody++
-		default:
-			applicable := false
-			if !inb.isVaradic || (inb.isVaradic && i < inb.len-1) {
-				isBody := false
-				for _, a := range inb.additional {
-					if applicable, isBody = a.IsApplicable(arg, inb.method, inb.path); applicable {
-						inb.valueBuilders[i] = a.BuildValue
-						if isBody {
-							seenBody++
-						}
-						break
-					}
-				}
-			}
-			if applicable {
-				continue
-			}
+		ok := false
+		var countBody int
+		if ok, countBody = inb.makeBuilderCommon(arg.String(), i); ok {
+			seenBody += countBody
+		} else if ok, countBody = inb.makeBuilderFromArgBuilders(arg, i); ok {
+			seenBody += countBody
+		} else {
 			switch arg.Kind() {
 			case reflect.String:
 				inb.valueBuilders[i] = newPathParamBuilder(pathParam)
 				pathParam++
+				ok = true
 			case reflect.Slice:
 				switch arg.Elem().Kind() {
 				case reflect.String:
 					inb.valueBuilders[i] = newPathParamsBuilder(pathParam)
+					ok = true
 				case reflect.Struct:
-					inb.valueBuilders[i] = newSliceParamBuilder(arg, inb.unmarshaler)
+					inb.valueBuilders[i] = newSliceParamBuilder(arg, inb.parentBuilder.unmarshaler)
 					seenBody++
-				default:
-					ok = false
+					ok = true
 				}
 			case reflect.Struct:
-				inb.valueBuilders[i] = newStructParamBuilder(arg, inb.unmarshaler)
+				inb.valueBuilders[i] = newStructParamBuilder(arg, inb.parentBuilder.unmarshaler)
 				seenBody++
+				ok = true
 			case reflect.Pointer:
 				if ok = arg.Elem().Kind() == reflect.Struct; ok {
-					inb.valueBuilders[i] = newStructPtrParamBuilder(arg, inb.unmarshaler)
+					inb.valueBuilders[i] = newStructPtrParamBuilder(arg, inb.parentBuilder.unmarshaler)
 					seenBody++
 				}
-			default:
-				ok = false
 			}
 		}
 		if !ok {
@@ -133,6 +91,68 @@ func (inb *insBuilder) makeBuilders(mft reflect.Type) error {
 		}
 	}
 	return nil
+}
+
+func (inb *insBuilder) makeBuilderCommon(argType string, i int) (ok bool, countBody int) {
+	ok = true
+	switch argType {
+	case "http.ResponseWriter":
+		inb.valueBuilders[i] = commonBuilderHttpResponseWriter
+	case "*http.Request":
+		inb.valueBuilders[i] = commonBuilderHttpRequest
+	case "context.Context":
+		inb.valueBuilders[i] = commonBuilderContext
+	case "*chi.Context":
+		inb.valueBuilders[i] = commonBuilderChiContextPtr
+	case "chi.Context":
+		inb.valueBuilders[i] = commonBuilderChiContext
+	case "http.Header":
+		inb.valueBuilders[i] = commonBuilderHttpHeader
+	case "typed.Headers":
+		inb.valueBuilders[i] = commonBuilderTypedHeaders
+	case "map[string][]string":
+		inb.valueBuilders[i] = commonBuilderMapHeaders
+	case "typed.PathParams":
+		inb.valueBuilders[i] = commonBuilderTypedPathParams
+	case "typed.QueryParams":
+		inb.valueBuilders[i] = commonBuilderQueryParams
+	case "typed.RawQuery":
+		inb.valueBuilders[i] = commonBuilderRawQuery
+	case "json.RawMessage":
+		inb.valueBuilders[i] = commonBuilderJsonRawMessage
+		countBody = 1
+	case "[]uint8", "[]byte":
+		inb.valueBuilders[i] = commonBuilderByteBody
+		countBody = 1
+	default:
+		ok = false
+	}
+	return
+}
+
+func (inb *insBuilder) makeBuilderFromArgBuilders(arg reflect.Type, i int) (ok bool, countBody int) {
+	if !inb.isVaradic || (inb.isVaradic && i < inb.len-1) {
+		isBody := false
+		for _, a := range inb.parentBuilder.argBuilders {
+			if ok, isBody = a.IsApplicable(arg, inb.method, inb.path); ok {
+				b := a
+				inb.valueBuilders[i] = func(argType reflect.Type, writer http.ResponseWriter, request *http.Request, params []urit.PathVar) (reflect.Value, error) {
+					if rv, err := b.BuildValue(argType, request, params); err == nil && rv.Type() == argType {
+						return rv, nil
+					} else if err != nil {
+						return reflect.Value{}, err
+					} else {
+						return reflect.Value{}, fmt.Errorf("arg %d type mismatch from arg builder (method: %s, path: %s)", i, inb.method, inb.path)
+					}
+				}
+				if isBody {
+					countBody = 1
+				}
+				break
+			}
+		}
+	}
+	return
 }
 
 func commonBuilderHttpResponseWriter(argType reflect.Type, writer http.ResponseWriter, request *http.Request, params []urit.PathVar) (reflect.Value, error) {

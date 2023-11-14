@@ -84,11 +84,11 @@ func TestJsonResponse_Write(t *testing.T) {
 				assert.Equal(t, tc.expect, res.Body.String())
 				overrideCt := false
 				for _, hdr := range tc.response.Headers {
-					assert.Equal(t, hdr[1], res.Header().Get(hdr[0]))
+					assert.Equal(t, hdr[1], res.Result().Header.Get(hdr[0]))
 					overrideCt = overrideCt || hdr[0] == hdrContentType
 				}
 				if !overrideCt {
-					assert.Equal(t, contentTypeJson, res.Header().Get(hdrContentType))
+					assert.Equal(t, contentTypeJson, res.Result().Header.Get(hdrContentType))
 				}
 			} else {
 				assert.Error(t, err)

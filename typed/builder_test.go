@@ -17,14 +17,14 @@ import (
 func TestNewTypedMethodsHandlerBuilder(t *testing.T) {
 	mhb := NewTypedMethodsHandlerBuilder()
 	assert.NotNil(t, mhb)
-	raw, ok := mhb.(*typedMethodsHandlerBuilder)
+	raw, ok := mhb.(*builder)
 	assert.True(t, ok)
 	assert.Equal(t, 0, len(raw.argBuilders))
 	assert.Nil(t, raw.errorHandler)
 	assert.NotNil(t, raw.unmarshaler)
 
 	mhb = NewTypedMethodsHandlerBuilder(defaultErrorHandler, nil, &testAdditional{}, nil)
-	raw, ok = mhb.(*typedMethodsHandlerBuilder)
+	raw, ok = mhb.(*builder)
 	assert.True(t, ok)
 	assert.Equal(t, 1, len(raw.argBuilders))
 	assert.NotNil(t, raw.errorHandler)
@@ -32,12 +32,25 @@ func TestNewTypedMethodsHandlerBuilder(t *testing.T) {
 
 	um := &testUnmarshaler{}
 	mhb = NewTypedMethodsHandlerBuilder(defaultErrorHandler, nil, &testAdditional{}, nil, um, um, nil)
-	raw, ok = mhb.(*typedMethodsHandlerBuilder)
+	raw, ok = mhb.(*builder)
 	assert.True(t, ok)
 	assert.Equal(t, 1, len(raw.argBuilders))
 	assert.NotNil(t, raw.errorHandler)
 	assert.NotNil(t, raw.unmarshaler)
 	assert.Equal(t, um, raw.unmarshaler)
+}
+
+func TestNewTypedMethodsHandlerBuilder_BadOption(t *testing.T) {
+	type badOption struct{}
+	mhb := NewTypedMethodsHandlerBuilder(nil, &badOption{}, &badOption{})
+	assert.NotNil(t, mhb)
+	raw, ok := mhb.(*builder)
+	assert.True(t, ok)
+	assert.Error(t, raw.initErr)
+
+	_, err := mhb.BuildHandler("/", http.MethodGet, chioas.Method{}, nil)
+	assert.Error(t, err)
+	assert.Equal(t, "invalid option passed to NewTypedMethodsHandlerBuilder", err.Error())
 }
 
 type testUnmarshaler struct {
@@ -212,7 +225,7 @@ func (t *testErrorringArgBuilder) IsApplicable(argType reflect.Type, method stri
 	return argType.Kind() == reflect.Bool, false
 }
 
-func (t *testErrorringArgBuilder) BuildValue(argType reflect.Type, writer http.ResponseWriter, request *http.Request, params []urit.PathVar) (reflect.Value, error) {
+func (t *testErrorringArgBuilder) BuildValue(argType reflect.Type, request *http.Request, params []urit.PathVar) (reflect.Value, error) {
 	return reflect.Value{}, errors.New("fooey")
 }
 

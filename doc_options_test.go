@@ -117,7 +117,7 @@ func TestDocOptions(t *testing.T) {
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
 	assert.Equal(t, http.StatusOK, res.Code)
-	assert.Equal(t, contentTypeHtml, res.Header().Get(hdrContentType))
+	assert.Equal(t, contentTypeHtml, res.Result().Header.Get(hdrContentType))
 	body, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
 	const expectHtmlStarts = `<html><head>
@@ -165,7 +165,7 @@ func TestDocOptions_Json(t *testing.T) {
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
 	assert.Equal(t, http.StatusOK, res.Code)
-	assert.Equal(t, contentTypeHtml, res.Header().Get(hdrContentType))
+	assert.Equal(t, contentTypeHtml, res.Result().Header.Get(hdrContentType))
 	body, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
 	const expectHtmlStarts = `<html><head>
@@ -204,7 +204,7 @@ func TestDocOptions_NoCache(t *testing.T) {
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
 	assert.Equal(t, http.StatusOK, res.Code)
-	assert.Equal(t, contentTypeHtml, res.Header().Get(hdrContentType))
+	assert.Equal(t, contentTypeHtml, res.Result().Header.Get(hdrContentType))
 	body, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
 	const expectHtmlStarts = `<html>`
@@ -263,7 +263,7 @@ func TestDocOptions_SupportFiles(t *testing.T) {
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
 	assert.Equal(t, http.StatusOK, res.Code)
-	assert.Equal(t, contentTypeHtml, res.Header().Get(hdrContentType))
+	assert.Equal(t, contentTypeHtml, res.Result().Header.Get(hdrContentType))
 	body, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
 	const expectHtmlStarts = `<html>`
@@ -324,7 +324,7 @@ func TestDocOptions_NoCache_Json(t *testing.T) {
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
 	assert.Equal(t, http.StatusOK, res.Code)
-	assert.Equal(t, contentTypeHtml, res.Header().Get(hdrContentType))
+	assert.Equal(t, contentTypeHtml, res.Result().Header.Get(hdrContentType))
 	body, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
 	const expectHtmlStarts = `<html>`
@@ -426,7 +426,7 @@ func TestDocOptions_RedocOptions(t *testing.T) {
 	res := httptest.NewRecorder()
 	router.ServeHTTP(res, req)
 	assert.Equal(t, http.StatusOK, res.Code)
-	assert.Equal(t, contentTypeHtml, res.Header().Get(hdrContentType))
+	assert.Equal(t, contentTypeHtml, res.Result().Header.Get(hdrContentType))
 	data := res.Body.Bytes()
 	const expect = `<html>
 <body>
@@ -473,7 +473,7 @@ func TestDocOptions_RedocOptions_Custom(t *testing.T) {
 	res := httptest.NewRecorder()
 	router.ServeHTTP(res, req)
 	assert.Equal(t, http.StatusOK, res.Code)
-	assert.Equal(t, contentTypeHtml, res.Header().Get(hdrContentType))
+	assert.Equal(t, contentTypeHtml, res.Result().Header.Get(hdrContentType))
 	data := res.Body.Bytes()
 	const expect = `<html>
 <body>
@@ -509,7 +509,7 @@ func TestDocOptions_SwaggerOptions(t *testing.T) {
 	res := httptest.NewRecorder()
 	router.ServeHTTP(res, req)
 	assert.Equal(t, http.StatusOK, res.Code)
-	assert.Equal(t, contentTypeHtml, res.Header().Get(hdrContentType))
+	assert.Equal(t, contentTypeHtml, res.Result().Header.Get(hdrContentType))
 	data := string(res.Body.Bytes())
 	assert.Contains(t, data, `"deepLinking":true`)
 	assert.Contains(t, data, `"dom_id":"#swagger-ui"`)
@@ -537,7 +537,7 @@ func TestDocOptions_SwaggerOptions(t *testing.T) {
 			res := httptest.NewRecorder()
 			router.ServeHTTP(res, req)
 			assert.Equal(t, http.StatusOK, res.Code)
-			assert.Equal(t, contentType, res.Header().Get(hdrContentType))
+			assert.Equal(t, contentType, res.Result().Header.Get(hdrContentType))
 		})
 	}
 
@@ -567,7 +567,7 @@ func TestDocOptions_SwaggerOptions_DefaultPresets(t *testing.T) {
 	res := httptest.NewRecorder()
 	router.ServeHTTP(res, req)
 	assert.Equal(t, http.StatusOK, res.Code)
-	assert.Equal(t, contentTypeHtml, res.Header().Get(hdrContentType))
+	assert.Equal(t, contentTypeHtml, res.Result().Header.Get(hdrContentType))
 	data := string(res.Body.Bytes())
 	assert.Contains(t, data, `"deepLinking":true`)
 	assert.Contains(t, data, `"dom_id":"#swagger-ui"`)
