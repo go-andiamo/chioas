@@ -23,7 +23,7 @@ func TestNewInsBuilder_ErrorsWithBadPath(t *testing.T) {
 func TestInsBuilder_Build(t *testing.T) {
 	fn := func(req *http.Request, w http.ResponseWriter, pathParams ...string) {}
 	path := "/foo/{fooid}/bar/{barid}"
-	inb, err := newInsBuilder(reflect.ValueOf(fn), path, "", defaultUnmarshaler)
+	inb, err := newInsBuilder(reflect.ValueOf(fn), path, "", &builder{unmarshaler: defaultUnmarshaler})
 	assert.NoError(t, err)
 
 	w := httptest.NewRecorder()
@@ -58,7 +58,7 @@ func TestInsBuilder_Build_ErrorsWithVaradicBuilderError(t *testing.T) {
 func TestInsBuilder_Build_ErrorsWithBadRequest(t *testing.T) {
 	fn := func(req testRequest) {}
 	path := "/"
-	inb, err := newInsBuilder(reflect.ValueOf(fn), path, "", defaultUnmarshaler)
+	inb, err := newInsBuilder(reflect.ValueOf(fn), path, "", &builder{unmarshaler: defaultUnmarshaler})
 	assert.NoError(t, err)
 
 	w := httptest.NewRecorder()
@@ -71,7 +71,7 @@ func TestInsBuilder_Build_ErrorsWithBadRequest(t *testing.T) {
 func TestInsBuilder_Build_ErrorsWithBadPath(t *testing.T) {
 	fn := func(req *http.Request, w http.ResponseWriter, pathParams ...string) {}
 	path := "/foo/{fooid}/bar/{barid}"
-	inb, err := newInsBuilder(reflect.ValueOf(fn), path, "", defaultUnmarshaler)
+	inb, err := newInsBuilder(reflect.ValueOf(fn), path, "", &builder{unmarshaler: defaultUnmarshaler})
 	assert.NoError(t, err)
 
 	w := httptest.NewRecorder()
@@ -209,7 +209,7 @@ func TestInsBuilder_MakeBuilders(t *testing.T) {
 			if !fv.IsValid() || fv.Type().Kind() != reflect.Func {
 				t.Fatalf("test must be a func")
 			}
-			inb, err := newInsBuilder(fv, "/", "", defaultUnmarshaler)
+			inb, err := newInsBuilder(fv, "/", "", &builder{unmarshaler: defaultUnmarshaler})
 			if tc.expectErr != "" {
 				assert.Error(t, err)
 				assert.Equal(t, tc.expectErr, err.Error())
@@ -236,11 +236,11 @@ func TestInsBuilder_MakeBuilders_WithAdditionals(t *testing.T) {
 		wasGet = isGet
 	}
 	mf := reflect.ValueOf(fn)
-	_, err := newInsBuilder(mf, "/", "", defaultUnmarshaler)
+	_, err := newInsBuilder(mf, "/", "", &builder{unmarshaler: defaultUnmarshaler})
 	assert.Error(t, err)
 
 	additional := &testAdditional{}
-	inb, err := newInsBuilder(mf, "/", "", defaultUnmarshaler, additional)
+	inb, err := newInsBuilder(mf, "/", "", &builder{unmarshaler: defaultUnmarshaler, argBuilders: []ArgBuilder{additional}})
 	assert.NoError(t, err)
 	assert.Equal(t, 2, inb.len)
 	assert.True(t, additional.applicableCalled)
@@ -265,6 +265,22 @@ func TestInsBuilder_MakeBuilders_WithAdditionals(t *testing.T) {
 	assert.True(t, wasGet)
 }
 
+func TestInsBuilder_MakeBuilders_WithMismatchAdditional(t *testing.T) {
+	fn := func(isGet bool, pathParams ...string) {}
+	mf := reflect.ValueOf(fn)
+
+	additional := &testMismatchAdditional{}
+	inb, err := newInsBuilder(mf, "/", http.MethodGet, &builder{unmarshaler: defaultUnmarshaler, argBuilders: []ArgBuilder{additional}})
+	assert.NoError(t, err)
+	assert.Equal(t, 2, inb.len)
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodGet, "/", nil)
+	_, err = inb.build(w, req)
+	assert.Error(t, err)
+	assert.Equal(t, "arg 0 type mismatch from arg builder (method: GET, path: /)", err.Error())
+}
+
 type testAdditional struct {
 	applicableCalled bool
 	buildValueCalled bool
@@ -274,10 +290,24 @@ func (t *testAdditional) IsApplicable(argType reflect.Type, method string, path 
 	t.applicableCalled = true
 	return argType.Kind() == reflect.Bool, true
 }
-func (t *testAdditional) BuildValue(argType reflect.Type, writer http.ResponseWriter, request *http.Request, params []urit.PathVar) (reflect.Value, error) {
+func (t *testAdditional) BuildValue(argType reflect.Type, request *http.Request, params []urit.PathVar) (reflect.Value, error) {
 	t.buildValueCalled = true
 	result := request.Method == http.MethodGet
 	return reflect.ValueOf(result), nil
+}
+
+type testMismatchAdditional struct {
+	applicableCalled bool
+	buildValueCalled bool
+}
+
+func (t *testMismatchAdditional) IsApplicable(argType reflect.Type, method string, path string) (is bool, readsBody bool) {
+	t.applicableCalled = true
+	return argType.Kind() == reflect.Bool, true
+}
+func (t *testMismatchAdditional) BuildValue(argType reflect.Type, request *http.Request, params []urit.PathVar) (reflect.Value, error) {
+	t.buildValueCalled = true
+	return reflect.ValueOf(""), nil // incorrect reflect.Value!
 }
 
 var dummyType = reflect.TypeOf("")

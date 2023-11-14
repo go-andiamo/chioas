@@ -28,24 +28,26 @@ type methodHandlerBuilder struct {
 func (m *methodHandlerBuilder) BuildHandler(path string, method string, mdef Method, thisApi any) (http.HandlerFunc, error) {
 	if mdef.Handler == nil {
 		return nil, fmt.Errorf("handler not set (path: %s, method: %s)", path, method)
-	} else if hf, ok := mdef.Handler.(http.HandlerFunc); ok {
+	}
+	switch hf := mdef.Handler.(type) {
+	case http.HandlerFunc:
 		return hf, nil
-	} else if hf, ok := mdef.Handler.(func(http.ResponseWriter, *http.Request)); ok {
+	case func(http.ResponseWriter, *http.Request):
 		return hf, nil
-	} else if gh, ok := mdef.Handler.(func(string, string, any) (http.HandlerFunc, error)); ok {
-		return gh(path, method, thisApi)
-	} else if mn, ok := mdef.Handler.(string); ok {
+	case func(string, string, any) (http.HandlerFunc, error):
+		return hf(path, method, thisApi)
+	case string:
 		if thisApi == nil {
-			return nil, fmt.Errorf("method by name '%s' can only be used when 'thisApi' arg is passed to Definition.SetupRoutes (path: %s, method: %s)", mn, path, method)
+			return nil, fmt.Errorf("method by name '%s' can only be used when 'thisApi' arg is passed to Definition.SetupRoutes (path: %s, method: %s)", hf, path, method)
 		}
-		mfn := reflect.ValueOf(thisApi).MethodByName(mn)
+		mfn := reflect.ValueOf(thisApi).MethodByName(hf)
 		if !mfn.IsValid() {
-			return nil, fmt.Errorf("method name '%s' does not exist (path: %s, method: %s)", mn, path, method)
+			return nil, fmt.Errorf("method name '%s' does not exist (path: %s, method: %s)", hf, path, method)
 		}
-		if hf, ok = mfn.Interface().(func(http.ResponseWriter, *http.Request)); ok {
+		if hf, ok := mfn.Interface().(func(http.ResponseWriter, *http.Request)); ok {
 			return hf, nil
 		}
-		return nil, fmt.Errorf("method name '%s' is not http.HandlerFunc (path: %s, method: %s)", mn, path, method)
+		return nil, fmt.Errorf("method name '%s' is not http.HandlerFunc (path: %s, method: %s)", hf, path, method)
 	}
 	return nil, fmt.Errorf("invalid handler type (path: %s, method: %s)", path, method)
 }
