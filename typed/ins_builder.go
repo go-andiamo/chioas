@@ -108,6 +108,10 @@ func (inb *insBuilder) makeBuilderCommon(argType string, i int) (ok bool, countB
 		inb.valueBuilders[i] = commonBuilderChiContext
 	case "http.Header":
 		inb.valueBuilders[i] = commonBuilderHttpHeader
+	case "[]*http.Cookie":
+		inb.valueBuilders[i] = commonBuilderCookies
+	case "*url.URL":
+		inb.valueBuilders[i] = commonBuilderUrl
 	case "typed.Headers":
 		inb.valueBuilders[i] = commonBuilderTypedHeaders
 	case "map[string][]string":
@@ -176,6 +180,12 @@ func commonBuilderChiContext(argType reflect.Type, writer http.ResponseWriter, r
 }
 func commonBuilderHttpHeader(argType reflect.Type, writer http.ResponseWriter, request *http.Request, params []urit.PathVar) (reflect.Value, error) {
 	return reflect.ValueOf(request.Header), nil
+}
+func commonBuilderCookies(argType reflect.Type, writer http.ResponseWriter, request *http.Request, params []urit.PathVar) (reflect.Value, error) {
+	return reflect.ValueOf(request.Cookies()), nil
+}
+func commonBuilderUrl(argType reflect.Type, writer http.ResponseWriter, request *http.Request, params []urit.PathVar) (reflect.Value, error) {
+	return reflect.ValueOf(request.URL), nil
 }
 func commonBuilderTypedHeaders(argType reflect.Type, writer http.ResponseWriter, request *http.Request, params []urit.PathVar) (reflect.Value, error) {
 	hdrs := Headers(request.Header)
