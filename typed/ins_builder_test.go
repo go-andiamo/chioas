@@ -8,6 +8,7 @@ import (
 	"github.com/go-andiamo/urit"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -212,6 +213,26 @@ func TestInsBuilder_MakeBuilders(t *testing.T) {
 		{
 			fn:        func(req *http.Request, unknown int) {},
 			expectErr: "cannot determine arg 1",
+		},
+		{
+			fn:        func(res http.Response) {},
+			expectErr: "cannot determine arg 0", // because package http is excluded!
+		},
+		{
+			fn:        func(res *http.Response) {},
+			expectErr: "cannot determine arg 0", // because package http is excluded!
+		},
+		{
+			fn:        func(res []*http.Response) {},
+			expectErr: "cannot determine arg 0", // because package http is excluded!
+		},
+		{
+			fn:        func(mf multipart.Form) {},
+			expectErr: "cannot determine arg 0", // because package multipart is excluded!
+		},
+		{
+			fn:        func(mf *multipart.Form) {},
+			expectErr: "cannot determine arg 0", // because package multipart is excluded!
 		},
 	}
 	for i, tc := range testCases {
