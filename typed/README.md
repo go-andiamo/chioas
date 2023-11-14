@@ -37,6 +37,8 @@ _Chioas Typed Handlers_ looks at the types of each handler arg to determine what
 | `func eg(hdrs typed.Headers)`        | `hdrs` will be the request headers from original [*http.Request](https://pkg.go.dev/net/http#Request.Header)                                                             |
 | `func eg(hdrs map[string][]string)`  | `hdrs` will be the request headers from original [*http.Request](https://pkg.go.dev/net/http#Request.Header)                                                             |
 | `func eg(pps typed.PathParams)`      | `pps` will be the path params extracted from [*http.Request](https://pkg.go.dev/net/http#Request.URL)                                                                    |
+| `func eg(cookies []*http.Cookie)`    | `cookies` will be the cookies extracted from [*http.Request](https://pkg.go.dev/net/http#Request.Cookies)                                                                |
+| `func eg(url *url.URL)`              | `url` will be the URL from original [*http.Request](https://pkg.go.dev/net/http#Request.URL)                                                                             |
 | `func eg(pps ...string)`             | `pps` will be the path param values                                                                                                                                      |
 | `func eg(pp1 string, pp2 string)`    | `pp1` will be the first path param value, `pp2` will be the second path param value etc.                                                                                 |
 | `func eg(pp1 string, pps ...string)` | `pp1` will be the first path param value, `pps` will be the remaining path param values                                                                                  |
@@ -47,13 +49,14 @@ _Chioas Typed Handlers_ looks at the types of each handler arg to determine what
 | `func eg(req MyStruct)`              | `req` will be the request body read from [*http.Request](https://pkg.go.dev/net/http#Request.Body) and unmarshalled into a `MyStruct` (see also note 2 below)            |
 | `func eg(req *MyStruct)`             | `req` will be the request body read from [*http.Request](https://pkg.go.dev/net/http#Request.Body) and unmarshalled into a `*MyStruct` (see also note 2 below)           |
 | `func eg(req []MyStruct)`            | `req` will be the request body read from [*http.Request](https://pkg.go.dev/net/http#Request.Body) and unmarshalled into a slice of `[]MyStruct` (see also note 2 below) |
-| `func eg(b bool)`                    | will cause an `error` when setting up routes (see note 3 below)                                                                                                          |
-| `func eg(i int)`                     | will cause an `error` when setting up routes (see note 3 below)                                                                                                          |
-| _etc._                               | will cause an `error` when setting up routes (see note 3 below)                                                                                                          |
+| `func eg(b bool)`                    | will cause an `error` when setting up routes (see note 4 below)                                                                                                          |
+| `func eg(i int)`                     | will cause an `error` when setting up routes (see note 4 below)                                                                                                          |
+| _etc._                               | will cause an `error` when setting up routes (see note 4 below)                                                                                                         |
 #### Notes
 1. Multiple input args can be specified - the same rules apply
-2. If there are multiple arg types that involve reading the request body - this is reported as an error when setting up routes 
-3. Any other arg types will cause an error when setting up routes - unless a `typed.ArgBuilder` to deal with the type is provided as an option to `typed.NewTypedMethodsHandlerBuilder(options ...any)` 
+2. If there are multiple arg types that involve reading the request body - this is reported as an error when setting up routes
+3. To support for other arg types - provide an implementation of `typedArgBuilder` passed as an option to `typed.NewTypedMethodsHandlerBuilder(options ...any)`
+4. Any other arg types will cause an error when setting up routes (unless supported by note 3)  
 
 ## Handler Return Args
 Having called the handler, _Chioas Typed Handlers_ looks at the return arg types to determine what needs to be written to the [http.ResponseWriter](https://pkg.go.dev/net/http#ResponseWriter).

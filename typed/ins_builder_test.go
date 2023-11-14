@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"reflect"
 	"strings"
 	"testing"
@@ -172,6 +173,16 @@ func TestInsBuilder_MakeBuilders(t *testing.T) {
 			fn:             func(hdrs http.Header) {},
 			expectBuilders: 1,
 			checkTypes:     []any{commonBuilderHttpHeader},
+		},
+		{
+			fn:             func(cookies []*http.Cookie) {},
+			expectBuilders: 1,
+			checkTypes:     []any{commonBuilderCookies},
+		},
+		{
+			fn:             func(url *url.URL) {},
+			expectBuilders: 1,
+			checkTypes:     []any{commonBuilderUrl},
 		},
 		{
 			fn:             func(hdrs Headers) {},
@@ -390,6 +401,38 @@ func TestCommonBuilderHttpHeader(t *testing.T) {
 		hdrContentType: []string{contentTypeJson},
 	}
 	assert.Equal(t, expect, v.Interface())
+}
+
+func TestCommonBuilderCookies(t *testing.T) {
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodGet, "/", nil)
+	v, err := commonBuilderCookies(dummyType, w, req, nil)
+	assert.NoError(t, err)
+	av, ok := v.Interface().([]*http.Cookie)
+	assert.True(t, ok)
+	assert.Equal(t, 0, len(av))
+
+	req, _ = http.NewRequest(http.MethodGet, "/", nil)
+	req.AddCookie(&http.Cookie{
+		Name:  "foo",
+		Value: "bar",
+	})
+	v, err = commonBuilderCookies(dummyType, w, req, nil)
+	assert.NoError(t, err)
+	av, ok = v.Interface().([]*http.Cookie)
+	assert.True(t, ok)
+	assert.Equal(t, 1, len(av))
+}
+
+func TestCommonBuilderUrl(t *testing.T) {
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodGet, "/foo/bar?foo=bar", nil)
+	v, err := commonBuilderUrl(dummyType, w, req, nil)
+	assert.NoError(t, err)
+	av, ok := v.Interface().(*url.URL)
+	assert.True(t, ok)
+	assert.Equal(t, "/foo/bar", av.Path)
+	assert.Equal(t, "foo=bar", av.RawQuery)
 }
 
 func TestCommonBuilderTypedHeaders(t *testing.T) {
