@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"reflect"
+	"strings"
 )
 
 type insBuilder struct {
@@ -53,7 +54,8 @@ func (inb *insBuilder) makeBuilders(mft reflect.Type) error {
 		inb.argTypes[i] = arg
 		ok := false
 		var countBody int
-		if ok, countBody = inb.makeBuilderCommon(arg.String(), i); ok {
+		argTypeStr := arg.String()
+		if ok, countBody = inb.makeBuilderCommon(argTypeStr, i); ok {
 			seenBody += countBody
 		} else if ok, countBody = inb.makeBuilderFromArgBuilders(arg, i); ok {
 			seenBody += countBody
@@ -69,16 +71,18 @@ func (inb *insBuilder) makeBuilders(mft reflect.Type) error {
 					inb.valueBuilders[i] = newPathParamsBuilder(pathParam)
 					ok = true
 				case reflect.Struct:
-					inb.valueBuilders[i] = newSliceParamBuilder(arg, inb.parentBuilder.unmarshaler)
-					seenBody++
-					ok = true
+					if ok = !isExcPackage(argTypeStr); ok {
+						inb.valueBuilders[i] = newSliceParamBuilder(arg, inb.parentBuilder.unmarshaler)
+						seenBody++
+					}
 				}
 			case reflect.Struct:
-				inb.valueBuilders[i] = newStructParamBuilder(arg, inb.parentBuilder.unmarshaler)
-				seenBody++
-				ok = true
+				if ok = !isExcPackage(argTypeStr); ok {
+					inb.valueBuilders[i] = newStructParamBuilder(arg, inb.parentBuilder.unmarshaler)
+					seenBody++
+				}
 			case reflect.Pointer:
-				if ok = arg.Elem().Kind() == reflect.Struct; ok {
+				if ok = arg.Elem().Kind() == reflect.Struct && !isExcPackage(argTypeStr); ok {
 					inb.valueBuilders[i] = newStructPtrParamBuilder(arg, inb.parentBuilder.unmarshaler)
 					seenBody++
 				}
@@ -91,6 +95,14 @@ func (inb *insBuilder) makeBuilders(mft reflect.Type) error {
 		}
 	}
 	return nil
+}
+
+func isExcPackage(argType string) bool {
+	if strings.HasPrefix(argType, "[]") {
+		argType = argType[2:]
+	}
+	return strings.HasPrefix(argType, "http") || strings.HasPrefix(argType, "*http") ||
+		strings.HasPrefix(argType, "multipart") || strings.HasPrefix(argType, "*multipart")
 }
 
 func (inb *insBuilder) makeBuilderCommon(argType string, i int) (ok bool, countBody int) {
