@@ -103,7 +103,7 @@ func isExcPackage(argType string) bool {
 	}
 	return strings.HasPrefix(argType, "http.") || strings.HasPrefix(argType, "*http.") ||
 		strings.HasPrefix(argType, "multipart.") || strings.HasPrefix(argType, "*multipart.") ||
-		strings.HasPrefix(argType, "uri.") || strings.HasPrefix(argType, "*uri.")
+		strings.HasPrefix(argType, "url.") || strings.HasPrefix(argType, "*url.")
 }
 
 func (inb *insBuilder) makeBuilderCommon(argType string, i int) (ok bool, countBody int) {
