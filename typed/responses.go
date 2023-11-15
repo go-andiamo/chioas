@@ -15,7 +15,7 @@ func defaultStatusCode(sc int, defaultSc int) int {
 	return sc
 }
 
-// ResponseMarshaler is an interface that can be implemented by objects returned from a typed method/func
+// ResponseMarshaler is an interface that can be implemented by objects returned from a typed handler
 //
 // The body of the response is written by the data provided from Marshal, the response status
 // code is also set from that returned and so are any headers
@@ -26,7 +26,7 @@ type ResponseMarshaler interface {
 	Marshal(request *http.Request) (data []byte, statusCode int, hdrs [][2]string, err error)
 }
 
-// JsonResponse is a struct that can be returned from a typed method/func
+// JsonResponse is a struct that can be returned from a typed handler
 //
 // The response error, status code, headers and body are determined by the properties
 type JsonResponse struct {

@@ -5,7 +5,7 @@ import (
 	"net/http"
 )
 
-// ApiError is an error interface that can be returned from typed method/func handlers
+// ApiError is an error interface that can be returned from typed handlers
 // allowing the status code for the error to be set in the response
 //
 // Implementations of this interface can also be used by ResponseMarshaler.Marshal and JsonResponse.Error
