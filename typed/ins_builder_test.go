@@ -89,6 +89,7 @@ func TestInsBuilder_MakeBuilders(t *testing.T) {
 		expectBuilders int
 		expectVaradic  bool
 		checkTypes     []any
+		method         string
 	}{
 		{
 			fn: func() {},
@@ -234,6 +235,41 @@ func TestInsBuilder_MakeBuilders(t *testing.T) {
 			fn:        func(mf *multipart.Form) {},
 			expectErr: "cannot determine arg 0", // because package multipart is excluded!
 		},
+		{
+			fn:             func(f PostForm) {},
+			expectBuilders: 1,
+			method:         http.MethodPost,
+			checkTypes:     []any{commonBuilderPostForm},
+		},
+		{
+			fn:        func(f PostForm, f2 PostForm) {},
+			method:    http.MethodPost,
+			expectErr: "multiple args could be from request.Body",
+		},
+		{
+			fn:             func(f PostForm) {},
+			expectBuilders: 1,
+			method:         http.MethodPut,
+			checkTypes:     []any{commonBuilderPostForm},
+		},
+		{
+			fn:             func(f PostForm) {},
+			expectBuilders: 1,
+			method:         http.MethodPatch,
+			checkTypes:     []any{commonBuilderPostForm},
+		},
+		{
+			fn:             func(f PostForm) {},
+			expectBuilders: 1,
+			method:         http.MethodGet,
+			checkTypes:     []any{commonBuilderPostFormEmpty},
+		},
+		{
+			fn:             func(f PostForm, f2 PostForm) {},
+			expectBuilders: 2,
+			method:         http.MethodGet,
+			checkTypes:     []any{commonBuilderPostFormEmpty, commonBuilderPostFormEmpty},
+		},
 	}
 	for i, tc := range testCases {
 		t.Run(fmt.Sprintf("[%d]", i+1), func(t *testing.T) {
@@ -241,7 +277,7 @@ func TestInsBuilder_MakeBuilders(t *testing.T) {
 			if !fv.IsValid() || fv.Type().Kind() != reflect.Func {
 				t.Fatalf("test must be a func")
 			}
-			inb, err := newInsBuilder(fv, "/", "", &builder{unmarshaler: defaultUnmarshaler})
+			inb, err := newInsBuilder(fv, "/", tc.method, &builder{unmarshaler: defaultUnmarshaler})
 			if tc.expectErr != "" {
 				assert.Error(t, err)
 				assert.Equal(t, tc.expectErr, err.Error())
@@ -454,6 +490,15 @@ func TestCommonBuilderUrl(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, "/foo/bar", av.Path)
 	assert.Equal(t, "foo=bar", av.RawQuery)
+
+	w = httptest.NewRecorder()
+	req, _ = http.NewRequest(http.MethodGet, "/", nil)
+	req.URL = nil
+	v, err = commonBuilderUrl(dummyType, w, req, nil)
+	assert.NoError(t, err)
+	av, ok = v.Interface().(*url.URL)
+	assert.True(t, ok)
+	assert.Nil(t, av)
 }
 
 func TestCommonBuilderTypedHeaders(t *testing.T) {
@@ -519,6 +564,15 @@ func TestCommonBuilderQueryParams(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, v.Interface())
 	assert.Equal(t, QueryParams{"foo": []string{"bar"}, "bar": []string{"1"}}, v.Interface())
+
+	w = httptest.NewRecorder()
+	req, _ = http.NewRequest(http.MethodGet, "/", nil)
+	req.URL = nil
+	v, err = commonBuilderQueryParams(dummyType, w, req, nil)
+	assert.NoError(t, err)
+	av, ok := v.Interface().(QueryParams)
+	assert.True(t, ok)
+	assert.Empty(t, av)
 }
 
 func TestCommonBuilderRawQuery(t *testing.T) {
@@ -534,6 +588,15 @@ func TestCommonBuilderRawQuery(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, v.Interface())
 	assert.Equal(t, RawQuery("foo=bar&bar=1"), v.Interface())
+
+	w = httptest.NewRecorder()
+	req, _ = http.NewRequest(http.MethodGet, "/", nil)
+	req.URL = nil
+	v, err = commonBuilderRawQuery(dummyType, w, req, nil)
+	assert.NoError(t, err)
+	av, ok := v.Interface().(RawQuery)
+	assert.True(t, ok)
+	assert.Empty(t, av)
 }
 
 func TestCommonBuilderJsonRawMessage(t *testing.T) {
@@ -554,6 +617,28 @@ func TestCommonBuilderJsonRawMessage(t *testing.T) {
 	req, _ = http.NewRequest(http.MethodPost, "/", &testErrorReader{})
 	_, err = commonBuilderJsonRawMessage(dummyType, w, req, nil)
 	assert.Error(t, err)
+}
+
+func TestCommonBuilderPostForm(t *testing.T) {
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodGet, "/", nil)
+	v, err := commonBuilderPostForm(dummyType, w, req, nil)
+	assert.NoError(t, err)
+	assert.Empty(t, v.Interface())
+
+	w = httptest.NewRecorder()
+	req, _ = http.NewRequest(http.MethodPost, "/", nil)
+	_, err = commonBuilderPostForm(dummyType, w, req, nil)
+	assert.Error(t, err)
+	assert.Equal(t, "missing form body", err.Error())
+}
+
+func TestCommonBuilderPostFormEmpty(t *testing.T) {
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodGet, "/", nil)
+	v, err := commonBuilderPostFormEmpty(dummyType, w, req, nil)
+	assert.NoError(t, err)
+	assert.Empty(t, v.Interface())
 }
 
 func TestCommonBuilderByteBody(t *testing.T) {

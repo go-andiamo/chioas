@@ -4,6 +4,7 @@ import (
 	"github.com/go-andiamo/urit"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"reflect"
 )
 
@@ -22,10 +23,10 @@ type ArgBuilder interface {
 	BuildValue(argType reflect.Type, request *http.Request, params []urit.PathVar) (reflect.Value, error)
 }
 
-// Headers is a type that can be used as a handler method/func arg to receive request headers
+// Headers is a type that can be used as a typed handler arg to receive request headers
 type Headers map[string][]string
 
-// PathParams is a type that can be used as a handler method/func arg to receive request path params
+// PathParams is a type that can be used as a typed handler arg to receive request path params
 //
 // Another way to receive request path params (in order) is to use either []string or ...string (varadic)
 // examples:
@@ -35,10 +36,10 @@ type Headers map[string][]string
 //	func getSomething(pathParams ..string) (json.RawMessage, error)
 type PathParams map[string][]string
 
-// QueryParams is a type that can be used as a handler method/func arg to receive request query params
+// QueryParams is a type that can be used as a typed handler arg to receive request query params
 type QueryParams map[string][]string
 
-// RawQuery is a type that can be used as a handler method/func arg to receive request raw query
+// RawQuery is a type that can be used as a typed handler arg to receive request raw query
 type RawQuery string
 
 var multipartFormType = reflect.TypeOf(&multipart.Form{})
@@ -74,3 +75,9 @@ func (ab *multipartFormArgBuilder) BuildValue(argType reflect.Type, request *htt
 	}
 	return reflect.ValueOf(request.MultipartForm), nil
 }
+
+// PostForm is a type that can be used as a typed handler arg to receive request PostForm values
+//
+// Note: If this arg type is used for a typed handler that does not handle http methods POST, PUT or PATH - then
+// the value will be empty (and the request body will not have been read)
+type PostForm url.Values

@@ -101,8 +101,9 @@ func isExcPackage(argType string) bool {
 	if strings.HasPrefix(argType, "[]") {
 		argType = argType[2:]
 	}
-	return strings.HasPrefix(argType, "http") || strings.HasPrefix(argType, "*http") ||
-		strings.HasPrefix(argType, "multipart") || strings.HasPrefix(argType, "*multipart")
+	return strings.HasPrefix(argType, "http.") || strings.HasPrefix(argType, "*http.") ||
+		strings.HasPrefix(argType, "multipart.") || strings.HasPrefix(argType, "*multipart.") ||
+		strings.HasPrefix(argType, "uri.") || strings.HasPrefix(argType, "*uri.")
 }
 
 func (inb *insBuilder) makeBuilderCommon(argType string, i int) (ok bool, countBody int) {
@@ -137,6 +138,13 @@ func (inb *insBuilder) makeBuilderCommon(argType string, i int) (ok bool, countB
 	case "json.RawMessage":
 		inb.valueBuilders[i] = commonBuilderJsonRawMessage
 		countBody = 1
+	case "typed.PostForm":
+		if inb.method == http.MethodPost || inb.method == http.MethodPut || inb.method == http.MethodPatch {
+			inb.valueBuilders[i] = commonBuilderPostForm
+			countBody = 1
+		} else {
+			inb.valueBuilders[i] = commonBuilderPostFormEmpty
+		}
 	case "[]uint8", "[]byte":
 		inb.valueBuilders[i] = commonBuilderByteBody
 		countBody = 1
@@ -215,10 +223,16 @@ func commonBuilderTypedPathParams(argType reflect.Type, writer http.ResponseWrit
 	return reflect.ValueOf(result), nil
 }
 func commonBuilderQueryParams(argType reflect.Type, writer http.ResponseWriter, request *http.Request, params []urit.PathVar) (reflect.Value, error) {
+	if request.URL == nil {
+		return reflect.ValueOf(QueryParams{}), nil
+	}
 	result := QueryParams(request.URL.Query())
 	return reflect.ValueOf(result), nil
 }
 func commonBuilderRawQuery(argType reflect.Type, writer http.ResponseWriter, request *http.Request, params []urit.PathVar) (reflect.Value, error) {
+	if request.URL == nil {
+		return reflect.ValueOf(RawQuery("")), nil
+	}
 	result := RawQuery(request.URL.RawQuery)
 	return reflect.ValueOf(result), nil
 }
@@ -230,6 +244,16 @@ func commonBuilderJsonRawMessage(argType reflect.Type, writer http.ResponseWrite
 	} else {
 		return reflect.Value{}, err
 	}
+}
+func commonBuilderPostForm(argType reflect.Type, writer http.ResponseWriter, request *http.Request, params []urit.PathVar) (reflect.Value, error) {
+	if err := request.ParseForm(); err == nil {
+		return reflect.ValueOf(PostForm(request.PostForm)), nil
+	} else {
+		return reflect.Value{}, err
+	}
+}
+func commonBuilderPostFormEmpty(argType reflect.Type, writer http.ResponseWriter, request *http.Request, params []urit.PathVar) (reflect.Value, error) {
+	return reflect.ValueOf(PostForm{}), nil
 }
 func commonBuilderByteBody(argType reflect.Type, writer http.ResponseWriter, request *http.Request, params []urit.PathVar) (reflect.Value, error) {
 	if request.Body == nil {
