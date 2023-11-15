@@ -81,3 +81,13 @@ func (ab *multipartFormArgBuilder) BuildValue(argType reflect.Type, request *htt
 // Note: If this arg type is used for a typed handler that does not handle http methods POST, PUT or PATH - then
 // the value will be empty (and the request body will not have been read)
 type PostForm url.Values
+
+// BasicAuth is a type that can be used as a typed handler arg to receive request BasicAuth
+//
+// If type *typed.BasicAuth is used as the typed handler arg, then the value will be nil if no Authorization header is present on the request
+// or if the Authorization header is not basic auth (i.e. value does not start with "Basic ")
+type BasicAuth struct {
+	Username string
+	Password string
+	Ok       bool
+}
