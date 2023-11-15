@@ -270,6 +270,16 @@ func TestInsBuilder_MakeBuilders(t *testing.T) {
 			method:         http.MethodGet,
 			checkTypes:     []any{commonBuilderPostFormEmpty, commonBuilderPostFormEmpty},
 		},
+		{
+			fn:             func(ba BasicAuth) {},
+			expectBuilders: 1,
+			checkTypes:     []any{commonBuilderBasicAuth},
+		},
+		{
+			fn:             func(ba *BasicAuth) {},
+			expectBuilders: 1,
+			checkTypes:     []any{commonBuilderBasicAuthPtr},
+		},
 	}
 	for i, tc := range testCases {
 		t.Run(fmt.Sprintf("[%d]", i+1), func(t *testing.T) {
@@ -639,6 +649,72 @@ func TestCommonBuilderPostFormEmpty(t *testing.T) {
 	v, err := commonBuilderPostFormEmpty(dummyType, w, req, nil)
 	assert.NoError(t, err)
 	assert.Empty(t, v.Interface())
+}
+
+const (
+	basicGood = "Basic dXNlcm5hbWU6cGFzc3dvcmQ="
+	basicBad  = "Basic 123"
+)
+
+func TestCommonBuilderBasicAuth(t *testing.T) {
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodGet, "/", nil)
+	v, err := commonBuilderBasicAuth(dummyType, w, req, nil)
+	assert.NoError(t, err)
+	av, ok := v.Interface().(BasicAuth)
+	assert.True(t, ok)
+	assert.False(t, av.Ok)
+	assert.Equal(t, "", av.Username)
+	assert.Equal(t, "", av.Password)
+
+	req.Header.Set("Authorization", basicBad)
+	v, err = commonBuilderBasicAuth(dummyType, w, req, nil)
+	assert.NoError(t, err)
+	av, ok = v.Interface().(BasicAuth)
+	assert.True(t, ok)
+	assert.False(t, av.Ok)
+	assert.Equal(t, "", av.Username)
+	assert.Equal(t, "", av.Password)
+
+	req.Header.Set("Authorization", basicGood)
+	v, err = commonBuilderBasicAuth(dummyType, w, req, nil)
+	assert.NoError(t, err)
+	av, ok = v.Interface().(BasicAuth)
+	assert.True(t, ok)
+	assert.True(t, av.Ok)
+	assert.Equal(t, "username", av.Username)
+	assert.Equal(t, "password", av.Password)
+}
+
+func TestCommonBuilderBasicAuthPtr(t *testing.T) {
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodGet, "/", nil)
+	v, err := commonBuilderBasicAuthPtr(dummyType, w, req, nil)
+	assert.NoError(t, err)
+	assert.Nil(t, v.Interface())
+
+	req.Header.Set("Authorization", "not basic")
+	v, err = commonBuilderBasicAuthPtr(dummyType, w, req, nil)
+	assert.NoError(t, err)
+	assert.Nil(t, v.Interface())
+
+	req.Header.Set("Authorization", basicBad)
+	v, err = commonBuilderBasicAuthPtr(dummyType, w, req, nil)
+	assert.NoError(t, err)
+	av, ok := v.Interface().(*BasicAuth)
+	assert.True(t, ok)
+	assert.False(t, av.Ok)
+	assert.Equal(t, "", av.Username)
+	assert.Equal(t, "", av.Password)
+
+	req.Header.Set("Authorization", basicGood)
+	v, err = commonBuilderBasicAuthPtr(dummyType, w, req, nil)
+	assert.NoError(t, err)
+	av, ok = v.Interface().(*BasicAuth)
+	assert.True(t, ok)
+	assert.True(t, av.Ok)
+	assert.Equal(t, "username", av.Username)
+	assert.Equal(t, "password", av.Password)
 }
 
 func TestCommonBuilderByteBody(t *testing.T) {

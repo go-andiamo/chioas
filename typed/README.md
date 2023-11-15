@@ -26,33 +26,35 @@ chioas.Definition{
 ## Handler Input Args
 _Chioas Typed Handlers_ looks at the types of each handler arg to determine what needs to be passed.  This is based on the following rules...
 
-| Signature                            | Description                                                                                                                                                              |
-|--------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `func eg(w http.ResponseWriter)`     | `w` will be the original [http.ResponseWriter](https://pkg.go.dev/net/http#ResponseWriter)                                                                               |
-| `func eg(r *http.Request)`           | `r` will be the original [*http.Request](https://pkg.go.dev/net/http#Request)                                                                                            |
-| `func eg(ctx context.Context)`       | `ctx` will be the context from original [*http.Request](https://pkg.go.dev/net/http#Request)                                                                             |
-| `func eg(ctx *chi.Context)`          | `ctx` will be the Chi context extracted from original [*http.Request](https://pkg.go.dev/net/http#Request)                                                               |
-| `func eg(ctx chi.Context)`           | `ctx` will be the Chi context extracted from original [*http.Request](https://pkg.go.dev/net/http#Request)                                                               |
-| `func eg(hdrs http.Header)`          | `hdrs` will be the request headers from original [*http.Request](https://pkg.go.dev/net/http#Request.Header)                                                             |
-| `func eg(hdrs typed.Headers)`        | `hdrs` will be the request headers from original [*http.Request](https://pkg.go.dev/net/http#Request.Header)                                                             |
-| `func eg(hdrs map[string][]string)`  | `hdrs` will be the request headers from original [*http.Request](https://pkg.go.dev/net/http#Request.Header)                                                             |
-| `func eg(pps typed.PathParams)`      | `pps` will be the path params extracted from [*http.Request](https://pkg.go.dev/net/http#Request.URL)                                                                    |
-| `func eg(cookies []*http.Cookie)`    | `cookies` will be the cookies extracted from [*http.Request](https://pkg.go.dev/net/http#Request.Cookies)                                                                |
-| `func eg(url *url.URL)`              | `url` will be the URL from original [*http.Request](https://pkg.go.dev/net/http#Request.URL)                                                                             |
-| `func eg(pps ...string)`             | `pps` will be the path param values                                                                                                                                      |
-| `func eg(pp1 string, pp2 string)`    | `pp1` will be the first path param value, `pp2` will be the second path param value etc.                                                                                 |
-| `func eg(pp1 string, pps ...string)` | `pp1` will be the first path param value, `pps` will be the remaining path param values                                                                                  |
-| `func eg(qps typed.QueryParams)`     | `qps` will be the request query params from [*http.Request](https://pkg.go.dev/net/http#Request.URL)                                                                     |
-| `func eg(qps typed.RawQuery)`        | `qps` will be the raw request query params string from [*http.Request](https://pkg.go.dev/net/http#Request.URL)                                                          |
-| `func eg(frm typed.PostForm)`        | `frm` will be the post form extracted from the [*http.Request](https://pkg.go.dev/net/http#Request.PostForm)                                                             |
-| `func eg(req json.RawMessage)`       | `req` will be the request body read from [*http.Request](https://pkg.go.dev/net/http#Request.Body) (see also note 1 below)                                               |
-| `func eg(req []byte)`                | `req` will be the request body read from [*http.Request](https://pkg.go.dev/net/http#Request.Body) (see also note 1 below)                                               |
-| `func eg(req MyStruct)`              | `req` will be the request body read from [*http.Request](https://pkg.go.dev/net/http#Request.Body) and unmarshalled into a `MyStruct` (see also note 2 below)            |
-| `func eg(req *MyStruct)`             | `req` will be the request body read from [*http.Request](https://pkg.go.dev/net/http#Request.Body) and unmarshalled into a `*MyStruct` (see also note 2 below)           |
-| `func eg(req []MyStruct)`            | `req` will be the request body read from [*http.Request](https://pkg.go.dev/net/http#Request.Body) and unmarshalled into a slice of `[]MyStruct` (see also note 2 below) |
-| `func eg(b bool)`                    | will cause an `error` when setting up routes (see note 4 below)                                                                                                          |
-| `func eg(i int)`                     | will cause an `error` when setting up routes (see note 4 below)                                                                                                          |
-| _etc._                               | will cause an `error` when setting up routes (see note 4 below)                                                                                                          |
+| Signature                            | Description                                                                                                                                                                |
+|--------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `func eg(w http.ResponseWriter)`     | `w` will be the original [http.ResponseWriter](https://pkg.go.dev/net/http#ResponseWriter)                                                                                 |
+| `func eg(r *http.Request)`           | `r` will be the original [*http.Request](https://pkg.go.dev/net/http#Request)                                                                                              |
+| `func eg(ctx context.Context)`       | `ctx` will be the context from original [*http.Request](https://pkg.go.dev/net/http#Request)                                                                               |
+| `func eg(ctx *chi.Context)`          | `ctx` will be the Chi context extracted from original [*http.Request](https://pkg.go.dev/net/http#Request)                                                                 |
+| `func eg(ctx chi.Context)`           | `ctx` will be the Chi context extracted from original [*http.Request](https://pkg.go.dev/net/http#Request)                                                                 |
+| `func eg(hdrs http.Header)`          | `hdrs` will be the request headers from original [*http.Request](https://pkg.go.dev/net/http#Request.Header)                                                               |
+| `func eg(hdrs typed.Headers)`        | `hdrs` will be the request headers from original [*http.Request](https://pkg.go.dev/net/http#Request.Header)                                                               |
+| `func eg(hdrs map[string][]string)`  | `hdrs` will be the request headers from original [*http.Request](https://pkg.go.dev/net/http#Request.Header)                                                               |
+| `func eg(pps typed.PathParams)`      | `pps` will be the path params extracted from [*http.Request](https://pkg.go.dev/net/http#Request.URL)                                                                      |
+| `func eg(cookies []*http.Cookie)`    | `cookies` will be the cookies extracted from [*http.Request](https://pkg.go.dev/net/http#Request.Cookies)                                                                  |
+| `func eg(url *url.URL)`              | `url` will be the URL from original [*http.Request](https://pkg.go.dev/net/http#Request.URL)                                                                               |
+| `func eg(pps ...string)`             | `pps` will be the path param values                                                                                                                                        |
+| `func eg(pp1 string, pp2 string)`    | `pp1` will be the first path param value, `pp2` will be the second path param value etc.                                                                                   |
+| `func eg(pp1 string, pps ...string)` | `pp1` will be the first path param value, `pps` will be the remaining path param values                                                                                    |
+| `func eg(qps typed.QueryParams)`     | `qps` will be the request query params from [*http.Request](https://pkg.go.dev/net/http#Request.URL)                                                                       |
+| `func eg(qps typed.RawQuery)`        | `qps` will be the raw request query params string from [*http.Request](https://pkg.go.dev/net/http#Request.URL)                                                            |
+| `func eg(frm typed.PostForm)`        | `frm` will be the post form extracted from the [*http.Request](https://pkg.go.dev/net/http#Request.PostForm)                                                               |
+| `func eg(frm typed.PostForm)`        | `frm` will be the post form extracted from the [*http.Request](https://pkg.go.dev/net/http#Request.PostForm)                                                               |
+| `func eg(auth typed.BasicAuth)`      | `auth` will be the basic auth extracted from [*http.Request](https://pkg.go.dev/net/http#Request.BasicAuth)                                                                |
+| `func eg(auth *typed.BasicAuth)`     | `auth` will be the basic auth extracted from [*http.Request](https://pkg.go.dev/net/http#Request.BasicAuth) or `nil` if no `Authorization` header present                  |
+| `func eg(req []byte)`                | `req` will be the request body read from [*http.Request](https://pkg.go.dev/net/http#Request.Body) _(see also note 2 below)_                                               |
+| `func eg(req MyStruct)`              | `req` will be the request body read from [*http.Request](https://pkg.go.dev/net/http#Request.Body) and unmarshalled into a `MyStruct` _(see also note 2 below)_            |
+| `func eg(req *MyStruct)`             | `req` will be the request body read from [*http.Request](https://pkg.go.dev/net/http#Request.Body) and unmarshalled into a `*MyStruct` _(see also note 2 below)_           |
+| `func eg(req []MyStruct)`            | `req` will be the request body read from [*http.Request](https://pkg.go.dev/net/http#Request.Body) and unmarshalled into a slice of `[]MyStruct` _(see also note 2 below)_ |
+| `func eg(b bool)`                    | will cause an `error` when setting up routes _(see note 4 below)_                                                                                                          |
+| `func eg(i int)`                     | will cause an `error` when setting up routes _(see note 4 below)_                                                                                                          |
+| _etc._                               | will cause an `error` when setting up routes _(see note 4 below)_                                                                                                          |
 #### Notes
 1. Multiple input args can be specified - the same rules apply
 2. If there are multiple arg types that involve reading the request body - this is reported as an error when setting up routes

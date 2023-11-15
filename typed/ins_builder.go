@@ -145,6 +145,10 @@ func (inb *insBuilder) makeBuilderCommon(argType string, i int) (ok bool, countB
 		} else {
 			inb.valueBuilders[i] = commonBuilderPostFormEmpty
 		}
+	case "typed.BasicAuth":
+		inb.valueBuilders[i] = commonBuilderBasicAuth
+	case "*typed.BasicAuth":
+		inb.valueBuilders[i] = commonBuilderBasicAuthPtr
 	case "[]uint8", "[]byte":
 		inb.valueBuilders[i] = commonBuilderByteBody
 		countBody = 1
@@ -254,6 +258,19 @@ func commonBuilderPostForm(argType reflect.Type, writer http.ResponseWriter, req
 }
 func commonBuilderPostFormEmpty(argType reflect.Type, writer http.ResponseWriter, request *http.Request, params []urit.PathVar) (reflect.Value, error) {
 	return reflect.ValueOf(PostForm{}), nil
+}
+func commonBuilderBasicAuth(argType reflect.Type, writer http.ResponseWriter, request *http.Request, params []urit.PathVar) (reflect.Value, error) {
+	result := BasicAuth{}
+	result.Username, result.Password, result.Ok = request.BasicAuth()
+	return reflect.ValueOf(result), nil
+}
+func commonBuilderBasicAuthPtr(argType reflect.Type, writer http.ResponseWriter, request *http.Request, params []urit.PathVar) (reflect.Value, error) {
+	var result *BasicAuth
+	if auth := request.Header.Get("Authorization"); auth != "" && strings.HasPrefix(auth, "Basic ") {
+		result = &BasicAuth{}
+		result.Username, result.Password, result.Ok = request.BasicAuth()
+	}
+	return reflect.ValueOf(result), nil
 }
 func commonBuilderByteBody(argType reflect.Type, writer http.ResponseWriter, request *http.Request, params []urit.PathVar) (reflect.Value, error) {
 	if request.Body == nil {
