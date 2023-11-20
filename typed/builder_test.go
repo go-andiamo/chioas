@@ -218,6 +218,21 @@ func TestTypedMethodsHandlerBuilder_HandlerFor_ZeroInSomeOut(t *testing.T) {
 	assert.True(t, called)
 }
 
+func TestTypedMethodsHandlerBuilder_HandlerFor_OutArgsErrors(t *testing.T) {
+	tmhb := NewTypedMethodsHandlerBuilder()
+	_, err := tmhb.BuildHandler("/", http.MethodGet, chioas.Method{Handler: func() (error, error) {
+		return nil, nil
+	}}, nil)
+	assert.Error(t, err)
+	assert.Equal(t, "error building return args (path: /, method: GET) - has multiple error return args", err.Error())
+
+	_, err = tmhb.BuildHandler("/", http.MethodGet, chioas.Method{Handler: func(req *http.Request) (error, error) {
+		return nil, nil
+	}}, nil)
+	assert.Error(t, err)
+	assert.Equal(t, "error building return args (path: /, method: GET) - has multiple error return args", err.Error())
+}
+
 type testErrorringArgBuilder struct {
 }
 
@@ -383,11 +398,28 @@ func TestTypedMethodsHandlerBuilder_ResponseTypes(t *testing.T) {
 		},
 		{
 			mdef: chioas.Method{
+				Handler: func() ([]uint8, int) {
+					return []byte{'n', 'u', 'l', 'l'}, http.StatusAccepted
+				},
+			},
+			expectStatus: http.StatusAccepted,
+			expectBody:   `null`,
+		},
+		{
+			mdef: chioas.Method{
 				Handler: func() []byte {
 					return nil
 				},
 			},
 			expectStatus: http.StatusNoContent,
+		},
+		{
+			mdef: chioas.Method{
+				Handler: func() (int, []byte) {
+					return http.StatusAccepted, nil
+				},
+			},
+			expectStatus: http.StatusAccepted,
 		},
 		{
 			mdef: chioas.Method{
@@ -419,6 +451,14 @@ func TestTypedMethodsHandlerBuilder_ResponseTypes(t *testing.T) {
 			},
 			thisApi:      &dummyWithMethods{},
 			expectStatus: http.StatusBadGateway,
+		},
+		{
+			mdef: chioas.Method{
+				Handler: func() (int, error) {
+					return http.StatusAccepted, nil
+				},
+			},
+			expectStatus: http.StatusAccepted,
 		},
 	}
 	for i, tc := range testCases {

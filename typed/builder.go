@@ -1,7 +1,6 @@
 package typed
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/go-andiamo/chioas"
@@ -55,6 +54,30 @@ type builder struct {
 	initErr      error
 }
 
+// BuildHandler is normally called from chioas when building handlers (i.e. it implements the chioas.MethodHandlerBuilder interface)
+//
+// It can also be called directly for building handlers for testing - for example:
+//
+//	func typedHandler(req *http.Request) (any, error) {
+//	    return nil, errors.New("fooey")
+//	}
+//
+//	func TestTypedHandler(t *testing.T) {
+//	    mb := typed.NewTypedMethodsHandlerBuilder()
+//	    // build the handler to be tested...
+//	    hf, err := mb.BuildHandler("/", http.MethodGet, chioas.Method{Handler: typedHandler}, nil)
+//	    if err != nil {
+//	        t.Fatal(err)
+//	    }
+//	    // create test request and writer...
+//	    request, _ := http.NewRequest(http.MethodGet, "/", nil)
+//	    writer := httptest.NewRecorder()
+//	    // test the handler...
+//	    hf.ServeHTTP(writer, request)
+//	    if writer.Code != http.StatusInternalServerError {
+//	        t.Fatalf("expected status %d but got %d", http.StatusInternalServerError, writer.Code)
+//	    }
+//	}
 func (b *builder) BuildHandler(path string, method string, mdef chioas.Method, thisApi any) (http.HandlerFunc, error) {
 	if b.initErr != nil {
 		return nil, b.initErr
@@ -106,97 +129,37 @@ func (b *builder) handlerFor(path string, method string, thisApi any, mf reflect
 			mf.Call([]reflect.Value{})
 		}, nil
 	} else if ins == 0 {
-		return b.zeroInHandler(thisApi, mf), nil
+		return b.zeroInHandler(path, method, thisApi, mf)
 	}
 	return b.ioHandler(path, method, thisApi, mf)
 }
 
-func (b *builder) zeroInHandler(thisApi any, mf reflect.Value) http.HandlerFunc {
-	return func(writer http.ResponseWriter, request *http.Request) {
-		b.handleReturnArgs(mf.Call([]reflect.Value{}), thisApi, writer, request)
+func (b *builder) zeroInHandler(path string, method string, thisApi any, mf reflect.Value) (http.HandlerFunc, error) {
+	outs, err := newOutsBuilder(mf)
+	if err != nil {
+		return nil, fmt.Errorf("error building return args (path: %s, method: %s) - %s", path, method, err.Error())
 	}
+	return func(writer http.ResponseWriter, request *http.Request) {
+		outs.handleReturnArgs(mf.Call([]reflect.Value{}), b, thisApi, writer, request)
+	}, nil
 }
 
 func (b *builder) ioHandler(path string, method string, thisApi any, mf reflect.Value) (http.HandlerFunc, error) {
-	inb, err := newInsBuilder(mf, path, method, b)
+	ins, err := newInsBuilder(mf, path, method, b)
 	if err != nil {
 		return nil, fmt.Errorf("error building in args (path: %s, method: %s) - %s", path, method, err.Error())
 	}
+	outs, err := newOutsBuilder(mf)
+	if err != nil {
+		return nil, fmt.Errorf("error building return args (path: %s, method: %s) - %s", path, method, err.Error())
+	}
 	return func(writer http.ResponseWriter, request *http.Request) {
-		if inArgs, err := inb.build(writer, request); err == nil {
-			b.handleReturnArgs(mf.Call(inArgs), thisApi, writer, request)
+		if inArgs, err := ins.build(writer, request); err == nil {
+			outs.handleReturnArgs(mf.Call(inArgs), b, thisApi, writer, request)
 		} else {
 			b.getErrorHandler(thisApi).HandleError(writer, request, err)
 		}
 	}, nil
-}
-
-func (b *builder) handleReturnArgs(retArgs []reflect.Value, thisApi any, writer http.ResponseWriter, request *http.Request) {
-	// see if any return args are an error...
-	for _, retArg := range retArgs {
-		if retArg.IsValid() {
-			if err, ok := retArg.Interface().(error); ok {
-				b.getErrorHandler(thisApi).HandleError(writer, request, err)
-				return
-			}
-		}
-	}
-	// no errors - find the first valid return arg to write as the response...
-	for _, retArg := range retArgs {
-		if retArg.IsValid() {
-			b.handleResponseArg(retArg.Interface(), thisApi, writer, request)
-			return
-		}
-	}
-}
-
-func (b *builder) handleResponseArg(res any, thisApi any, writer http.ResponseWriter, request *http.Request) {
-	if rm, ok := res.(ResponseMarshaler); ok {
-		if data, sc, hdrs, err := rm.Marshal(request); err == nil {
-			if len(data) == 0 {
-				sc = defaultStatusCode(sc, http.StatusNoContent)
-			} else {
-				sc = defaultStatusCode(sc, http.StatusOK)
-			}
-			for _, hd := range hdrs {
-				writer.Header().Set(hd[0], hd[1])
-			}
-			writer.WriteHeader(sc)
-			_, _ = writer.Write(data)
-		} else {
-			b.getErrorHandler(thisApi).HandleError(writer, request, err)
-		}
-		return
-	}
-	switch rt := res.(type) {
-	case JsonResponse:
-		if err := rt.write(writer); err != nil {
-			b.getErrorHandler(thisApi).HandleError(writer, request, err)
-		}
-	case *JsonResponse:
-		if rt != nil {
-			if err := rt.write(writer); err != nil {
-				b.getErrorHandler(thisApi).HandleError(writer, request, err)
-			}
-		} else {
-			writer.WriteHeader(http.StatusNoContent)
-		}
-	case []byte:
-		if len(rt) == 0 {
-			writer.WriteHeader(http.StatusNoContent)
-		} else {
-			writer.WriteHeader(http.StatusOK)
-		}
-		_, _ = writer.Write(rt)
-	default:
-		if data, err := json.Marshal(res); err == nil {
-			writer.Header().Set(hdrContentType, contentTypeJson)
-			writer.WriteHeader(http.StatusOK)
-			_, _ = writer.Write(data)
-		} else {
-			b.getErrorHandler(thisApi).HandleError(writer, request, err)
-		}
-	}
 }
 
 func (b *builder) getErrorHandler(thisApi any) ErrorHandler {

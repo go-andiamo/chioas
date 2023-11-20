@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/go-andiamo/chioas"
 	"github.com/go-andiamo/urit"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
@@ -881,6 +882,32 @@ func TestNewSliceParamBuilder(t *testing.T) {
 	req, _ = http.NewRequest(http.MethodGet, "/", strings.NewReader(`[{"name": 1}]`))
 	_, err = fn(dummyType, w, req, nil)
 	assert.Error(t, err)
+}
+
+func TestChiRouteParams(t *testing.T) {
+	const path = "/foo/{id1}/bar/{id2}/{id3}"
+	var rcvdPathParams PathParams
+	fn := func(pps PathParams) {
+		rcvdPathParams = pps
+	}
+	b := NewTypedMethodsHandlerBuilder()
+	hf, err := b.BuildHandler(path, http.MethodGet, chioas.Method{Handler: fn}, nil)
+	assert.NoError(t, err)
+
+	// test with urit fallback...
+	w := httptest.NewRecorder()
+	r, _ := http.NewRequest(http.MethodGet, "/foo/1/bar/2/3", nil)
+	hf.ServeHTTP(w, r)
+	assert.Equal(t, 3, len(rcvdPathParams))
+
+	// test with chi url params...
+	router := chi.NewRouter()
+	router.Get(path, hf)
+	w = httptest.NewRecorder()
+	r, _ = http.NewRequest(http.MethodGet, "/foo/1/bar/2/3", nil)
+	rcvdPathParams = PathParams{}
+	router.ServeHTTP(w, r)
+	assert.Equal(t, 3, len(rcvdPathParams))
 }
 
 type testRequest struct {

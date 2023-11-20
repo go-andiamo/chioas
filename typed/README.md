@@ -45,7 +45,6 @@ _Chioas Typed Handlers_ looks at the types of each handler arg to determine what
 | `func eg(qps typed.QueryParams)`     | `qps` will be the request query params from [*http.Request](https://pkg.go.dev/net/http#Request.URL)                                                                       |
 | `func eg(qps typed.RawQuery)`        | `qps` will be the raw request query params string from [*http.Request](https://pkg.go.dev/net/http#Request.URL)                                                            |
 | `func eg(frm typed.PostForm)`        | `frm` will be the post form extracted from the [*http.Request](https://pkg.go.dev/net/http#Request.PostForm)                                                               |
-| `func eg(frm typed.PostForm)`        | `frm` will be the post form extracted from the [*http.Request](https://pkg.go.dev/net/http#Request.PostForm)                                                               |
 | `func eg(auth typed.BasicAuth)`      | `auth` will be the basic auth extracted from [*http.Request](https://pkg.go.dev/net/http#Request.BasicAuth)                                                                |
 | `func eg(auth *typed.BasicAuth)`     | `auth` will be the basic auth extracted from [*http.Request](https://pkg.go.dev/net/http#Request.BasicAuth) or `nil` if no `Authorization` header present                  |
 | `func eg(req []byte)`                | `req` will be the request body read from [*http.Request](https://pkg.go.dev/net/http#Request.Body) _(see also note 2 below)_                                               |
@@ -65,19 +64,27 @@ _Chioas Typed Handlers_ looks at the types of each handler arg to determine what
 Having called the handler, _Chioas Typed Handlers_ looks at the return arg types to determine what needs to be written to the [http.ResponseWriter](https://pkg.go.dev/net/http#ResponseWriter).
 (_Note: if there are no return args - then nothing is written to [http.ResponseWriter](https://pkg.go.dev/net/http#ResponseWriter)_)
 
-If any of the return args is `error` (and non-nil) then that error is written to the response writer (see below on how errors are written) - otherwise...
+There can be up to 3 return args for typed handlers:
+1. an `error` - _indicating an error response needs to be written_
+2. an `int` - _indicating the response status code_
+3. anything that is marshallable
 
-The following rules are applied to decide what is written to [http.ResponseWriter](https://pkg.go.dev/net/http#ResponseWriter):
+Notes:
+* the order of the return arg types is not significant
+* any typed handler may not return more than one `error` arg, more than one `int` arg or more than one marshallable arg _(failing to abide by this will cause an error when setting up routes)_
 
-| Return type               | Description                                                                                                                                                   |
+Marshallable return args can be:
+
+| Return arg type           | Description                                                                                                                                                   |
 |---------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `typed.ResponseMarshaler` | the `ResponseMarshaler.Marshal` method is called to determine what body, headers and status code should be written                                            |
 | `typed.JsonResponse`      | the fields of `typed.JsonResponse` are used to determine what body, headers and status code should be written (unless `JsonResponse.Error` is set)            |
 | `*typed.JsonResponse`     | same as `typed.JsonResponse` - unless `nil`, in which case no body is written and status code is set to **204 No Content**                                    |
 | `[]byte`                  | the raw byte data is written to the body and status code is set to **200 OK** (or **204 No Content** if slice is empty)                                       |
-| *anything else*   | the value is marshalled to JSON, `Content-Type` header is set to `application/json` and status code is set to **200 OK** (unless an error occurs marshalling) |
+| *anything else*           | the value is marshalled to JSON, `Content-Type` header is set to `application/json` and status code is set to **200 OK** (unless an error occurs marshalling) |
+| `any` / `interface{}`     | the actual type is assessed and dealt with according to the above rules.  The actual type could also be `error`                                               |
 
-### Error Handling
+#### Error Handling
 By default, any `error` is handled by setting the response status to **500 Internal Server Error** and nothing is written to the response body - unless...
 
 If the error implements `typed.ApiError` - in which case the status code is set from `ApiError.StatusCode()`
@@ -86,13 +93,92 @@ If the error implements `json.Marshaler` - then the response body is the JSON ma
 
 All of this can be overridden by providing a `typed.ErrorHandler` as an option to `typed.NewTypedMethodsHandlerBuilder(options ...any)` (or if your api instance implements the `typed.ErrorHandler` interface) 
 
+#### Return arg examples
+The following table lists various combinations of return arg types with explanation of behaviour:
+<table>
+  <tr>
+    <th>Example & explanation</th>
+  </tr>
+  <tr>
+    <td>
+      <code>func(...) error</code>
+      <ul>
+        <li><em>if the <code>error</code> is non-nil then error information is written to <code>http.ResponseWriter</code></em></li>
+        <li><em>otherwise nothing is written</em></li>
+      </ul>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <code>func(...) (MyStruct, error)</code>
+      <ul>
+        <li><em>if the <code>error</code> is non-nil then error information is written to <code>http.ResponseWriter</code></em></li>
+        <li><em>otherwise the <code>MyStruct</code> is marshalled as JSON and written to <code>http.ResponseWriter</code></code></em></li>
+      </ul>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <code>func(...) (*MyStruct, error)</code>
+      <ul>
+        <li><em>if the <code>error</code> is non-nil then error information is written to <code>http.ResponseWriter</code></em></li>
+        <li><em>if the <code>*MyStruct</code> is non-nil then it is marshalled as JSON and written to <code>http.ResponseWriter</code></code></em></li>
+        <li><em>otherwise nothing is written</em></li>
+      </ul>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <code>func(...) (*MyStruct, int, error)</code>
+      <ul>
+        <li><em>if the <code>error</code> is non-nil then error information is written to <code>http.ResponseWriter</code></em></li>
+        <li><em>if the <code>*MyStruct</code> is non-nil then it is marshalled as JSON and written to <code>http.ResponseWriter</code> (and using the <code>int</code> as the default status code)</code></em></li>
+        <li><em>otherwise the <code>int</code> is written as the status code (nothing is written)</em></li>
+      </ul>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <code>func(...) (any, error)</code>
+      <ul>
+        <li><em>if the <code>error</code> is non-nil then error information is written to <code>http.ResponseWriter</code></em></li>
+        <li><em>if the <code>any</code> arg is non-nil then it is marshalled as JSON and written to <code>http.ResponseWriter</code></em></li>
+        <li><em>otherwise nothing is written</em></li>
+      </ul>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <code>func(...) any</code>
+      <ul>
+        <li><em>if the <code>any</code> arg is an <code>error</code> (non-nil) then error information is written to <code>http.ResponseWriter</code></em></li>
+        <li><em>if the <code>any</code> arg is non-nil then it is marshalled as JSON and written to <code>http.ResponseWriter</code></em></li>
+        <li><em>otherwise nothing is written</em></li>
+      </ul>
+    </td>
+  </tr>
+</table>
+
 ## How Does It Work
 Yes, _Chioas Typed Handlers_ uses `reflect` to make the call to your typed handler (unless the handler is already a [http.HandlerFunc](https://pkg.go.dev/net/http#HandlerFunc))
 
 As with anything that uses `reflect`, there is a performance price to pay.
-Although _Chioas Typed Handlers_ attempts to minimize this by gathering all the type information for the type handler up-front - so handler args are only interrogated once.
+Although _Chioas Typed Handlers_ attempts to minimize this by gathering all the type information for the type handler up-front - so handler arg types are only interrogated once.
 
 But if you're concerned with ultimate performance or want to stick to convention - _Chioas Typed Handlers_ is optional and entirely your own prerogative to use it.  Or if only some endpoints in your API are performance sensitive but other endpoints would benefit from readability (or flexible content handling; or improved error handling) then you can mix-and-match. 
+
+#### Comparative Benchmarks
+The following is a table of comparative benchmarks - between traditional handlers (i.e.[http.HandlerFunc](https://pkg.go.dev/net/http#HandlerFunc)) and typed handlers...
+* `GET` is based on reading a single path param and writing a marshalled struct response
+* `PUT` is based on reading a single path param and unmarshalling a request struct - then writing a marshalled struct response
+
+| Operation         | ns/op | B/op | allocs/op | sloc | cyclo |
+|-------------------|------:|-----:|----------:|-----:|------:|
+| `GET` traditional |  1851 | 1857 |        16 |   15 |     3 |
+| `GET` typed       |  2636 | 2009 |        21 |    6 |     2 |
+| `PUT` traditional |  3371 | 2897 |        28 |   21 |     4 |
+| `PUT` typed       |  4165 | 3074 |        33 |    6 |     2 |
+
 
 ## Working example
 The following is a short working example of typed handlers...
