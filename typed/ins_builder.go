@@ -347,11 +347,24 @@ func newSliceParamBuilder(argT reflect.Type, um Unmarshaler) inValueBuilder {
 }
 
 func (inb *insBuilder) build(writer http.ResponseWriter, request *http.Request) ([]reflect.Value, error) {
-	matchParams, ok := inb.pathTemplate.MatchesRequest(request)
-	if !ok {
-		return nil, errors.New("unable to extract path params")
+	var params []urit.PathVar
+	if ctx := chi.RouteContext(request.Context()); ctx != nil {
+		params = make([]urit.PathVar, len(ctx.URLParams.Keys))
+		for i, k := range ctx.URLParams.Keys {
+			params[i] = urit.PathVar{
+				Position: i,
+				Name:     k,
+				Value:    ctx.URLParams.Values[i],
+			}
+		}
+	} else {
+		// fallback path params - if context is not Chi (usually during direct testing)
+		matchParams, ok := inb.pathTemplate.MatchesRequest(request)
+		if !ok {
+			return nil, errors.New("unable to extract path params")
+		}
+		params = matchParams.GetAll()
 	}
-	params := matchParams.GetAll()
 	result := make([]reflect.Value, 0, inb.len)
 	for i, valueBuilder := range inb.valueBuilders {
 		if inb.isVaradic && i == inb.len-1 {
