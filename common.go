@@ -17,6 +17,7 @@ type ApplyMiddlewares func(thisApi any) chi.Middlewares
 const (
 	root = "/"
 
+	hdrAllow                = "Allow"
 	tagNameAnyOf            = "anyOf"
 	tagNameAllOf            = "allOf"
 	tagNameApplicationJson  = contentTypeJson

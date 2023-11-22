@@ -10,9 +10,9 @@ import (
 
 type Paths map[string]Path
 
-func (ps Paths) writeYaml(opts *DocOptions, autoHeads bool, context string, w yaml.Writer) {
+func (ps Paths) writeYaml(opts *DocOptions, autoHeads bool, autoOptions bool, context string, w yaml.Writer) {
 	for _, p := range ps.flattenAndSort() {
-		p.writeYaml(opts, autoHeads, context, w)
+		p.writeYaml(opts, autoHeads, autoOptions, context, w)
 	}
 }
 
@@ -54,7 +54,7 @@ type flatPath struct {
 	tag      string
 }
 
-func (p flatPath) writeYaml(opts *DocOptions, autoHeads bool, context string, w yaml.Writer) {
+func (p flatPath) writeYaml(opts *DocOptions, autoHeads bool, autoOptions bool, context string, w yaml.Writer) {
 	if p.def.Methods != nil && p.def.Methods.hasVisibleMethods(opts) {
 		template, err := urit.NewTemplate(p.path)
 		if err != nil {
@@ -64,7 +64,7 @@ func (p flatPath) writeYaml(opts *DocOptions, autoHeads bool, context string, w 
 		w.WritePathStart(context, template.Template(true)).
 			WriteComments(p.def.Comment)
 		if p.def.Methods != nil {
-			p.def.Methods.writeYaml(opts, autoHeads, template, p.getPathParams(), p.tag, w)
+			p.def.Methods.writeYaml(opts, autoHeads, autoOptions, template, p.getPathParams(), p.tag, w)
 		}
 		writeExtensions(p.def.Extensions, w)
 		writeAdditional(p.def.Additional, p.def, w)

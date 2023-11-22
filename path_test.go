@@ -23,7 +23,7 @@ func TestPaths_WriteYaml(t *testing.T) {
 		},
 	}
 	w := yaml.NewWriter(nil)
-	paths.writeYaml(opts, false, "", w)
+	paths.writeYaml(opts, false, false, "", w)
 	data, err := w.Bytes()
 	require.NoError(t, err)
 	const expected = `"/bar":
@@ -99,7 +99,7 @@ func TestPaths_WriteYaml_WithHidden(t *testing.T) {
 		},
 	}
 	w := yaml.NewWriter(nil)
-	paths.writeYaml(opts, false, "", w)
+	paths.writeYaml(opts, false, false, "", w)
 	data, err := w.Bytes()
 	require.NoError(t, err)
 	const expected = `"/bar":
@@ -137,7 +137,7 @@ func TestFlatPath_writeYaml_WithBadUrl(t *testing.T) {
 			},
 		},
 	}
-	p.writeYaml(nil, false, "", w)
+	p.writeYaml(nil, false, false, "", w)
 	err := w.Errored()
 	assert.Error(t, err)
 }
