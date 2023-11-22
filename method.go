@@ -5,7 +5,6 @@ import (
 	"github.com/go-andiamo/urit"
 	"golang.org/x/exp/slices"
 	"net/http"
-	"sort"
 	"strings"
 )
 
@@ -70,19 +69,40 @@ type Method struct {
 var MethodsOrder = []string{
 	http.MethodGet,
 	http.MethodHead,
-	http.MethodOptions,
 	http.MethodPost,
 	http.MethodPut,
 	http.MethodPatch,
 	http.MethodDelete,
+	http.MethodOptions,
+	http.MethodConnect,
+	http.MethodTrace,
 }
 
-func methodOrder(m string) int {
-	order := slices.Index(MethodsOrder, m)
-	if order == -1 {
-		order = len(MethodsOrder)
+func compareMethods(ma, mb string) bool {
+	a := slices.Index(MethodsOrder, ma)
+	b := slices.Index(MethodsOrder, mb)
+	if a == -1 && b == -1 {
+		return ma < mb
+	} else if a == -1 {
+		return false
+	} else if b == -1 {
+		return true
 	}
-	return order
+	return a < b
+}
+
+func (m Methods) sorted(add ...string) (result []string) {
+	result = make([]string, 0, len(m)+len(add))
+	for k := range m {
+		result = append(result, k)
+	}
+	for _, k := range add {
+		if _, has := m[k]; !has {
+			result = append(result, k)
+		}
+	}
+	slices.SortFunc(result, compareMethods)
+	return
 }
 
 func (m Methods) hasVisibleMethods(opts *DocOptions) bool {
@@ -104,11 +124,15 @@ func (m Methods) getWithoutHead() (getM Method, has bool) {
 	return
 }
 
-func (m Methods) writeYaml(opts *DocOptions, autoHeads bool, template urit.Template, knownParams PathParams, parentTag string, w yaml.Writer) {
+func (m Methods) hasOptions() bool {
+	_, has := m[http.MethodOptions]
+	return has
+}
+
+func (m Methods) writeYaml(opts *DocOptions, autoHeads bool, autoOptions bool, template urit.Template, knownParams PathParams, parentTag string, w yaml.Writer) {
 	type sortMethod struct {
 		name   string
 		method Method
-		order  int
 	}
 	sortedMethods := make([]sortMethod, 0, len(m))
 	for n, mDef := range m {
@@ -116,7 +140,6 @@ func (m Methods) writeYaml(opts *DocOptions, autoHeads bool, template urit.Templ
 			sortedMethods = append(sortedMethods, sortMethod{
 				name:   n,
 				method: mDef,
-				order:  methodOrder(n),
 			})
 		}
 	}
@@ -125,12 +148,23 @@ func (m Methods) writeYaml(opts *DocOptions, autoHeads bool, template urit.Templ
 			sortedMethods = append(sortedMethods, sortMethod{
 				name:   http.MethodHead,
 				method: getM,
-				order:  methodOrder(http.MethodHead),
 			})
 		}
 	}
-	sort.Slice(sortedMethods, func(i, j int) bool {
-		return sortedMethods[i].order < sortedMethods[j].order
+	if !opts.HideAutoOptionsMethods && autoOptions && !m.hasOptions() {
+		sortedMethods = append(sortedMethods, sortMethod{
+			name: http.MethodOptions,
+			method: Method{
+				Responses: Responses{
+					http.StatusOK: {
+						NoContent: true,
+					},
+				},
+			},
+		})
+	}
+	slices.SortFunc(sortedMethods, func(a, b sortMethod) bool {
+		return compareMethods(a.name, b.name)
 	})
 	var pathVars []urit.PathVar
 	if template != nil {

@@ -259,3 +259,6 @@ func deleteFoo(writer http.ResponseWriter, request *http.Request) {
 }
 ```
 [try on go-playground](https://go.dev/play/p/0zaWsmsw2FD)
+
+## Typed Handlers
+see [typed README](https://github.com/go-andiamo/chioas/blob/main/typed/README.md)

@@ -15,6 +15,10 @@ type Definition struct {
 	DocOptions DocOptions
 	// AutoHeadMethods when set to true, automatically adds HEAD methods for GET methods (where HEAD method not explicitly specified)
 	AutoHeadMethods bool
+	// AutoOptionsMethods when set to true, automatically adds OPTIONS methods for each path (and because Chioas knows the methods for each path can correctly set the Allow header)
+	//
+	// Note: If an OPTIONS method is already defined for the path then no OPTIONS method is automatically added
+	AutoOptionsMethods bool
 	// MethodHandlerBuilder is an optional MethodHandlerBuilder which is called to build the
 	// http.HandlerFunc for the method
 	//
@@ -100,15 +104,29 @@ func (d *Definition) setupMethods(path string, methods Methods, route chi.Router
 				return err
 			}
 		}
+		if d.AutoOptionsMethods && !methods.hasOptions() {
+			route.MethodFunc(http.MethodOptions, root, optionsHandler(methods, d.AutoHeadMethods))
+		}
 		if d.AutoHeadMethods {
 			if mDef, ok := methods.getWithoutHead(); ok {
-				//h, _ := mDef.getHandler(path, http.MethodHead, thisApi)
 				h, _ := getMethodHandlerBuilder(d.MethodHandlerBuilder).BuildHandler(path, http.MethodHead, mDef, thisApi)
 				route.MethodFunc(http.MethodHead, root, h)
 			}
 		}
 	}
 	return nil
+}
+
+func optionsHandler(methods Methods, addHead bool) http.HandlerFunc {
+	add := []string{http.MethodOptions}
+	if addHead {
+		add = append(add, http.MethodHead)
+	}
+	allow := strings.Join(methods.sorted(add...), ", ")
+	return func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set(hdrAllow, allow)
+		writer.WriteHeader(http.StatusOK)
+	}
 }
 
 // WriteYaml writes the definition as YAML to the provided io.Writer
@@ -171,11 +189,11 @@ func (d *Definition) writeYaml(w yaml.Writer) error {
 	w.WriteTagStart(tagNamePaths)
 	if d.Methods != nil && len(d.Methods) > 0 {
 		w.WritePathStart(d.DocOptions.Context, root)
-		d.Methods.writeYaml(&d.DocOptions, d.AutoHeadMethods, nil, nil, "", w)
+		d.Methods.writeYaml(&d.DocOptions, d.AutoHeadMethods, d.AutoOptionsMethods, nil, nil, "", w)
 		w.WriteTagEnd()
 	}
 	if d.Paths != nil {
-		d.Paths.writeYaml(&d.DocOptions, d.AutoHeadMethods, d.DocOptions.Context, w)
+		d.Paths.writeYaml(&d.DocOptions, d.AutoHeadMethods, d.AutoOptionsMethods, d.DocOptions.Context, w)
 	}
 	w.WriteTagEnd()
 	if d.Components != nil {

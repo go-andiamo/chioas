@@ -84,6 +84,8 @@ type DocOptions struct {
 	DefaultResponses Responses
 	// HideHeadMethods indicates that all HEAD methods should be hidden from docs
 	HideHeadMethods bool
+	// HideAutoOptionsMethods indicates that automatically added OPTIONS methods (see Definition.AutoOptionsMethods) are hidden from docs
+	HideAutoOptionsMethods bool
 	// OperationIdentifier is an optional function called by Method to generate `operationId` tag value
 	OperationIdentifier OperationIdentifier
 	// Middlewares is any chi.Middlewares for everything served under '/docs' path

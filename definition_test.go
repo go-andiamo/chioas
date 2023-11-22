@@ -140,6 +140,53 @@ func TestDefinition_SetupRoutes_AutoHeads(t *testing.T) {
 	assert.Equal(t, http.StatusConflict, res.Code)
 }
 
+func TestDefinition_SetupRoutes_AutoOptions(t *testing.T) {
+	d := Definition{
+		AutoHeadMethods:    true,
+		AutoOptionsMethods: true,
+		Methods: Methods{
+			http.MethodGet: {
+				Handler: func(writer http.ResponseWriter, request *http.Request) {
+					writer.WriteHeader(http.StatusNotFound)
+				},
+			},
+		},
+		Paths: Paths{
+			"/subs": {
+				Methods: Methods{
+					http.MethodGet: {
+						Handler: func(writer http.ResponseWriter, request *http.Request) {
+							writer.WriteHeader(http.StatusConflict)
+						},
+					},
+					http.MethodPost: {
+						Handler: func(writer http.ResponseWriter, request *http.Request) {
+							writer.WriteHeader(http.StatusConflict)
+						},
+					},
+				},
+			},
+		},
+	}
+	router := chi.NewRouter()
+	err := d.SetupRoutes(router, nil)
+	assert.NoError(t, err)
+
+	req, err := http.NewRequest(http.MethodOptions, "/", nil)
+	require.NoError(t, err)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, "GET, HEAD, OPTIONS", res.Result().Header.Get(hdrAllow))
+
+	req, err = http.NewRequest(http.MethodOptions, "/subs", nil)
+	require.NoError(t, err)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, "GET, HEAD, POST, OPTIONS", res.Result().Header.Get(hdrAllow))
+}
+
 func TestDefinition_SetupRoutes_ErrorsWithBadHandlers(t *testing.T) {
 	d := Definition{
 		Methods: Methods{

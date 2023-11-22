@@ -23,7 +23,7 @@ func TestMethods_WriteYaml(t *testing.T) {
 		http.MethodGet:     {},
 	}
 	w := yaml.NewWriter(nil)
-	ms.writeYaml(opts, false, nil, nil, "", w)
+	ms.writeYaml(opts, false, false, nil, nil, "", w)
 	data, err := w.Bytes()
 	require.NoError(t, err)
 	const expect = `get:
@@ -38,14 +38,6 @@ head:
   responses:
     200:
       description: OK
-options:
-  responses:
-    200:
-      description: OK
-      content:
-        "application/json":
-          schema:
-            type: object
 post:
   responses:
     200:
@@ -71,6 +63,14 @@ patch:
           schema:
             type: object
 delete:
+  responses:
+    200:
+      description: OK
+      content:
+        "application/json":
+          schema:
+            type: object
+options:
   responses:
     200:
       description: OK
@@ -122,7 +122,7 @@ func TestMethods_WriteYaml_HideMethod(t *testing.T) {
 		http.MethodGet:  {},
 	}
 	w := yaml.NewWriter(nil)
-	ms.writeYaml(opts, false, nil, nil, "", w)
+	ms.writeYaml(opts, false, false, nil, nil, "", w)
 	data, err := w.Bytes()
 	require.NoError(t, err)
 	const expect = `get:
@@ -143,7 +143,7 @@ func TestMethods_WriteYaml_AutoHead(t *testing.T) {
 		http.MethodGet: {},
 	}
 	w := yaml.NewWriter(nil)
-	ms.writeYaml(opts, true, nil, nil, "", w)
+	ms.writeYaml(opts, true, false, nil, nil, "", w)
 	data, err := w.Bytes()
 	require.NoError(t, err)
 	const expect = `get:
@@ -155,6 +155,31 @@ func TestMethods_WriteYaml_AutoHead(t *testing.T) {
           schema:
             type: object
 head:
+  responses:
+    200:
+      description: OK
+`
+	assert.Equal(t, expect, string(data))
+}
+
+func TestMethods_WriteYaml_AutoOptions(t *testing.T) {
+	opts := &DocOptions{}
+	ms := Methods{
+		http.MethodGet: {},
+	}
+	w := yaml.NewWriter(nil)
+	ms.writeYaml(opts, false, true, nil, nil, "", w)
+	data, err := w.Bytes()
+	require.NoError(t, err)
+	const expect = `get:
+  responses:
+    200:
+      description: OK
+      content:
+        "application/json":
+          schema:
+            type: object
+options:
   responses:
     200:
       description: OK
@@ -326,4 +351,19 @@ func TestMethod_WriteYaml_OptionalSecurity(t *testing.T) {
             type: object
 `
 	assert.Equal(t, expect, string(data))
+}
+
+func TestMethods_Sorted(t *testing.T) {
+	ms := Methods{
+		"MOVE":             {},
+		http.MethodGet:     {},
+		http.MethodPost:    {},
+		http.MethodPut:     {},
+		http.MethodPatch:   {},
+		http.MethodDelete:  {},
+		http.MethodConnect: {},
+		http.MethodTrace:   {},
+	}
+	sm := ms.sorted(http.MethodOptions, http.MethodHead, "COPY")
+	assert.Equal(t, "GET,HEAD,POST,PUT,PATCH,DELETE,OPTIONS,CONNECT,TRACE,COPY,MOVE", strings.Join(sm, ","))
 }
