@@ -19,8 +19,8 @@ type Definition struct {
 	//
 	// Note: If an OPTIONS method is already defined for the path then no OPTIONS method is automatically added
 	AutoOptionsMethods bool
-	// AuthMethodNotAllowed when set to true, automatically adds a method not allowed (405) handler for each path (and because Chioas knows the methods for each path can correctly set the Allow header)
-	AuthMethodNotAllowed bool
+	// AutoMethodNotAllowed when set to true, automatically adds a method not allowed (405) handler for each path (and because Chioas knows the methods for each path can correctly set the Allow header)
+	AutoMethodNotAllowed bool
 	// MethodHandlerBuilder is an optional MethodHandlerBuilder which is called to build the
 	// http.HandlerFunc for the method
 	//
@@ -71,7 +71,7 @@ func (d *Definition) SetupRoutes(router chi.Router, thisApi any) error {
 	if err := d.setupPaths(nil, d.Paths, subRoute, thisApi); err != nil {
 		return err
 	}
-	if d.AuthMethodNotAllowed {
+	if d.AutoMethodNotAllowed {
 		subRoute.MethodNotAllowed(d.methodNotAllowedHandler(d.Methods))
 	}
 	router.Mount(root, subRoute)
@@ -87,7 +87,7 @@ func (d *Definition) setupPaths(ancestry []string, paths Paths, route chi.Router
 			if pDef.ApplyMiddlewares != nil {
 				middlewares = append(middlewares, pDef.ApplyMiddlewares(thisApi)...)
 			}
-			if d.AuthMethodNotAllowed {
+			if d.AutoMethodNotAllowed {
 				subRoute.MethodNotAllowed(d.methodNotAllowedHandler(pDef.Methods))
 			}
 			subRoute.Use(middlewares...)

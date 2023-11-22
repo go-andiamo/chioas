@@ -191,7 +191,7 @@ func TestDefinition_SetupRoutes_AuthMethodNotAllowed(t *testing.T) {
 	d := Definition{
 		AutoHeadMethods:      true,
 		AutoOptionsMethods:   true,
-		AuthMethodNotAllowed: true,
+		AutoMethodNotAllowed: true,
 		Methods: Methods{
 			http.MethodGet: {
 				Handler: func(writer http.ResponseWriter, request *http.Request) {
