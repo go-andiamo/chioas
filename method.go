@@ -5,6 +5,7 @@ import (
 	"github.com/go-andiamo/urit"
 	"golang.org/x/exp/slices"
 	"net/http"
+	"sort"
 	"strings"
 )
 
@@ -101,7 +102,9 @@ func (m Methods) sorted(add ...string) (result []string) {
 			result = append(result, k)
 		}
 	}
-	slices.SortFunc(result, compareMethods)
+	sort.Slice(result, func(i, j int) bool {
+		return compareMethods(result[i], result[j])
+	})
 	return
 }
 
@@ -163,8 +166,8 @@ func (m Methods) writeYaml(opts *DocOptions, autoHeads bool, autoOptions bool, t
 			},
 		})
 	}
-	slices.SortFunc(sortedMethods, func(a, b sortMethod) bool {
-		return compareMethods(a.name, b.name)
+	sort.Slice(sortedMethods, func(i, j int) bool {
+		return compareMethods(sortedMethods[i].name, sortedMethods[j].name)
 	})
 	var pathVars []urit.PathVar
 	if template != nil {
