@@ -19,6 +19,8 @@ type Definition struct {
 	//
 	// Note: If an OPTIONS method is already defined for the path then no OPTIONS method is automatically added
 	AutoOptionsMethods bool
+	// AuthMethodNotAllowed when set to true, automatically adds a method not allowed (405) handler for each path (and because Chioas knows the methods for each path can correctly set the Allow header)
+	AuthMethodNotAllowed bool
 	// MethodHandlerBuilder is an optional MethodHandlerBuilder which is called to build the
 	// http.HandlerFunc for the method
 	//
@@ -69,6 +71,9 @@ func (d *Definition) SetupRoutes(router chi.Router, thisApi any) error {
 	if err := d.setupPaths(nil, d.Paths, subRoute, thisApi); err != nil {
 		return err
 	}
+	if d.AuthMethodNotAllowed {
+		subRoute.MethodNotAllowed(d.methodNotAllowedHandler(d.Methods))
+	}
 	router.Mount(root, subRoute)
 	return nil
 }
@@ -81,6 +86,9 @@ func (d *Definition) setupPaths(ancestry []string, paths Paths, route chi.Router
 			middlewares := pDef.Middlewares
 			if pDef.ApplyMiddlewares != nil {
 				middlewares = append(middlewares, pDef.ApplyMiddlewares(thisApi)...)
+			}
+			if d.AuthMethodNotAllowed {
+				subRoute.MethodNotAllowed(d.methodNotAllowedHandler(pDef.Methods))
 			}
 			subRoute.Use(middlewares...)
 			if err := d.setupMethods(strings.Join(newAncestry, ""), pDef.Methods, subRoute, thisApi); err != nil {
@@ -105,7 +113,7 @@ func (d *Definition) setupMethods(path string, methods Methods, route chi.Router
 			}
 		}
 		if d.AutoOptionsMethods && !methods.hasOptions() {
-			route.MethodFunc(http.MethodOptions, root, optionsHandler(methods, d.AutoHeadMethods))
+			route.MethodFunc(http.MethodOptions, root, d.optionsHandler(methods))
 		}
 		if d.AutoHeadMethods {
 			if mDef, ok := methods.getWithoutHead(); ok {
@@ -117,15 +125,30 @@ func (d *Definition) setupMethods(path string, methods Methods, route chi.Router
 	return nil
 }
 
-func optionsHandler(methods Methods, addHead bool) http.HandlerFunc {
+func (d *Definition) optionsHandler(methods Methods) http.HandlerFunc {
 	add := []string{http.MethodOptions}
-	if addHead {
+	if _, hasGet := methods.getWithoutHead(); hasGet && d.AutoHeadMethods {
 		add = append(add, http.MethodHead)
 	}
 	allow := strings.Join(methods.sorted(add...), ", ")
 	return func(writer http.ResponseWriter, request *http.Request) {
 		writer.Header().Set(hdrAllow, allow)
 		writer.WriteHeader(http.StatusOK)
+	}
+}
+
+func (d *Definition) methodNotAllowedHandler(methods Methods) http.HandlerFunc {
+	add := make([]string, 0)
+	if _, hasGet := methods.getWithoutHead(); hasGet && d.AutoHeadMethods {
+		add = append(add, http.MethodHead)
+	}
+	if d.AutoOptionsMethods {
+		add = append(add, http.MethodOptions)
+	}
+	allow := strings.Join(methods.sorted(add...), ", ")
+	return func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set(hdrAllow, allow)
+		writer.WriteHeader(http.StatusMethodNotAllowed)
 	}
 }
 
