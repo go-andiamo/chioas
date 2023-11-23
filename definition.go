@@ -13,19 +13,6 @@ import (
 type Definition struct {
 	// DocOptions is the documentation options for the spec
 	DocOptions DocOptions
-	// AutoHeadMethods when set to true, automatically adds HEAD methods for GET methods (where HEAD method not explicitly specified)
-	AutoHeadMethods bool
-	// AutoOptionsMethods when set to true, automatically adds OPTIONS methods for each path (and because Chioas knows the methods for each path can correctly set the Allow header)
-	//
-	// Note: If an OPTIONS method is already defined for the path then no OPTIONS method is automatically added
-	AutoOptionsMethods bool
-	// AutoMethodNotAllowed when set to true, automatically adds a method not allowed (405) handler for each path (and because Chioas knows the methods for each path can correctly set the Allow header)
-	AutoMethodNotAllowed bool
-	// MethodHandlerBuilder is an optional MethodHandlerBuilder which is called to build the
-	// http.HandlerFunc for the method
-	//
-	// If MethodHandlerBuilder is nil then the default method handler builder is used
-	MethodHandlerBuilder MethodHandlerBuilder
 	// Info is the OAS info for the spec
 	Info Info
 	// Servers is the OAS servers for the spec
@@ -50,6 +37,27 @@ type Definition struct {
 	Additional Additional
 	// Comment is any comment(s) to appear in the OAS spec yaml
 	Comment string
+	// AutoHeadMethods when set to true, automatically adds HEAD methods for GET methods (where HEAD method not explicitly specified)
+	//
+	// If you don't want these automatically added HEAD methods to appear in the OAS spec - then set DocOptions.HideAutoOptionsMethods
+	AutoHeadMethods bool
+	// AutoOptionsMethods when set to true, automatically adds OPTIONS methods for each path (and because Chioas knows the methods for each path can correctly set the Allow header)
+	//
+	// Note: If an OPTIONS method is already defined for the path then no OPTIONS method is automatically added
+	AutoOptionsMethods bool
+	// OptionsMethodPayloadBuilder is an optional implementation of OptionsMethodPayloadBuilder that can provide body payloads for the automatically created OPTIONS methods
+	OptionsMethodPayloadBuilder OptionsMethodPayloadBuilder
+	// RootAutoOptionsMethod when set to true, automatically adds OPTIONS method for the root path (and because Chioas knows the methods for each path can correctly set the Allow header)
+	//
+	// Note: If an OPTIONS method is already defined for the root path then no OPTIONS method is automatically added
+	RootAutoOptionsMethod bool
+	// AutoMethodNotAllowed when set to true, automatically adds a method not allowed (405) handler for each path (and because Chioas knows the methods for each path can correctly set the Allow header)
+	AutoMethodNotAllowed bool
+	// MethodHandlerBuilder is an optional MethodHandlerBuilder which is called to build the
+	// http.HandlerFunc for the method
+	//
+	// If MethodHandlerBuilder is nil then the default method handler builder is used
+	MethodHandlerBuilder MethodHandlerBuilder
 }
 
 // SetupRoutes sets up the API routes on the supplied chi.Router
@@ -65,7 +73,7 @@ func (d *Definition) SetupRoutes(router chi.Router, thisApi any) error {
 		middlewares = append(middlewares, d.ApplyMiddlewares(thisApi)...)
 	}
 	subRoute.Use(middlewares...)
-	if err := d.setupMethods(root, d.Methods, subRoute, thisApi); err != nil {
+	if err := d.setupMethods(root, nil, d.Methods, d.RootAutoOptionsMethod, subRoute, thisApi); err != nil {
 		return err
 	}
 	if err := d.setupPaths(nil, d.Paths, subRoute, thisApi); err != nil {
@@ -91,7 +99,7 @@ func (d *Definition) setupPaths(ancestry []string, paths Paths, route chi.Router
 				subRoute.MethodNotAllowed(d.methodNotAllowedHandler(pDef.Methods))
 			}
 			subRoute.Use(middlewares...)
-			if err := d.setupMethods(strings.Join(newAncestry, ""), pDef.Methods, subRoute, thisApi); err != nil {
+			if err := d.setupMethods(strings.Join(newAncestry, ""), &pDef, pDef.Methods, d.AutoOptionsMethods || pDef.AutoOptionsMethod, subRoute, thisApi); err != nil {
 				return err
 			}
 			if err := d.setupPaths(newAncestry, pDef.Paths, subRoute, thisApi); err != nil {
@@ -103,8 +111,8 @@ func (d *Definition) setupPaths(ancestry []string, paths Paths, route chi.Router
 	return nil
 }
 
-func (d *Definition) setupMethods(path string, methods Methods, route chi.Router, thisApi any) error {
-	if methods != nil {
+func (d *Definition) setupMethods(path string, pathDef *Path, methods Methods, pathAutoOptions bool, route chi.Router, thisApi any) error {
+	if methods != nil && len(methods) > 0 {
 		for m, mDef := range methods {
 			if h, err := getMethodHandlerBuilder(d.MethodHandlerBuilder).BuildHandler(path, m, mDef, thisApi); err == nil {
 				route.MethodFunc(m, root, h)
@@ -112,8 +120,8 @@ func (d *Definition) setupMethods(path string, methods Methods, route chi.Router
 				return err
 			}
 		}
-		if d.AutoOptionsMethods && !methods.hasOptions() {
-			route.MethodFunc(http.MethodOptions, root, d.optionsHandler(methods))
+		if (d.AutoOptionsMethods || pathAutoOptions) && !methods.hasOptions() {
+			route.MethodFunc(http.MethodOptions, root, d.optionsHandler(methods, path, pathDef))
 		}
 		if d.AutoHeadMethods {
 			if mDef, ok := methods.getWithoutHead(); ok {
@@ -121,11 +129,13 @@ func (d *Definition) setupMethods(path string, methods Methods, route chi.Router
 				route.MethodFunc(http.MethodHead, root, h)
 			}
 		}
+	} else if pathAutoOptions {
+		route.MethodFunc(http.MethodOptions, root, d.optionsHandler(Methods{}, path, pathDef))
 	}
 	return nil
 }
 
-func (d *Definition) optionsHandler(methods Methods) http.HandlerFunc {
+func (d *Definition) optionsHandler(methods Methods, path string, pathDef *Path) http.HandlerFunc {
 	add := []string{http.MethodOptions}
 	if _, hasGet := methods.getWithoutHead(); hasGet && d.AutoHeadMethods {
 		add = append(add, http.MethodHead)
@@ -133,7 +143,16 @@ func (d *Definition) optionsHandler(methods Methods) http.HandlerFunc {
 	allow := strings.Join(methods.sorted(add...), ", ")
 	return func(writer http.ResponseWriter, request *http.Request) {
 		writer.Header().Set(hdrAllow, allow)
+		payloadData := make([]byte, 0)
+		if d.OptionsMethodPayloadBuilder != nil {
+			var addHdrs map[string]string
+			payloadData, addHdrs = d.OptionsMethodPayloadBuilder.BuildPayload(path, pathDef, d)
+			for k, v := range addHdrs {
+				writer.Header().Set(k, v)
+			}
+		}
 		writer.WriteHeader(http.StatusOK)
+		_, _ = writer.Write(payloadData)
 	}
 }
 

@@ -187,6 +187,152 @@ func TestDefinition_SetupRoutes_AutoOptions(t *testing.T) {
 	assert.Equal(t, "GET, HEAD, POST, OPTIONS", res.Result().Header.Get(hdrAllow))
 }
 
+func TestDefinition_SetupRoutes_AutoOptions_WithRootPayload(t *testing.T) {
+	d := Definition{
+		AutoOptionsMethods:          true,
+		OptionsMethodPayloadBuilder: NewRootOptionsMethodPayloadBuilder(),
+		DocOptions: DocOptions{
+			HideAutoOptionsMethods: true,
+		},
+		Methods: Methods{
+			http.MethodGet: {
+				Handler: func(writer http.ResponseWriter, request *http.Request) {
+					writer.WriteHeader(http.StatusNotFound)
+				},
+			},
+		},
+		Paths: Paths{
+			"/subs": {
+				Methods: Methods{
+					http.MethodGet: {
+						Handler: func(writer http.ResponseWriter, request *http.Request) {
+							writer.WriteHeader(http.StatusConflict)
+						},
+					},
+					http.MethodPost: {
+						Handler: func(writer http.ResponseWriter, request *http.Request) {
+							writer.WriteHeader(http.StatusConflict)
+						},
+					},
+				},
+			},
+		},
+	}
+	router := chi.NewRouter()
+	err := d.SetupRoutes(router, nil)
+	assert.NoError(t, err)
+
+	req, err := http.NewRequest(http.MethodOptions, "/", nil)
+	require.NoError(t, err)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, "GET, OPTIONS", res.Result().Header.Get(hdrAllow))
+	assert.Equal(t, contentTypeYaml, res.Result().Header.Get(hdrContentType))
+	const expectYaml = `openapi: "3.0.3"
+info:
+  title: "API Documentation"
+  version: "1.0.0"
+paths:
+  "/":
+    get:
+      responses:
+        200:
+          description: OK
+          content:
+            "application/json":
+              schema:
+                type: object
+  "/subs":
+    get:
+      responses:
+        200:
+          description: OK
+          content:
+            "application/json":
+              schema:
+                type: object
+    post:
+      responses:
+        200:
+          description: OK
+          content:
+            "application/json":
+              schema:
+                type: object
+`
+	assert.Equal(t, expectYaml, res.Body.String())
+
+	d.DocOptions.AsJson = true
+	req, err = http.NewRequest(http.MethodOptions, "/", nil)
+	require.NoError(t, err)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, "GET, OPTIONS", res.Result().Header.Get(hdrAllow))
+	assert.Equal(t, contentTypeJson, res.Result().Header.Get(hdrContentType))
+	assert.Contains(t, res.Body.String(), `"title":"API Documentation"`)
+
+	d.DocOptions.specData = []byte("null")
+	req, err = http.NewRequest(http.MethodOptions, "/", nil)
+	require.NoError(t, err)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, "GET, OPTIONS", res.Result().Header.Get(hdrAllow))
+	assert.Equal(t, contentTypeJson, res.Result().Header.Get(hdrContentType))
+	assert.Equal(t, "null", res.Body.String())
+
+	req, err = http.NewRequest(http.MethodOptions, "/subs", nil)
+	require.NoError(t, err)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, "GET, POST, OPTIONS", res.Result().Header.Get(hdrAllow))
+	assert.Equal(t, "", res.Body.String())
+}
+
+func TestDefinition_SetupRoutes_PathAutoOptions(t *testing.T) {
+	d := Definition{
+		AutoHeadMethods:       true,
+		RootAutoOptionsMethod: true,
+		Paths: Paths{
+			"/subs": {
+				AutoOptionsMethod: true,
+				Methods: Methods{
+					http.MethodGet: {
+						Handler: func(writer http.ResponseWriter, request *http.Request) {
+							writer.WriteHeader(http.StatusConflict)
+						},
+					},
+					http.MethodPost: {
+						Handler: func(writer http.ResponseWriter, request *http.Request) {
+							writer.WriteHeader(http.StatusConflict)
+						},
+					},
+				},
+			},
+		},
+	}
+	router := chi.NewRouter()
+	err := d.SetupRoutes(router, nil)
+	assert.NoError(t, err)
+
+	req, err := http.NewRequest(http.MethodOptions, "/", nil)
+	require.NoError(t, err)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, "OPTIONS", res.Result().Header.Get(hdrAllow))
+
+	req, err = http.NewRequest(http.MethodOptions, "/subs", nil)
+	require.NoError(t, err)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, "GET, HEAD, POST, OPTIONS", res.Result().Header.Get(hdrAllow))
+}
+
 func TestDefinition_SetupRoutes_AuthMethodNotAllowed(t *testing.T) {
 	d := Definition{
 		AutoHeadMethods:      true,
