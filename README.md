@@ -38,6 +38,15 @@ Notes:
 * statics for `Redoc` are served from CDNs
 * statics for `Swagger` are all served directly from *Chioas*
 
+### Added Bonus Features
+Chioas comes with many bonus features that help in building complete APIs and specs...
+* Highly extensible - e.g. if there are parts of the OAS spec that are not directly supported by Chioas, then they can be added using the `Additional` field on each part
+* Optionally check that OAS refs (`$ref`) are valid _(see `DocOptions.CheckRefs`)_
+* Optional typed handlers - see [typed README](https://github.com/go-andiamo/chioas/blob/main/typed/README.md)
+* Optional automatically added `HEAD` methods for `GET` methods _(see `Definition.AutoHeadMethods`)_
+* Optional automatically added `OPTIONS` methods - with `Allow` header populated with actual allowed methods _(see `Definition.AutoOptionsMethods` and `Path.AutoOptionsMethod`)_
+* Optional automatically added Chi `MethodNotAllowed` handler to each path  - with `Allow` header populated with actual allowed methods _(see `Definition.AutoMethodNotAllowed`)_
+
 ## Installation
 To install chioas, use go get:
 
@@ -47,7 +56,7 @@ To update chioas to the latest version, run:
 
     go get -u github.com/go-andiamo/chioas
 
-### Basic Example
+## Basic Example
 ```go
 package main
 
@@ -259,6 +268,3 @@ func deleteFoo(writer http.ResponseWriter, request *http.Request) {
 }
 ```
 [try on go-playground](https://go.dev/play/p/0zaWsmsw2FD)
-
-## Typed Handlers
-see [typed README](https://github.com/go-andiamo/chioas/blob/main/typed/README.md)

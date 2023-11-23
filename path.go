@@ -45,6 +45,10 @@ type Path struct {
 	Additional Additional
 	// Comment is any comment(s) to appear in the OAS spec yaml
 	Comment string
+	// AutoOptionsMethod when set to true, automatically adds OPTIONS method for the path (and because Chioas knows the methods for each path can correctly set the Allow header)
+	//
+	// Note: If an OPTIONS method is already defined for the path then no OPTIONS method is automatically added
+	AutoOptionsMethod bool
 }
 
 type flatPath struct {
@@ -64,7 +68,7 @@ func (p flatPath) writeYaml(opts *DocOptions, autoHeads bool, autoOptions bool, 
 		w.WritePathStart(context, template.Template(true)).
 			WriteComments(p.def.Comment)
 		if p.def.Methods != nil {
-			p.def.Methods.writeYaml(opts, autoHeads, autoOptions, template, p.getPathParams(), p.tag, w)
+			p.def.Methods.writeYaml(opts, autoHeads, autoOptions || p.def.AutoOptionsMethod, template, p.getPathParams(), p.tag, w)
 		}
 		writeExtensions(p.def.Extensions, w)
 		writeAdditional(p.def.Additional, p.def, w)
