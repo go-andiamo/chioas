@@ -242,6 +242,15 @@ properties:
     - $ref: "#/components/schemas/bar"
 `,
 		},
+		{
+			schema: Schema{
+				Type:   "string",
+				Format: "uuid",
+			},
+			expect: `type: string
+format: uuid
+`,
+		},
 	}
 	for i, tc := range testCases {
 		t.Run(fmt.Sprintf("[%d]", i+1), func(t *testing.T) {

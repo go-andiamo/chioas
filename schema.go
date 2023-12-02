@@ -51,6 +51,8 @@ type Schema struct {
 	//
 	// Should be one of "string", "object", "array", "boolean", "integer", "number" or "null"
 	Type string
+	// Format is the OAS format
+	Format string
 	// RequiredProperties is the ordered collection of required properties
 	//
 	// If any of the items in Properties is also denoted as Property.Required, these are
@@ -111,7 +113,8 @@ func (s *Schema) writeYaml(withName bool, w yaml.Writer) {
 		writeSchemaRef(s.SchemaRef, s.Type == tagValueTypeArray, w)
 	} else {
 		w.WriteTagValue(tagNameDescription, s.Description).
-			WriteTagValue(tagNameType, defValue(s.Type, tagValueTypeObject))
+			WriteTagValue(tagNameType, defValue(s.Type, tagValueTypeObject)).
+			WriteTagValue(tagNameFormat, s.Format)
 		if s.Ofs != nil {
 			s.Ofs.writeYaml(w)
 		}
@@ -150,8 +153,9 @@ func (s *Schema) writeYaml(withName bool, w yaml.Writer) {
 }
 
 func (s *Schema) writeOfYaml(w yaml.Writer) {
-	w.WriteItemStart(tagNameType, defValue(s.Type, tagValueTypeObject)).
-		WriteTagValue(tagNameDescription, s.Description)
+	w.WriteTagValue(tagNameDescription, s.Description).
+		WriteItemStart(tagNameType, defValue(s.Type, tagValueTypeObject)).
+		WriteTagValue(tagNameFormat, s.Format)
 	if reqs, has := s.getRequiredProperties(); has {
 		w.WriteTagStart(tagNameRequired)
 		for _, rp := range reqs {
