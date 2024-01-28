@@ -27,7 +27,7 @@ var def = chioas.Definition{
 		"/people": {
 			Methods: map[string]chioas.Method{
 				http.MethodGet: {
-					Handler: "GetPeople",
+					Handler: (*api).GetPeople,
 					Responses: chioas.Responses{
 						http.StatusOK: {
 							IsArray:   true,
@@ -36,7 +36,7 @@ var def = chioas.Definition{
 					},
 				},
 				http.MethodPost: {
-					Handler: "AddPerson",
+					Handler: (*api).AddPerson,
 					Request: &chioas.Request{
 						Schema: personSchema,
 					},
@@ -51,7 +51,7 @@ var def = chioas.Definition{
 				"/{personId}": {
 					Methods: chioas.Methods{
 						http.MethodGet: {
-							Handler: "GetPerson",
+							Handler: (*api).GetPerson,
 							Responses: chioas.Responses{
 								http.StatusOK: {
 									SchemaRef: "Person",

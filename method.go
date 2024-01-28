@@ -26,6 +26,10 @@ type Method struct {
 	//
 	// Can also be specified as a string - which must be a public method on the interface passed to Definition.SetupRoutes
 	//
+	// Can also be specified as a method expression - e.g
+	//   Handler: (*myApi).GetSomething
+	// (the method specified must be a public method on the interface passed to Definition.SetupRoutes
+	//
 	// Can also be specified as a GetHandler func - which is called to acquire the http.HandlerFunc
 	Handler any
 	// OperationId is the OAS operation id of the method
