@@ -1,0 +1,7 @@
+description: "Pet status"
+type: "string"
+default: "available"
+enum:
+  - "available"
+  - "pending"
+  - "sold"

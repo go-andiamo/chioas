@@ -102,6 +102,39 @@ func (d *dummyWithMethod) Foo(writer http.ResponseWriter, request *http.Request)
 	d.called = true
 }
 
+func (d *dummyWithMethod) foo(writer http.ResponseWriter, request *http.Request) {
+	d.called = true
+}
+
 func (d *dummyWithMethod) Bar() {
 	d.called = true
+}
+
+func TestDefaultMethodHandlerBuilder_Build_WithMethodExpressions(t *testing.T) {
+	dummy := &dummyWithMethod{}
+	m := Method{
+		Handler: (*dummyWithMethod).Foo,
+	}
+	mh, err := defaultMethodHandlerBuilder.BuildHandler(root, http.MethodGet, m, dummy)
+	assert.NoError(t, err)
+	assert.NotNil(t, mh)
+
+	m = Method{
+		Handler: (*dummyWithMethod).foo,
+	}
+	_, err = defaultMethodHandlerBuilder.BuildHandler(root, http.MethodGet, m, dummy)
+	assert.Error(t, err)
+
+	assert.False(t, dummy.called)
+	req, err := http.NewRequest(http.MethodGet, "/example", nil)
+	require.NoError(t, err)
+	res := httptest.NewRecorder()
+	mh.ServeHTTP(res, req)
+	assert.True(t, dummy.called)
+
+	m = Method{
+		Handler: (*dummyWithMethod).Bar,
+	}
+	_, err = defaultMethodHandlerBuilder.BuildHandler(root, http.MethodGet, m, dummy)
+	assert.Error(t, err)
 }

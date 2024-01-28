@@ -6,6 +6,8 @@ import (
 	"github.com/go-andiamo/chioas"
 	"net/http"
 	"reflect"
+	"runtime"
+	"strings"
 )
 
 const (
@@ -131,7 +133,7 @@ func (b *builder) handlerFor(path string, method string, thisApi any, mf reflect
 	} else if ins == 0 {
 		return b.zeroInHandler(path, method, thisApi, mf)
 	}
-	return b.ioHandler(path, method, thisApi, mf)
+	return b.ioHandler(path, method, ins > 0, thisApi, mf)
 }
 
 func (b *builder) zeroInHandler(path string, method string, thisApi any, mf reflect.Value) (http.HandlerFunc, error) {
@@ -144,7 +146,14 @@ func (b *builder) zeroInHandler(path string, method string, thisApi any, mf refl
 	}, nil
 }
 
-func (b *builder) ioHandler(path string, method string, thisApi any, mf reflect.Value) (http.HandlerFunc, error) {
+func (b *builder) ioHandler(path string, method string, maybeMexp bool, thisApi any, mf reflect.Value) (http.HandlerFunc, error) {
+	if maybeMexp {
+		if hf, err := b.methodExpressionHandler(path, method, thisApi, mf); hf != nil {
+			return hf, nil
+		} else if err != nil {
+			return nil, err
+		}
+	}
 	ins, err := newInsBuilder(mf, path, method, b)
 	if err != nil {
 		return nil, fmt.Errorf("error building in args (path: %s, method: %s) - %s", path, method, err.Error())
@@ -160,6 +169,39 @@ func (b *builder) ioHandler(path string, method string, thisApi any, mf reflect.
 			b.getErrorHandler(thisApi).HandleError(writer, request, err)
 		}
 	}, nil
+}
+
+func (b *builder) methodExpressionHandler(path string, method string, thisApi any, mf reflect.Value) (http.HandlerFunc, error) {
+	if thisApi != nil {
+		mt := mf.Type()
+		apiv := reflect.ValueOf(thisApi)
+		// for it to be a potential method expression, the first in arg must be receiver type...
+		if mt.In(0) == apiv.Type() {
+			// check that the function name indicates it is actually a method expression...
+			// (i.e. rather than just a regular function whose first arg type happens to be receiver type)
+			mn := runtime.FuncForPC(mf.Pointer()).Name()
+			if strings.Contains(mn, ".(") && strings.Contains(mn, ").") {
+				mn = parseMethodName(mn)
+				if mfn := apiv.MethodByName(mn); mfn.IsValid() {
+					if hf, ok := mfn.Interface().(func(http.ResponseWriter, *http.Request)); ok {
+						return hf, nil
+					} else {
+						return b.ioHandler(path, method, false, thisApi, mfn)
+					}
+				} else {
+					return nil, fmt.Errorf("supplied thisApi does not have public method '%s' (path: %s, method: %s)", mn, path, method)
+				}
+			}
+		}
+	} else if mn := runtime.FuncForPC(mf.Pointer()).Name(); strings.Contains(mn, ".(") && strings.Contains(mn, ").") {
+		return nil, fmt.Errorf("cannot use method expressions when thisApi not supplied (path: %s, method: %s)", path, method)
+	}
+	return nil, nil
+}
+
+func parseMethodName(methodName string) string {
+	parts := strings.Split(methodName, ".")
+	return parts[len(parts)-1]
 }
 
 func (b *builder) getErrorHandler(thisApi any) ErrorHandler {

@@ -1,11 +1,13 @@
 package typed
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/go-andiamo/chioas"
 	"github.com/go-andiamo/urit"
+	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"net/http"
@@ -478,6 +480,51 @@ func TestTypedMethodsHandlerBuilder_ResponseTypes(t *testing.T) {
 	}
 }
 
+func TestTypedMethodsHandlerBuilder_WithMethodExpressions(t *testing.T) {
+	tmhb := NewTypedMethodsHandlerBuilder()
+	dummy := &dummyWithMethods{}
+	m := chioas.Method{
+		Handler: (*dummyWithMethods).Foo,
+	}
+	mh, err := tmhb.BuildHandler("/", http.MethodGet, m, dummy)
+	assert.NoError(t, err)
+	assert.NotNil(t, mh)
+
+	assert.False(t, dummy.fooCalled)
+	req, err := http.NewRequest(http.MethodGet, "/example", nil)
+	require.NoError(t, err)
+	res := httptest.NewRecorder()
+	mh.ServeHTTP(res, req)
+	assert.True(t, dummy.fooCalled)
+
+	_, err = tmhb.BuildHandler("/", http.MethodGet, m, nil)
+	assert.Error(t, err)
+	assert.Equal(t, "cannot use method expressions when thisApi not supplied (path: /, method: GET)", err.Error())
+
+	m = chioas.Method{
+		Handler: (*dummyWithMethods).private,
+	}
+	_, err = tmhb.BuildHandler("/", http.MethodGet, m, dummy)
+	assert.Error(t, err)
+	assert.Equal(t, "supplied thisApi does not have public method 'private' (path: /, method: GET)", err.Error())
+
+	m = chioas.Method{
+		Handler: (*dummyWithMethods).Baz,
+	}
+	mh, err = tmhb.BuildHandler("/", http.MethodGet, m, dummy)
+	assert.NoError(t, err)
+	assert.NotNil(t, mh)
+
+	assert.False(t, dummy.bazCalled)
+	req, err = http.NewRequest(http.MethodGet, "/example", nil)
+	require.NoError(t, err)
+	res = httptest.NewRecorder()
+	r := chi.NewRouter()
+	r.Get("/example", mh)
+	r.ServeHTTP(res, req)
+	assert.True(t, dummy.bazCalled)
+}
+
 type testUnmarshalble struct {
 }
 
@@ -488,6 +535,11 @@ func (t *testUnmarshalble) MarshalJSON() ([]byte, error) {
 type dummyWithMethods struct {
 	fooCalled bool
 	barCalled bool
+	bazCalled bool
+}
+
+func (d *dummyWithMethods) private(writer http.ResponseWriter, request *http.Request) {
+	d.fooCalled = true
 }
 
 func (d *dummyWithMethods) Foo(writer http.ResponseWriter, request *http.Request) {
@@ -496,6 +548,11 @@ func (d *dummyWithMethods) Foo(writer http.ResponseWriter, request *http.Request
 
 func (d *dummyWithMethods) Bar(pathParam ...string) json.RawMessage {
 	d.barCalled = true
+	return nil
+}
+
+func (d *dummyWithMethods) Baz(ctx context.Context, writer http.ResponseWriter) error {
+	d.bazCalled = true
 	return nil
 }
 
