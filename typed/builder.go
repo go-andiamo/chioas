@@ -19,7 +19,7 @@ const (
 // NewTypedMethodsHandlerBuilder creates a new handler for use on chioas.Definition and provides
 // capability to have typed methods/funcs for API endpoints.
 //
-// the options arg can be any of types ErrorHandler, ArgBuilder, PathParamArgBuilder or Unmarshaler
+// the options arg can be any of types ErrorHandler, Unmarshaler, ArgBuilder or ArgExtractor[T]
 //
 // if no Unmarshaler is passed then a default JSON unmarshaler is used - and if multiple Unmarshaler are passed then only the last one is used
 //
@@ -30,6 +30,7 @@ func NewTypedMethodsHandlerBuilder(options ...any) chioas.MethodHandlerBuilder {
 		argBuilders:  make([]ArgBuilder, 0, len(options)),
 		unmarshaler:  defaultUnmarshaler,
 	}
+	extractors := argExtractors{}
 	for _, o := range options {
 		if o != nil {
 			switch ot := o.(type) {
@@ -40,11 +41,22 @@ func NewTypedMethodsHandlerBuilder(options ...any) chioas.MethodHandlerBuilder {
 			case Unmarshaler:
 				result.unmarshaler = ot
 			default:
-				if result.initErr == nil {
+				if ax, err := isArgExtractor(ot); err != nil {
+					if result.initErr == nil {
+						result.initErr = err
+					}
+				} else if ax != nil {
+					if err := extractors.add(ax); err != nil && result.initErr == nil {
+						result.initErr = err
+					}
+				} else if result.initErr == nil {
 					result.initErr = errors.New("invalid option passed to NewTypedMethodsHandlerBuilder")
 				}
 			}
 		}
+	}
+	if len(extractors) > 0 {
+		result.argBuilders = append(result.argBuilders, extractors)
 	}
 	return result
 }
