@@ -114,6 +114,19 @@ func addMapDef[T comparable](m map[string]any, pty T, name string, def T) {
 	}
 }
 
+func addMapAlways[T comparable](m map[string]any, pty T, name string) {
+	m[name] = pty
+}
+
+func addMapOrDef[T comparable](m map[string]any, pty T, name string, def T) {
+	var empty T
+	if pty != empty {
+		m[name] = pty
+	} else {
+		m[name] = def
+	}
+}
+
 func addMapNonNil(m map[string]any, pty any, name string) {
 	if !isNil(reflect.ValueOf(pty)) {
 		m[name] = pty

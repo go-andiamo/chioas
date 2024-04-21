@@ -628,3 +628,51 @@ func TestDocOptions_GetSwaggerOptions_Custom(t *testing.T) {
 	assert.Equal(t, "cfg.presets = [SwaggerUIBundle.presets.apis,SwaggerUIStandalonePreset]", string(presets))
 	assert.Equal(t, "", string(plugins))
 }
+
+func TestDocOptions_RapidocOptions(t *testing.T) {
+	def := Definition{
+		DocOptions: DocOptions{
+			ServeDocs: true,
+			UIStyle:   Rapidoc,
+			RapidocOptions: &RapidocOptions{
+				ShowHeader:  true,
+				HeadingText: "this-test",
+			},
+		},
+	}
+	router := chi.NewRouter()
+	err := def.SetupRoutes(router, nil)
+	assert.NoError(t, err)
+
+	req, err := http.NewRequest(http.MethodGet, "/docs/index.html", nil)
+	assert.NoError(t, err)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, contentTypeHtml, res.Result().Header.Get(hdrContentType))
+	data := string(res.Body.Bytes())
+	assert.Contains(t, data, `heading-text="this-test"`)
+	assert.Contains(t, data, `show-header="true"`)
+
+	expectedSupportFiles := map[string]string{
+		"default.min.css":  "text/css; charset=utf-8",
+		"highlight.min.js": "application/javascript",
+		"rapidoc-min.js":   "application/javascript",
+	}
+	for filename, contentType := range expectedSupportFiles {
+		t.Run(filename, func(t *testing.T) {
+			req, err := http.NewRequest(http.MethodGet, "/docs/"+filename, nil)
+			assert.NoError(t, err)
+			res := httptest.NewRecorder()
+			router.ServeHTTP(res, req)
+			assert.Equal(t, http.StatusOK, res.Code)
+			assert.Equal(t, contentType, res.Result().Header.Get(hdrContentType))
+		})
+	}
+
+	req, err = http.NewRequest(http.MethodGet, "/docs/foo.txt", nil)
+	assert.NoError(t, err)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusNotFound, res.Code)
+}

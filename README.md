@@ -32,11 +32,13 @@ See [From example](https://github.com/go-andiamo/chioas/tree/main/_examples/from
 *Chioas* supports two different styles of API docs UI:
 1. Redoc (see [Redocly.redoc](https://github.com/Redocly/redoc) and [Redoc-try](https://github.com/wll8/redoc-try))
 2. Swagger (see [swagger-ui](https://github.com/swagger-api/swagger-ui))
+3. Rapidoc (see [rapidoc](https://github.com/rapi-doc/RapiDoc))
 
 Set the desired style using `DocOptions.UIStyle` (the default is `Redoc`).
 Notes:
 * statics for `Redoc` are served from CDNs
 * statics for `Swagger` are all served directly from *Chioas*
+* statics for `Rapidoc` are all served directly from *Chioas*
 
 ### Added Bonus Features
 Chioas comes with many bonus features that help in building complete APIs and specs...
