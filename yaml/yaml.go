@@ -365,6 +365,8 @@ func safeStringName(name string) string {
 func safeString(s string) string {
 	if len(s) == 0 {
 		return `""`
+	} else if s == "null" {
+		return `"null"`
 	} else if needsEscaping(s) {
 		return escapeString(s)
 	}

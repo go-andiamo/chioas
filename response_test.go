@@ -336,7 +336,7 @@ func TestResponse_WriteYaml(t *testing.T) {
   content:
     "application/json":
       schema:
-        type: null
+        type: "null"
 `,
 		},
 		{
