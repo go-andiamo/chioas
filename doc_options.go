@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"github.com/go-andiamo/chioas/rapidoc_ui"
 	"github.com/go-andiamo/chioas/swagger_ui"
 	"github.com/go-chi/chi/v5"
 	"gopkg.in/yaml.v3"
@@ -19,6 +20,7 @@ type UIStyle uint
 const (
 	Redoc   UIStyle = iota // style for Redoc UI
 	Swagger                // style for swagger-ui
+	Rapidoc                // style for rapidoc-ui
 )
 
 // DocOptions determines whether/how the api will serve interactive docs page
@@ -46,7 +48,7 @@ type DocOptions struct {
 	Title string
 	// UIStyle is the style of the API docs UI
 	//
-	// use either Redoc or Swagger (defaults to Redoc)
+	// use Redoc, Swagger or Rapidoc (defaults to Redoc)
 	UIStyle UIStyle
 	// RedocOptions redoc options to be used (see https://github.com/Redocly/redoc#redoc-options-object)
 	//
@@ -58,6 +60,10 @@ type DocOptions struct {
 	//
 	// Only used if DocOptions.UIStyle is Swagger
 	SwaggerOptions any
+	// RapidocOptions rapidoc options to be used
+	//
+	// Only used if DocOptions.UIStyle is Rapidoc
+	RapidocOptions any
 	// SpecName the name of the OAS spec (defaults to "spec.yaml")
 	SpecName string
 	// DocTemplate template for the docs page (defaults to internal template if an empty string)
@@ -140,10 +146,15 @@ func (d *DocOptions) SetupRoutes(def *Definition, route chi.Router) error {
 }
 
 func (d *DocOptions) getTemplate() (*template.Template, error) {
-	if d.DocTemplate == "" && d.UIStyle == Swagger {
-		return template.New("index").Parse(defaultSwaggerTemplate)
-	} else if d.DocTemplate == "" {
-		return template.New("index").Parse(defaultRedocTemplate)
+	if d.DocTemplate == "" {
+		switch d.UIStyle {
+		case Swagger:
+			return template.New("index").Parse(defaultSwaggerTemplate)
+		case Rapidoc:
+			return template.New("index").Parse(defaultRapidocTemplate)
+		default:
+			return template.New("index").Parse(defaultRedocTemplate)
+		}
 	}
 	return template.New("index").Parse(d.DocTemplate)
 }
@@ -156,7 +167,8 @@ func (d *DocOptions) getTemplateData() (specName string, data map[string]any) {
 	} else {
 		specName = defaultSpecName
 	}
-	if d.UIStyle == Swagger {
+	switch d.UIStyle {
+	case Swagger:
 		swaggerOpts, presets, plugins := d.getSwaggerOptions(specName)
 		data = map[string]any{
 			htmlTagTitle:          defValue(d.Title, defaultTitle),
@@ -165,7 +177,12 @@ func (d *DocOptions) getTemplateData() (specName string, data map[string]any) {
 			htmlTagSwaggerPresets: presets,
 			htmlTagSwaggerPlugins: plugins,
 		}
-	} else {
+	case Rapidoc:
+		data = d.getRapidocOptions()
+		data[htmlTagTitle] = defValue(d.Title, defaultTitle)
+		data[htmlTagStylesOverride] = template.CSS(d.StylesOverride)
+		data[htmlTagSpecName] = specName
+	default:
 		data = map[string]any{
 			htmlTagTitle:          defValue(d.Title, defaultTitle),
 			htmlTagStylesOverride: template.CSS(defValue(d.StylesOverride, defaultRedocStylesOverride)),
@@ -227,8 +244,9 @@ func (d *DocOptions) setupNoCachedRoutes(def *Definition, docsRoute *chi.Mux, tm
 }
 
 func (d *DocOptions) setupSupportFiles(docsRoute *chi.Mux) {
-	if d.UIStyle == Swagger {
-		sf := d.getSupportFiles()
+	sf := d.getSupportFiles()
+	switch d.UIStyle {
+	case Swagger:
 		docsRoute.Get("/*", func(writer http.ResponseWriter, request *http.Request) {
 			name := strings.TrimPrefix(request.URL.Path, defValue(d.Path, defaultDocsPath)+"/")
 			if data, err := swagger_ui.SwaggerUIStaticFiles.ReadFile(name); err == nil {
@@ -243,10 +261,27 @@ func (d *DocOptions) setupSupportFiles(docsRoute *chi.Mux) {
 			}
 			writer.WriteHeader(http.StatusNotFound)
 		})
-	} else if sf := d.getSupportFiles(); sf != nil {
+	case Rapidoc:
 		docsRoute.Get("/*", func(writer http.ResponseWriter, request *http.Request) {
-			sf.ServeHTTP(writer, request)
+			name := strings.TrimPrefix(request.URL.Path, defValue(d.Path, defaultDocsPath)+"/")
+			if data, err := rapidoc_ui.RapidocUIStaticFiles.ReadFile(name); err == nil {
+				if ctype := mime.TypeByExtension(filepath.Ext(name)); ctype != "" {
+					writer.Header().Set(hdrContentType, ctype)
+				}
+				_, _ = writer.Write(data)
+				return
+			} else if sf != nil {
+				sf.ServeHTTP(writer, request)
+				return
+			}
+			writer.WriteHeader(http.StatusNotFound)
 		})
+	default:
+		if sf != nil {
+			docsRoute.Get("/*", func(writer http.ResponseWriter, request *http.Request) {
+				sf.ServeHTTP(writer, request)
+			})
+		}
 	}
 }
 
@@ -276,6 +311,10 @@ func (d *DocOptions) getSwaggerOptions(specName string) (map[string]any, templat
 		presets = "cfg.presets = [SwaggerUIBundle.presets.apis,SwaggerUIStandalonePreset]"
 	}
 	return m, presets, plugins
+}
+
+func (d *DocOptions) getRapidocOptions() map[string]any {
+	return optionsToMap(d.RapidocOptions)
 }
 
 func optionsToMap(opts any) map[string]any {
@@ -373,6 +412,22 @@ const defaultSwaggerTemplate = `<!DOCTYPE html>
       }
     </script>
   </body>
+</html>`
+
+const defaultRapidocTemplate = `<!doctype html>
+<html lang="en">
+    <head>
+        <title>{{.title}}</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width,minimum-scale=1,initial-scale=1,user-scalable=yes">
+        <link rel="stylesheet" href="default.min.css">
+        <script src="highlight.min.js"></script>
+        <script defer="defer" src="rapidoc-min.js"></script>
+        <style>{{.stylesOverride}}</style>
+    </head>
+    <body>
+        <rapi-doc id="thedoc" heading-text="{{.heading_text}}" spec-url="{{.specName}}" theme="{{.theme}}" render-style="{{.render_style}}" schema-style="{{.schema_style}}" show-method-in-nav-bar="{{.show_method_in_nav_bar}}" use-path-in-nav-bar="{{.use_path_in_nav_bar}}" show-components="{{.show_components}}" show-info="{{.show_info}}" show-header="{{.show_header}}" allow-search="{{.allow_search}}" allow-advanced-search="{{.allow_advanced_search}}" allow-spec-url-load="{{.allow_spec_url_load}}" allow-spec-file-load="{{.allow_spec_file_load}}" allow-try="{{.allow_try}}" allow-spec-file-download="{{.allow_spec_file_download}}" allow-server-selection="{{.allow_server_selection}}" allow-authentication="{{.allow_authentication}}" update-route="{{.update_route}}" match-type="{{.match_type}}" persist_auth="{{.persist_auth}}"></rapi-doc>
+    </body>
 </html>`
 
 const defaultRedocStylesOverride = `body {
