@@ -40,6 +40,8 @@ Notes:
 * statics for `Swagger` are all served directly from *Chioas*
 * statics for `Rapidoc` are all served directly from *Chioas*
 
+*Chioas* also supports serving multiple styles of UI on different docs paths (see `DocOptions.AlternateUIDocs` and [example](https://github.com/go-andiamo/chioas/tree/main/_examples/multi_ui))
+
 ### Added Bonus Features
 Chioas comes with many bonus features that help in building complete APIs and specs...
 * Highly extensible - e.g. if there are parts of the OAS spec that are not directly supported by Chioas, then they can be added using the `Additional` field on each part

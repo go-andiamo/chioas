@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"github.com/go-andiamo/chioas/rapidoc_ui"
 	"github.com/go-andiamo/chioas/swagger_ui"
 	"github.com/go-chi/chi/v5"
@@ -50,6 +51,10 @@ type DocOptions struct {
 	//
 	// use Redoc, Swagger or Rapidoc (defaults to Redoc)
 	UIStyle UIStyle
+	// AlternateUIDocs allow your docs UI to be served as different styles on different paths
+	//
+	// where the key for each is the docs path
+	AlternateUIDocs AlternateUIDocs
 	// RedocOptions redoc options to be used (see https://github.com/Redocly/redoc#redoc-options-object)
 	//
 	// use map[string]any or &RedocOptions or anything that implements ToMap (or anything that can be marshalled and then unmarshalled to map[string]any)
@@ -121,7 +126,7 @@ const (
 
 func (d *DocOptions) SetupRoutes(def *Definition, route chi.Router) error {
 	if d.ServeDocs {
-		tmp, err := d.getTemplate()
+		tmp, err := getTemplate(d.UIStyle, d.DocTemplate)
 		if err != nil {
 			return err
 		}
@@ -133,21 +138,32 @@ func (d *DocOptions) SetupRoutes(def *Definition, route chi.Router) error {
 		redirectPath := path + root + indexPage
 		docsRoute.Get(root, http.RedirectHandler(redirectPath, http.StatusMovedPermanently).ServeHTTP)
 		if d.specData != nil || !d.NoCache {
-			if err := d.setupCachedRoutes(def, docsRoute, tmp, data, indexPage, specName); err != nil {
+			if err = setupCachedRoutes(def, d.AsJson, d.specData, docsRoute, tmp, data, indexPage, specName); err != nil {
 				return err
 			}
 		} else {
-			d.setupNoCachedRoutes(def, docsRoute, tmp, data, indexPage, specName)
+			setupNoCachedRoutes(def, d.AsJson, docsRoute, tmp, data, indexPage, specName)
 		}
-		d.setupSupportFiles(docsRoute)
+		setupSupportFiles(defValue(d.Path, defaultDocsPath), d.UIStyle, d.SupportFiles, d.SupportFilesStripPrefix, docsRoute)
 		route.Mount(path, docsRoute)
+		for altPath, alt := range d.AlternateUIDocs {
+			if !strings.HasPrefix(altPath, "/") {
+				altPath = "/" + altPath
+			}
+			if altPath == "/" || altPath == path {
+				return fmt.Errorf("invalid aletrnate docs path '%s'", altPath)
+			}
+			if err = alt.setupRoute(def, route, altPath, d.specData); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }
 
-func (d *DocOptions) getTemplate() (*template.Template, error) {
-	if d.DocTemplate == "" {
-		switch d.UIStyle {
+func getTemplate(uiStyle UIStyle, docTemplate string) (*template.Template, error) {
+	if docTemplate == "" {
+		switch uiStyle {
 		case Swagger:
 			return template.New("index").Parse(defaultSwaggerTemplate)
 		case Rapidoc:
@@ -156,7 +172,7 @@ func (d *DocOptions) getTemplate() (*template.Template, error) {
 			return template.New("index").Parse(defaultRedocTemplate)
 		}
 	}
-	return template.New("index").Parse(d.DocTemplate)
+	return template.New("index").Parse(docTemplate)
 }
 
 func (d *DocOptions) getTemplateData() (specName string, data map[string]any) {
@@ -169,7 +185,7 @@ func (d *DocOptions) getTemplateData() (specName string, data map[string]any) {
 	}
 	switch d.UIStyle {
 	case Swagger:
-		swaggerOpts, presets, plugins := d.getSwaggerOptions(specName)
+		swaggerOpts, presets, plugins := getSwaggerOptions(d.SwaggerOptions, specName)
 		data = map[string]any{
 			htmlTagTitle:          defValue(d.Title, defaultTitle),
 			htmlTagStylesOverride: template.CSS(d.StylesOverride),
@@ -178,7 +194,7 @@ func (d *DocOptions) getTemplateData() (specName string, data map[string]any) {
 			htmlTagSwaggerPlugins: plugins,
 		}
 	case Rapidoc:
-		data = d.getRapidocOptions()
+		data = optionsToMap(d.RapidocOptions)
 		data[htmlTagTitle] = defValue(d.Title, defaultTitle)
 		data[htmlTagStylesOverride] = template.CSS(d.StylesOverride)
 		data[htmlTagSpecName] = specName
@@ -187,7 +203,7 @@ func (d *DocOptions) getTemplateData() (specName string, data map[string]any) {
 			htmlTagTitle:          defValue(d.Title, defaultTitle),
 			htmlTagStylesOverride: template.CSS(defValue(d.StylesOverride, defaultRedocStylesOverride)),
 			htmlTagSpecName:       specName,
-			htmlTagRedocOpts:      d.getRedocOptions(),
+			htmlTagRedocOpts:      optionsToMap(d.RedocOptions),
 			htmlTagRedocUrl:       defValue(d.RedocJsUrl, defaultRedocJsUrl),
 			htmlTagTryUrl:         defValue(d.TryJsUrl, defaultTryJsUrl),
 		}
@@ -195,8 +211,8 @@ func (d *DocOptions) getTemplateData() (specName string, data map[string]any) {
 	return
 }
 
-func (d *DocOptions) setupCachedRoutes(def *Definition, docsRoute *chi.Mux, tmp *template.Template, inData map[string]any, indexPage, specName string) (err error) {
-	indexData, err := d.buildIndexData(tmp, inData)
+func setupCachedRoutes(def *Definition, asJson bool, specData []byte, docsRoute *chi.Mux, tmp *template.Template, inData map[string]any, indexPage, specName string) (err error) {
+	indexData, err := buildIndexData(tmp, inData)
 	if err != nil {
 		return err
 	}
@@ -204,33 +220,33 @@ func (d *DocOptions) setupCachedRoutes(def *Definition, docsRoute *chi.Mux, tmp 
 		writer.Header().Set(hdrContentType, contentTypeHtml)
 		_, _ = writer.Write(indexData)
 	})
-	var specData []byte
+	var data []byte
 	contentType := contentTypeYaml
-	if d.specData != nil {
-		specData = d.specData
-	} else if d.AsJson {
+	if specData != nil {
+		data = specData
+	} else if asJson {
 		contentType = contentTypeJson
-		if specData, err = def.AsJson(); err != nil {
+		if data, err = def.AsJson(); err != nil {
 			return err
 		}
 	} else {
-		if specData, err = def.AsYaml(); err != nil {
+		if data, err = def.AsYaml(); err != nil {
 			return err
 		}
 	}
 	docsRoute.Get(root+specName, func(writer http.ResponseWriter, request *http.Request) {
 		writer.Header().Set(hdrContentType, contentType)
-		_, _ = writer.Write(specData)
+		_, _ = writer.Write(data)
 	})
 	return nil
 }
 
-func (d *DocOptions) setupNoCachedRoutes(def *Definition, docsRoute *chi.Mux, tmp *template.Template, inData map[string]any, indexPage, specName string) {
+func setupNoCachedRoutes(def *Definition, asJson bool, docsRoute *chi.Mux, tmp *template.Template, inData map[string]any, indexPage, specName string) {
 	docsRoute.Get(root+indexPage, func(writer http.ResponseWriter, request *http.Request) {
 		writer.Header().Set(hdrContentType, contentTypeHtml)
 		_ = tmp.Execute(writer, inData)
 	})
-	if d.AsJson {
+	if asJson {
 		docsRoute.Get(root+specName, func(writer http.ResponseWriter, request *http.Request) {
 			writer.Header().Set(hdrContentType, contentTypeJson)
 			_ = def.WriteJson(writer)
@@ -243,12 +259,12 @@ func (d *DocOptions) setupNoCachedRoutes(def *Definition, docsRoute *chi.Mux, tm
 	}
 }
 
-func (d *DocOptions) setupSupportFiles(docsRoute *chi.Mux) {
-	sf := d.getSupportFiles()
-	switch d.UIStyle {
+func setupSupportFiles(path string, uiStyle UIStyle, supportFiles http.Handler, stripPrefix bool, docsRoute *chi.Mux) {
+	sf := getSupportFiles(supportFiles, stripPrefix, path)
+	switch uiStyle {
 	case Swagger:
 		docsRoute.Get("/*", func(writer http.ResponseWriter, request *http.Request) {
-			name := strings.TrimPrefix(request.URL.Path, defValue(d.Path, defaultDocsPath)+"/")
+			name := strings.TrimPrefix(request.URL.Path, path+"/")
 			if data, err := swagger_ui.SwaggerUIStaticFiles.ReadFile(name); err == nil {
 				if ctype := mime.TypeByExtension(filepath.Ext(name)); ctype != "" {
 					writer.Header().Set(hdrContentType, ctype)
@@ -263,7 +279,7 @@ func (d *DocOptions) setupSupportFiles(docsRoute *chi.Mux) {
 		})
 	case Rapidoc:
 		docsRoute.Get("/*", func(writer http.ResponseWriter, request *http.Request) {
-			name := strings.TrimPrefix(request.URL.Path, defValue(d.Path, defaultDocsPath)+"/")
+			name := strings.TrimPrefix(request.URL.Path, path+"/")
 			if data, err := rapidoc_ui.RapidocUIStaticFiles.ReadFile(name); err == nil {
 				if ctype := mime.TypeByExtension(filepath.Ext(name)); ctype != "" {
 					writer.Header().Set(hdrContentType, ctype)
@@ -285,36 +301,28 @@ func (d *DocOptions) setupSupportFiles(docsRoute *chi.Mux) {
 	}
 }
 
-func (d *DocOptions) getSupportFiles() http.Handler {
-	if d.SupportFiles != nil && d.SupportFilesStripPrefix {
-		return http.StripPrefix(defValue(d.Path, defaultDocsPath)+"/", d.SupportFiles)
+func getSupportFiles(supportFiles http.Handler, stripPrefix bool, path string) http.Handler {
+	if supportFiles != nil && stripPrefix {
+		return http.StripPrefix(path+"/", supportFiles)
 	}
-	return d.SupportFiles
+	return supportFiles
 }
 
-func (d *DocOptions) getRedocOptions() map[string]any {
-	return optionsToMap(d.RedocOptions)
-}
-
-func (d *DocOptions) getSwaggerOptions(specName string) (map[string]any, template.JS, template.JS) {
-	m := optionsToMap(d.SwaggerOptions)
+func getSwaggerOptions(swaggerOptions any, specName string) (map[string]any, template.JS, template.JS) {
+	m := optionsToMap(swaggerOptions)
 	if _, ok := m["dom_id"]; !ok {
 		m["dom_id"] = "#swagger-ui"
 	}
 	m["url"] = specName
 	presets := template.JS("")
 	plugins := template.JS("")
-	switch so := d.SwaggerOptions.(type) {
+	switch so := swaggerOptions.(type) {
 	case *SwaggerOptions:
 		presets, plugins = so.jsPresets(), so.jsPlugins()
 	default:
 		presets = "cfg.presets = [SwaggerUIBundle.presets.apis,SwaggerUIStandalonePreset]"
 	}
 	return m, presets, plugins
-}
-
-func (d *DocOptions) getRapidocOptions() map[string]any {
-	return optionsToMap(d.RapidocOptions)
 }
 
 func optionsToMap(opts any) map[string]any {
@@ -339,7 +347,7 @@ func optionsToMap(opts any) map[string]any {
 	return m
 }
 
-func (d *DocOptions) buildIndexData(tmp *template.Template, inData map[string]any) (data []byte, err error) {
+func buildIndexData(tmp *template.Template, inData map[string]any) (data []byte, err error) {
 	var buffer bytes.Buffer
 	w := bufio.NewWriter(&buffer)
 	if err = tmp.Execute(w, inData); err == nil {
