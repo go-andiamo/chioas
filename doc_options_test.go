@@ -111,12 +111,12 @@ func TestDocOptions(t *testing.T) {
 	req, _ := http.NewRequest(http.MethodGet, "/apidocs", nil)
 	res := httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusMovedPermanently, res.Code)
+	assert.Equal(t, http.StatusMovedPermanently, res.Result().StatusCode)
 
 	req, _ = http.NewRequest(http.MethodGet, "/apidocs/index.html", nil)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 	assert.Equal(t, contentTypeHtml, res.Result().Header.Get(hdrContentType))
 	body, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
@@ -131,7 +131,7 @@ func TestDocOptions(t *testing.T) {
 	req, _ = http.NewRequest(http.MethodGet, "/apidocs/myspec.yaml", nil)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 	body, err = io.ReadAll(res.Body)
 	require.NoError(t, err)
 	const expectYaml = `openapi: "3.0.3"
@@ -159,12 +159,12 @@ func TestDocOptions_Json(t *testing.T) {
 	req, _ := http.NewRequest(http.MethodGet, "/apidocs", nil)
 	res := httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusMovedPermanently, res.Code)
+	assert.Equal(t, http.StatusMovedPermanently, res.Result().StatusCode)
 
 	req, _ = http.NewRequest(http.MethodGet, "/apidocs/index.html", nil)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 	assert.Equal(t, contentTypeHtml, res.Result().Header.Get(hdrContentType))
 	body, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
@@ -179,7 +179,7 @@ func TestDocOptions_Json(t *testing.T) {
 	req, _ = http.NewRequest(http.MethodGet, "/apidocs/myspec.json", nil)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 	body, err = io.ReadAll(res.Body)
 	require.NoError(t, err)
 	assert.Contains(t, string(body), `"paths":{"/foo":{"get":{`)
@@ -198,12 +198,12 @@ func TestDocOptions_NoCache(t *testing.T) {
 	req, _ := http.NewRequest(http.MethodGet, defaultDocsPath, nil)
 	res := httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusMovedPermanently, res.Code)
+	assert.Equal(t, http.StatusMovedPermanently, res.Result().StatusCode)
 
 	req, _ = http.NewRequest(http.MethodGet, defaultDocsPath+"/docs.htm", nil)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 	assert.Equal(t, contentTypeHtml, res.Result().Header.Get(hdrContentType))
 	body, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
@@ -214,7 +214,7 @@ func TestDocOptions_NoCache(t *testing.T) {
 	req, _ = http.NewRequest(http.MethodGet, defaultDocsPath+"/"+defaultSpecName, nil)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 	body, err = io.ReadAll(res.Body)
 	require.NoError(t, err)
 	const expectYaml = `openapi: "3.0.3"
@@ -257,12 +257,12 @@ func TestDocOptions_SupportFiles(t *testing.T) {
 	req, _ := http.NewRequest(http.MethodGet, defaultDocsPath, nil)
 	res := httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusMovedPermanently, res.Code)
+	assert.Equal(t, http.StatusMovedPermanently, res.Result().StatusCode)
 
 	req, _ = http.NewRequest(http.MethodGet, defaultDocsPath+"/"+defaultIndexName, nil)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 	assert.Equal(t, contentTypeHtml, res.Result().Header.Get(hdrContentType))
 	body, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
@@ -273,13 +273,13 @@ func TestDocOptions_SupportFiles(t *testing.T) {
 	req, _ = http.NewRequest(http.MethodGet, defaultDocsPath+"/"+defaultSpecName, nil)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 
 	assert.Equal(t, 0, len(sf.requests))
 	req, _ = http.NewRequest(http.MethodGet, defaultDocsPath+"/some_styling.css", nil)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusPaymentRequired, res.Code)
+	assert.Equal(t, http.StatusPaymentRequired, res.Result().StatusCode)
 	assert.Equal(t, 1, len(sf.requests))
 	assert.Equal(t, defaultDocsPath+"/some_styling.css", sf.requests[0])
 }
@@ -299,7 +299,7 @@ func TestDocOptions_SupportFilesStripPrefix(t *testing.T) {
 	req, _ := http.NewRequest(http.MethodGet, defaultDocsPath+"/some_styling.css", nil)
 	res := httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusPaymentRequired, res.Code)
+	assert.Equal(t, http.StatusPaymentRequired, res.Result().StatusCode)
 	assert.Equal(t, 1, len(sf.requests))
 	assert.Equal(t, "some_styling.css", sf.requests[0])
 }
@@ -318,12 +318,12 @@ func TestDocOptions_NoCache_Json(t *testing.T) {
 	req, _ := http.NewRequest(http.MethodGet, defaultDocsPath, nil)
 	res := httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusMovedPermanently, res.Code)
+	assert.Equal(t, http.StatusMovedPermanently, res.Result().StatusCode)
 
 	req, _ = http.NewRequest(http.MethodGet, defaultDocsPath+"/docs.htm", nil)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 	assert.Equal(t, contentTypeHtml, res.Result().Header.Get(hdrContentType))
 	body, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
@@ -334,7 +334,7 @@ func TestDocOptions_NoCache_Json(t *testing.T) {
 	req, _ = http.NewRequest(http.MethodGet, defaultDocsPath+"/"+defaultSpecNameJson, nil)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 	body, err = io.ReadAll(res.Body)
 	require.NoError(t, err)
 	assert.Contains(t, string(body), `"paths":{"/foo":{"get":{`)
@@ -425,7 +425,7 @@ func TestDocOptions_RedocOptions(t *testing.T) {
 	assert.NoError(t, err)
 	res := httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 	assert.Equal(t, contentTypeHtml, res.Result().Header.Get(hdrContentType))
 	data := res.Body.Bytes()
 	const expect = `<html>
@@ -472,7 +472,7 @@ func TestDocOptions_RedocOptions_Custom(t *testing.T) {
 	assert.NoError(t, err)
 	res := httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 	assert.Equal(t, contentTypeHtml, res.Result().Header.Get(hdrContentType))
 	data := res.Body.Bytes()
 	const expect = `<html>
@@ -508,7 +508,7 @@ func TestDocOptions_SwaggerOptions(t *testing.T) {
 	assert.NoError(t, err)
 	res := httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 	assert.Equal(t, contentTypeHtml, res.Result().Header.Get(hdrContentType))
 	data := string(res.Body.Bytes())
 	assert.Contains(t, data, `"deepLinking":true`)
@@ -536,7 +536,7 @@ func TestDocOptions_SwaggerOptions(t *testing.T) {
 			assert.NoError(t, err)
 			res := httptest.NewRecorder()
 			router.ServeHTTP(res, req)
-			assert.Equal(t, http.StatusOK, res.Code)
+			assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 			assert.Equal(t, contentType, res.Result().Header.Get(hdrContentType))
 		})
 	}
@@ -545,7 +545,7 @@ func TestDocOptions_SwaggerOptions(t *testing.T) {
 	assert.NoError(t, err)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusNotFound, res.Code)
+	assert.Equal(t, http.StatusNotFound, res.Result().StatusCode)
 }
 
 func TestDocOptions_SwaggerOptions_DefaultPresets(t *testing.T) {
@@ -566,7 +566,7 @@ func TestDocOptions_SwaggerOptions_DefaultPresets(t *testing.T) {
 	assert.NoError(t, err)
 	res := httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 	assert.Equal(t, contentTypeHtml, res.Result().Header.Get(hdrContentType))
 	data := string(res.Body.Bytes())
 	assert.Contains(t, data, `"deepLinking":true`)
@@ -591,16 +591,11 @@ func TestDocOptions_Swagger_WithSupportFiles(t *testing.T) {
 	assert.NoError(t, err)
 	res := httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusPaymentRequired, res.Code)
+	assert.Equal(t, http.StatusPaymentRequired, res.Result().StatusCode)
 }
 
 func TestDocOptions_GetSwaggerOptions_Custom(t *testing.T) {
-	o := DocOptions{
-		SwaggerOptions: map[string]any{
-			"foo": "bar",
-		},
-	}
-	m, presets, plugins := o.getSwaggerOptions("test.yaml")
+	m, presets, plugins := getSwaggerOptions(map[string]any{"foo": "bar"}, "test.yaml")
 	assert.Equal(t, 3, len(m))
 	assert.Equal(t, "bar", m["foo"])
 	assert.Equal(t, "test.yaml", m["url"])
@@ -613,14 +608,12 @@ func TestDocOptions_GetSwaggerOptions_Custom(t *testing.T) {
 		DomId string `json:"dom_id"`
 		Foo   string `json:"foo"`
 	}
-	o = DocOptions{
-		SwaggerOptions: &CustomSwaggerOptions{
-			Url:   "gets overridden",
-			DomId: "#my-id",
-			Foo:   "bar",
-		},
+	o := &CustomSwaggerOptions{
+		Url:   "gets overridden",
+		DomId: "#my-id",
+		Foo:   "bar",
 	}
-	m, presets, plugins = o.getSwaggerOptions("test.yaml")
+	m, presets, plugins = getSwaggerOptions(o, "test.yaml")
 	assert.Equal(t, 3, len(m))
 	assert.Equal(t, "bar", m["foo"])
 	assert.Equal(t, "test.yaml", m["url"])
@@ -648,7 +641,7 @@ func TestDocOptions_RapidocOptions(t *testing.T) {
 	assert.NoError(t, err)
 	res := httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 	assert.Equal(t, contentTypeHtml, res.Result().Header.Get(hdrContentType))
 	data := string(res.Body.Bytes())
 	assert.Contains(t, data, `heading-text="this-test"`)
@@ -665,7 +658,7 @@ func TestDocOptions_RapidocOptions(t *testing.T) {
 			assert.NoError(t, err)
 			res := httptest.NewRecorder()
 			router.ServeHTTP(res, req)
-			assert.Equal(t, http.StatusOK, res.Code)
+			assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 			assert.Equal(t, contentType, res.Result().Header.Get(hdrContentType))
 		})
 	}
@@ -674,5 +667,24 @@ func TestDocOptions_RapidocOptions(t *testing.T) {
 	assert.NoError(t, err)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusNotFound, res.Code)
+	assert.Equal(t, http.StatusNotFound, res.Result().StatusCode)
+}
+
+func TestDocOptions_Rapidoc_WithSupportFiles(t *testing.T) {
+	def := Definition{
+		DocOptions: DocOptions{
+			ServeDocs:    true,
+			UIStyle:      Rapidoc,
+			SupportFiles: &testSupportFiles{},
+		},
+	}
+	router := chi.NewRouter()
+	err := def.SetupRoutes(router, nil)
+	assert.NoError(t, err)
+
+	req, err := http.NewRequest(http.MethodGet, "/docs/foo.txt", nil)
+	assert.NoError(t, err)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusPaymentRequired, res.Result().StatusCode)
 }
