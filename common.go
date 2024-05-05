@@ -14,6 +14,9 @@ var OasVersion = "3.0.3"
 // can be used on Path.ApplyMiddlewares and Definition.ApplyMiddlewares (for api root)
 type ApplyMiddlewares func(thisApi any) chi.Middlewares
 
+// DisablerFunc is a function that can be used by Path.Disabled
+type DisablerFunc func() bool
+
 const (
 	root = "/"
 

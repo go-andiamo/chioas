@@ -1,5 +1,59 @@
 package chioas
 
+const defaultRedocTemplate = `<html>
+    <head>
+        <title>{{.title}}</title>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link href="https://fonts.googleapis.com/css?family=Montserrat:300,400,700|Roboto:300,400,700" rel="stylesheet">
+        {{.favIcons}}
+        <style>{{.stylesOverride}}</style>
+    </head>
+    <body>
+        <div id="redoc-container"></div>
+        <script src="{{.redocurl}}" crossorigin="anonymous"></script>
+        <script src="{{.tryurl}}" crossorigin="anonymous"></script>
+        <script>
+            initTry({
+                openApi: {{.specName}},
+                redocOptions: {{.redocopts}}
+            })
+        </script>
+    </body>
+</html>`
+
+const defaultRedocStylesOverride = `body {
+	margin: 0;
+	padding: 0;
+}
+/* restyle Try button */
+button.tryBtn {
+	margin-right: 0.5em;
+	padding: 4px 8px 4px 8px;
+	border-radius: 4px;
+	text-transform: capitalize;
+}
+/* restyle Try copy to clipboard button */
+div.copy-to-clipboard {
+	text-align: right;
+	margin-top: -1em;
+}
+div.copy-to-clipboard button {
+	min-height: 1em;
+}
+/* try responses area - make scrollable */
+div.responses-inner > div > div > table.live-responses-table {
+	table-layout: fixed;
+}
+div.responses-inner > div > div > table.live-responses-table td.response-col_description {
+	width: 80%;
+}
+body #redoc-container {
+	float: left;
+	width: 100%;
+}
+`
+
 // RedocOptions for use in DocOptions.RedocOptions (from https://github.com/Redocly/redoc#redoc-options-object)
 type RedocOptions struct {
 	DisableSearch                   bool        `json:"disableSearch,omitempty"`                   // disable search indexing and search box.
@@ -39,9 +93,14 @@ type RedocOptions struct {
 	Nonce                           any         `json:"nonce,omitempty"`                           // if set, the provided value is injected in every injected HTML element in the nonce attribute. Useful when using CSP, see https://webpack.js.org/guides/csp/.
 	SideNavStyle                    string      `json:"sideNavStyle,omitempty"`                    // can be specified in various ways: "summary-only" (default), "path-only" or id-only"
 	ShowWebhookVerb                 bool        `json:"showWebhookVerb,omitempty"`                 // when set to true, shows the HTTP request method for webhooks in operations and in the sidebar.
+	FavIcons                        FavIcons
 }
 
-func (o *RedocOptions) ToMap() map[string]any {
+func (o RedocOptions) GetFavIcons() FavIcons {
+	return o.FavIcons
+}
+
+func (o RedocOptions) ToMap() map[string]any {
 	m := map[string]any{}
 	addMap(m, o.DisableSearch, "disableSearch")
 	addMap(m, o.MinCharacterLengthToInitSearch, "minCharacterLengthToInitSearch")
@@ -160,7 +219,7 @@ type RedocTypography struct {
 	Links             *RedocLinks    `json:"links,omitempty"`
 }
 
-func (o *RedocTypography) ToMap() map[string]any {
+func (o RedocTypography) ToMap() map[string]any {
 	m := map[string]any{}
 	addMap(m, o.FontSize, "fontSize")
 	addMap(m, o.LineHeight, "lineHeight")

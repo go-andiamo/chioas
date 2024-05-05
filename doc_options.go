@@ -192,12 +192,14 @@ func (d *DocOptions) getTemplateData() (specName string, data map[string]any) {
 			htmlTagSwaggerOpts:    swaggerOpts,
 			htmlTagSwaggerPresets: presets,
 			htmlTagSwaggerPlugins: plugins,
+			htmlTagFavIcons:       optionsFavIcons(d.SwaggerOptions),
 		}
 	case Rapidoc:
 		data = optionsToMap(d.RapidocOptions)
 		data[htmlTagTitle] = defValue(d.Title, defaultTitle)
 		data[htmlTagStylesOverride] = template.CSS(d.StylesOverride)
 		data[htmlTagSpecName] = specName
+		data[htmlTagFavIcons] = optionsFavIcons(d.RapidocOptions)
 	default:
 		data = map[string]any{
 			htmlTagTitle:          defValue(d.Title, defaultTitle),
@@ -206,6 +208,7 @@ func (d *DocOptions) getTemplateData() (specName string, data map[string]any) {
 			htmlTagRedocOpts:      optionsToMap(d.RedocOptions),
 			htmlTagRedocUrl:       defValue(d.RedocJsUrl, defaultRedocJsUrl),
 			htmlTagTryUrl:         defValue(d.TryJsUrl, defaultTryJsUrl),
+			htmlTagFavIcons:       optionsFavIcons(d.RedocOptions),
 		}
 	}
 	return
@@ -347,6 +350,15 @@ func optionsToMap(opts any) map[string]any {
 	return m
 }
 
+func optionsFavIcons(opts any) template.HTML {
+	if o, ok := opts.(OptionsWithFavIcons); ok {
+		if icons := o.GetFavIcons(); icons != nil {
+			return icons.toHtml()
+		}
+	}
+	return ``
+}
+
 func buildIndexData(tmp *template.Template, inData map[string]any) (data []byte, err error) {
 	var buffer bytes.Buffer
 	w := bufio.NewWriter(&buffer)
@@ -372,103 +384,8 @@ const (
 	htmlTagSwaggerOpts    = "swaggeropts"
 	htmlTagSwaggerPresets = "swaggerpresets"
 	htmlTagSwaggerPlugins = "swaggerplugins"
+	htmlTagFavIcons       = "favIcons"
 )
-
-const defaultRedocTemplate = `<html>
-    <head>
-        <title>{{.title}}</title>
-        <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <link href="https://fonts.googleapis.com/css?family=Montserrat:300,400,700|Roboto:300,400,700" rel="stylesheet">
-        <style>{{.stylesOverride}}</style>
-    </head>
-    <body>
-        <div id="redoc-container"></div>
-        <script src="{{.redocurl}}" crossorigin="anonymous"></script>
-        <script src="{{.tryurl}}" crossorigin="anonymous"></script>
-        <script>
-            initTry({
-                openApi: {{.specName}},
-                redocOptions: {{.redocopts}}
-            })
-        </script>
-    </body>
-</html>`
-
-const defaultSwaggerTemplate = `<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <title>{{.title}}</title>
-    <meta charset="utf-8" />
-    <link rel="stylesheet" type="text/css" href="./swagger-ui.css" />
-    <link rel="stylesheet" type="text/css" href="./index.css" />
-    <link rel="icon" type="image/png" href="./favicon-32x32.png" sizes="32x32" />
-    <link rel="icon" type="image/png" href="./favicon-16x16.png" sizes="16x16" />
-    <style>{{.stylesOverride}}</style>
-  </head>
-  <body>
-    <div id="swagger-ui"></div>
-    <script src="./swagger-ui-bundle.js" charset="UTF-8"> </script>
-    <script src="./swagger-ui-standalone-preset.js" charset="UTF-8"> </script>
-    <script>
-      window.onload = function() {
-		let cfg = {{.swaggeropts}}
-		{{.swaggerpresets}}
-		{{.swaggerplugins}}
-        const ui = SwaggerUIBundle(cfg)
-        window.ui = ui
-      }
-    </script>
-  </body>
-</html>`
-
-const defaultRapidocTemplate = `<!doctype html>
-<html lang="en">
-    <head>
-        <title>{{.title}}</title>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width,minimum-scale=1,initial-scale=1,user-scalable=yes">
-        <link rel="stylesheet" href="default.min.css">
-        <script src="highlight.min.js"></script>
-        <script defer="defer" src="rapidoc-min.js"></script>
-        <style>{{.stylesOverride}}</style>
-    </head>
-    <body>
-        <rapi-doc id="thedoc" heading-text="{{.heading_text}}" spec-url="{{.specName}}" theme="{{.theme}}" render-style="{{.render_style}}" schema-style="{{.schema_style}}" show-method-in-nav-bar="{{.show_method_in_nav_bar}}" use-path-in-nav-bar="{{.use_path_in_nav_bar}}" show-components="{{.show_components}}" show-info="{{.show_info}}" show-header="{{.show_header}}" allow-search="{{.allow_search}}" allow-advanced-search="{{.allow_advanced_search}}" allow-spec-url-load="{{.allow_spec_url_load}}" allow-spec-file-load="{{.allow_spec_file_load}}" allow-try="{{.allow_try}}" allow-spec-file-download="{{.allow_spec_file_download}}" allow-server-selection="{{.allow_server_selection}}" allow-authentication="{{.allow_authentication}}" update-route="{{.update_route}}" match-type="{{.match_type}}" persist_auth="{{.persist_auth}}"></rapi-doc>
-    </body>
-</html>`
-
-const defaultRedocStylesOverride = `body {
-	margin: 0;
-	padding: 0;
-}
-/* restyle Try button */
-button.tryBtn {
-	margin-right: 0.5em;
-	padding: 4px 8px 4px 8px;
-	border-radius: 4px;
-	text-transform: capitalize;
-}
-/* restyle Try copy to clipboard button */
-div.copy-to-clipboard {
-	text-align: right;
-	margin-top: -1em;
-}
-div.copy-to-clipboard button {
-	min-height: 1em;
-}
-/* try responses area - make scrollable */
-div.responses-inner > div > div > table.live-responses-table {
-	table-layout: fixed;
-}
-div.responses-inner > div > div > table.live-responses-table td.response-col_description {
-	width: 80%;
-}
-body #redoc-container {
-	float: left;
-	width: 100%;
-}
-`
 
 func defValue(v, def string) string {
 	if v != "" {

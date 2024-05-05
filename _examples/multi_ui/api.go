@@ -16,30 +16,20 @@ var apiDef = chioas.Definition{
 		AlternateUIDocs: chioas.AlternateUIDocs{
 			"/swagger": {
 				UIStyle: chioas.Swagger,
-				SwaggerOptions: &chioas.SwaggerOptions{
+				SwaggerOptions: chioas.SwaggerOptions{
 					DeepLinking: true,
 				},
 			},
 			"/rapidoc": {
 				UIStyle: chioas.Rapidoc,
 				RapidocOptions: &chioas.RapidocOptions{
-					ShowHeader:       true,
-					HeadingText:      "Petstore",
-					AllowSpecUrlLoad: true,
-					Theme:            "dark",
+					ShowHeader:         true,
+					HeadingText:        "Petstore",
+					Theme:              "dark",
+					ShowMethodInNavBar: "false",
 				},
 			},
 		},
-		/*
-			UIStyle:   chioas.Rapidoc,
-			RapidocOptions: &chioas.RapidocOptions{
-				ShowHeader:       true,
-				HeadingText:      "Petstore",
-				AllowSpecUrlLoad: true,
-				Theme:            "dark",
-			},
-
-		*/
 	},
 	Info: chioas.Info{
 		Title: "Swagger Petstore - OpenAPI 3.0",

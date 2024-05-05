@@ -429,6 +429,116 @@ func TestDefinition_SetupRoutes_ErrorsWithBadDocTemplate(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestDefinition_SetupRoutes_WithDisabledPath(t *testing.T) {
+	api := &dummyApi{
+		calls: map[string]int{},
+	}
+	isDisabled := false
+	disabler := func() bool {
+		return isDisabled
+	}
+	d := Definition{
+		DocOptions: DocOptions{
+			ServeDocs: true,
+		},
+		Methods: Methods{
+			http.MethodGet: {
+				Handler: "GetRoot",
+			},
+		},
+		Paths: Paths{
+			"/subs": {
+				Disabled: disabler,
+				Methods: Methods{
+					http.MethodGet: {
+						Handler: "GetSubs",
+					},
+				},
+			},
+		},
+	}
+	router := chi.NewRouter()
+	err := d.SetupRoutes(router, api)
+	assert.NoError(t, err)
+
+	req, err := http.NewRequest(http.MethodGet, "/", nil)
+	require.NoError(t, err)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusOK, res.Code)
+	req, err = http.NewRequest(http.MethodGet, "/subs", nil)
+	require.NoError(t, err)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusOK, res.Code)
+	req, err = http.NewRequest(http.MethodGet, "/docs/spec.yaml", nil)
+	require.NoError(t, err)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusOK, res.Code)
+	const expectYaml = `openapi: "3.0.3"
+info:
+  title: "API Documentation"
+  version: "1.0.0"
+paths:
+  "/":
+    get:
+      responses:
+        200:
+          description: OK
+          content:
+            "application/json":
+              schema:
+                type: object
+  "/subs":
+    get:
+      responses:
+        200:
+          description: OK
+          content:
+            "application/json":
+              schema:
+                type: object
+`
+	assert.Equal(t, expectYaml, res.Body.String())
+
+	isDisabled = true
+	router = chi.NewRouter()
+	err = d.SetupRoutes(router, api)
+	assert.NoError(t, err)
+	req, err = http.NewRequest(http.MethodGet, "/", nil)
+	require.NoError(t, err)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusOK, res.Code)
+	req, err = http.NewRequest(http.MethodGet, "/subs", nil)
+	require.NoError(t, err)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusNotFound, res.Code)
+	req, err = http.NewRequest(http.MethodGet, "/docs/spec.yaml", nil)
+	require.NoError(t, err)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	assert.Equal(t, http.StatusOK, res.Code)
+	const expectDisabledYaml = `openapi: "3.0.3"
+info:
+  title: "API Documentation"
+  version: "1.0.0"
+paths:
+  "/":
+    get:
+      responses:
+        200:
+          description: OK
+          content:
+            "application/json":
+              schema:
+                type: object
+`
+	assert.Equal(t, expectDisabledYaml, res.Body.String())
+}
+
 type dummyApi struct {
 	calls map[string]int
 }

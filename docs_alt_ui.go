@@ -106,12 +106,14 @@ func (d *AlternateUIDoc) getTemplateData() (specName string, data map[string]any
 			htmlTagSwaggerOpts:    swaggerOpts,
 			htmlTagSwaggerPresets: presets,
 			htmlTagSwaggerPlugins: plugins,
+			htmlTagFavIcons:       optionsFavIcons(d.SwaggerOptions),
 		}
 	case Rapidoc:
 		data = optionsToMap(d.RapidocOptions)
 		data[htmlTagTitle] = defValue(d.Title, defaultTitle)
 		data[htmlTagStylesOverride] = template.CSS(d.StylesOverride)
 		data[htmlTagSpecName] = specName
+		data[htmlTagFavIcons] = optionsFavIcons(d.RapidocOptions)
 	default:
 		data = map[string]any{
 			htmlTagTitle:          defValue(d.Title, defaultTitle),
@@ -120,6 +122,7 @@ func (d *AlternateUIDoc) getTemplateData() (specName string, data map[string]any
 			htmlTagRedocOpts:      optionsToMap(d.RedocOptions),
 			htmlTagRedocUrl:       defValue(d.RedocJsUrl, defaultRedocJsUrl),
 			htmlTagTryUrl:         defValue(d.TryJsUrl, defaultTryJsUrl),
+			htmlTagFavIcons:       optionsFavIcons(d.RedocOptions),
 		}
 	}
 	return

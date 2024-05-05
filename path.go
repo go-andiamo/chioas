@@ -39,6 +39,10 @@ type Path struct {
 	PathParams PathParams
 	// HideDocs if set to true, hides this path (and descendants) from docs
 	HideDocs bool
+	// Disabled is an optional DisablerFunc that, when called, returns whether this path is to be disabled
+	//
+	// When a path is disabled it does not appear in docs and is not registered on the router
+	Disabled DisablerFunc
 	// Extensions is extension OAS yaml properties
 	Extensions Extensions
 	// Additional is any additional OAS spec yaml to be written
@@ -104,7 +108,11 @@ func (ps Paths) flattenAndSort() []flatPath {
 func pathsTraverse(collected []flatPath, parentPaths []string, ancestry []Path, tag string, paths Paths) []flatPath {
 	if paths != nil {
 		for path, def := range paths {
-			if !def.HideDocs {
+			hidden := def.HideDocs
+			if !hidden && def.Disabled != nil {
+				hidden = def.Disabled()
+			}
+			if !hidden {
 				pps := append(parentPaths, path)
 				useTag := defaultTag(tag, def.Tag)
 				fp := flatPath{
