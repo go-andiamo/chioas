@@ -1,23 +1,43 @@
 package main
 
 import (
+	"embed"
 	"github.com/go-andiamo/chioas"
 	"github.com/go-chi/chi/v5"
+	"net/http"
 )
 
 func (a *api) SetupRoutes(r chi.Router) error {
 	return a.Definition.SetupRoutes(r, a)
 }
 
+//go:embed *.png
+var supportFilesFS embed.FS
+
 var apiDef = chioas.Definition{
 	DocOptions: chioas.DocOptions{
-		ServeDocs: true, // makes docs served as interactive UI on /docs/index.htm
-		UIStyle:   chioas.Rapidoc,
+		ServeDocs:               true, // makes docs served as interactive UI on /docs/index.htm
+		UIStyle:                 chioas.Rapidoc,
+		SupportFiles:            http.FileServer(http.FS(supportFilesFS)),
+		SupportFilesStripPrefix: true,
 		RapidocOptions: &chioas.RapidocOptions{
-			ShowHeader:       true,
-			HeadingText:      "Petstore",
-			AllowSpecUrlLoad: true,
-			Theme:            "dark",
+			ShowHeader:  true,
+			HeadingText: "Petstore",
+			//AllowSpecUrlLoad:   true,
+			Theme:              "dark",
+			ShowMethodInNavBar: "as-colored-block",
+			UsePathInNavBar:    true,
+			UpdateRoute:        true,
+			//LogoSrc:            "dog.png",
+			InnerHtml: `<img id="logo" slot="logo" src="dog.png" width="30" height="30">
+<div slot="nav-logo" style="display: flex; align-items: center; justify-content: center;"> 
+    <img src="dog.png" style="width:40px; margin-right: 20px"> <span><b>PetStore API</b></span>
+</div>`,
+			AdditionalAttributes: map[string]string{
+				"nav-active-item-marker": "left-bar",
+				"text-color":             "#133863",
+				"bg-color":               "#ffffff",
+			},
 		},
 	},
 	Info: chioas.Info{

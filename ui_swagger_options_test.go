@@ -2,6 +2,7 @@ package chioas
 
 import (
 	"github.com/stretchr/testify/assert"
+	"html/template"
 	"testing"
 )
 
@@ -56,4 +57,16 @@ func TestSwaggerOptions_ToMap_NonEmpty(t *testing.T) {
 	assert.Contains(t, m, "validatorUrl")
 	assert.Contains(t, m, "withCredentials")
 	assert.Contains(t, m, "persistAuthorization")
+}
+
+func TestSwaggerOptions_OverrideFavIcons(t *testing.T) {
+	o := SwaggerOptions{
+		FavIcons: FavIcons{
+			64: "test.png",
+		},
+	}
+	icons := o.GetFavIcons()
+	assert.NotNil(t, icons)
+	html := icons.toHtml()
+	assert.Equal(t, template.HTML(`<link rel="icon" type="image/png" href="./test.png" sizes="64x64" />`), html)
 }

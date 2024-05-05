@@ -89,23 +89,29 @@ func (d *Definition) SetupRoutes(router chi.Router, thisApi any) error {
 func (d *Definition) setupPaths(ancestry []string, paths Paths, route chi.Router, thisApi any) error {
 	if paths != nil {
 		for p, pDef := range paths {
-			newAncestry := append(ancestry, p)
-			subRoute := chi.NewRouter()
-			middlewares := pDef.Middlewares
-			if pDef.ApplyMiddlewares != nil {
-				middlewares = append(middlewares, pDef.ApplyMiddlewares(thisApi)...)
+			disabled := false
+			if pDef.Disabled != nil {
+				disabled = pDef.Disabled()
 			}
-			if d.AutoMethodNotAllowed {
-				subRoute.MethodNotAllowed(d.methodNotAllowedHandler(pDef.Methods))
+			if !disabled {
+				newAncestry := append(ancestry, p)
+				subRoute := chi.NewRouter()
+				middlewares := pDef.Middlewares
+				if pDef.ApplyMiddlewares != nil {
+					middlewares = append(middlewares, pDef.ApplyMiddlewares(thisApi)...)
+				}
+				if d.AutoMethodNotAllowed {
+					subRoute.MethodNotAllowed(d.methodNotAllowedHandler(pDef.Methods))
+				}
+				subRoute.Use(middlewares...)
+				if err := d.setupMethods(strings.Join(newAncestry, ""), &pDef, pDef.Methods, d.AutoOptionsMethods || pDef.AutoOptionsMethod, subRoute, thisApi); err != nil {
+					return err
+				}
+				if err := d.setupPaths(newAncestry, pDef.Paths, subRoute, thisApi); err != nil {
+					return err
+				}
+				route.Mount(p, subRoute)
 			}
-			subRoute.Use(middlewares...)
-			if err := d.setupMethods(strings.Join(newAncestry, ""), &pDef, pDef.Methods, d.AutoOptionsMethods || pDef.AutoOptionsMethod, subRoute, thisApi); err != nil {
-				return err
-			}
-			if err := d.setupPaths(newAncestry, pDef.Paths, subRoute, thisApi); err != nil {
-				return err
-			}
-			route.Mount(p, subRoute)
 		}
 	}
 	return nil

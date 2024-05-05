@@ -2,15 +2,34 @@ package chioas
 
 import (
 	"html/template"
-	"reflect"
 	"strings"
 )
 
-// MappableOptions is an interface that can be used by either DocOptions.RedocOptions or DocOptions.SwaggerOptions
-// and converts the options to a map (as used by the HTML template)
-type MappableOptions interface {
-	ToMap() map[string]any
-}
+const defaultSwaggerTemplate = `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>{{.title}}</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" type="text/css" href="./swagger-ui.css" />
+    <link rel="stylesheet" type="text/css" href="./index.css" />
+    {{.favIcons}}
+    <style>{{.stylesOverride}}</style>
+  </head>
+  <body>
+    <div id="swagger-ui"></div>
+    <script src="./swagger-ui-bundle.js" charset="UTF-8"> </script>
+    <script src="./swagger-ui-standalone-preset.js" charset="UTF-8"> </script>
+    <script>
+      window.onload = function() {
+		let cfg = {{.swaggeropts}}
+		{{.swaggerpresets}}
+		{{.swaggerplugins}}
+        const ui = SwaggerUIBundle(cfg)
+        window.ui = ui
+      }
+    </script>
+  </body>
+</html>`
 
 // SwaggerOptions describes the swagger-ui options (as used by DocOptions.SwaggerOptions)
 //
@@ -38,9 +57,22 @@ type SwaggerOptions struct {
 	PersistAuthorization     bool            `json:"persistAuthorization"`
 	Plugins                  []SwaggerPlugin `json:"-"`
 	Presets                  []SwaggerPreset `json:"-"`
+	FavIcons                 FavIcons
 }
 
-func (o *SwaggerOptions) ToMap() map[string]any {
+var defaultSwaggerFavIcons = FavIcons{
+	16: "favicon-16x16.png",
+	32: "favicon-32x32.png",
+}
+
+func (o SwaggerOptions) GetFavIcons() FavIcons {
+	if o.FavIcons != nil {
+		return o.FavIcons
+	}
+	return defaultSwaggerFavIcons
+}
+
+func (o SwaggerOptions) ToMap() map[string]any {
 	m := map[string]any{}
 	addMap(m, o.DomId, "dom_id")
 	addMap(m, o.Layout, "layout")
@@ -99,57 +131,6 @@ func (o *SwaggerOptions) jsPresets() (result template.JS) {
 		result = "cfg.presets = [SwaggerUIBundle.presets.apis,SwaggerUIStandalonePreset]"
 	}
 	return
-}
-
-func addMap[T comparable](m map[string]any, pty T, name string) {
-	var empty T
-	if pty != empty {
-		m[name] = pty
-	}
-}
-
-func addMapDef[T comparable](m map[string]any, pty T, name string, def T) {
-	if pty != def {
-		m[name] = pty
-	}
-}
-
-func addMapAlways[T comparable](m map[string]any, pty T, name string) {
-	m[name] = pty
-}
-
-func addMapOrDef[T comparable](m map[string]any, pty T, name string, def T) {
-	var empty T
-	if pty != empty {
-		m[name] = pty
-	} else {
-		m[name] = def
-	}
-}
-
-func addMapNonNil(m map[string]any, pty any, name string) {
-	if !isNil(reflect.ValueOf(pty)) {
-		m[name] = pty
-	}
-}
-
-func isNil(v reflect.Value) bool {
-	if v.IsValid() {
-		switch v.Kind() {
-		case reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
-			return v.IsNil()
-		default:
-			return v.IsZero()
-		}
-	}
-	return true
-}
-
-func addMapMappable(m map[string]any, pty MappableOptions, name string) {
-	vo := reflect.ValueOf(pty)
-	if !vo.IsNil() {
-		m[name] = pty.ToMap()
-	}
 }
 
 // SwaggerPlugin is used by SwaggerOptions.Plugins
