@@ -17,12 +17,14 @@ const defaultRapidocTemplate = `<!doctype html>
         <script defer="defer" src="rapidoc-min.js"></script>
         {{.favIcons}}
         <style>{{.stylesOverride}}</style>
+        {{.headScript}}
     </head>
     <body>
         <rapi-doc id="thedoc" spec-url="{{.specName}}" {{.add_atts}}>
           {{.logo}}
           {{.innerHtml}}
         </rapi-doc>
+        {{.bodyScript}}
     </body>
 </html>`
 
@@ -58,8 +60,10 @@ type RapidocOptions struct {
 	// LogoSrc is the src for Rapidoc logo
 	LogoSrc string
 	// InnerHtml is any inner HTML for the <rapi-doc> element
-	InnerHtml template.HTML
-	FavIcons  FavIcons
+	InnerHtml  template.HTML
+	HeadScript template.JS
+	BodyScript template.JS
+	FavIcons   FavIcons
 	// AdditionalAttributes is used to add any rapidoc attributes
 	// not covered by other options
 	//
@@ -165,6 +169,12 @@ func (o RapidocOptions) ToMap() map[string]any {
 	}
 	if o.InnerHtml != "" {
 		result["innerHtml"] = o.InnerHtml
+	}
+	if o.HeadScript != "" {
+		result[htmlTagHeadScript] = template.HTML(`<script>` + o.HeadScript + `</script>`)
+	}
+	if o.BodyScript != "" {
+		result[htmlTagBodyScript] = template.HTML(`<script>` + o.BodyScript + `</script>`)
 	}
 	return result
 }

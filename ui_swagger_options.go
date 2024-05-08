@@ -14,8 +14,10 @@ const defaultSwaggerTemplate = `<!DOCTYPE html>
     <link rel="stylesheet" type="text/css" href="./index.css" />
     {{.favIcons}}
     <style>{{.stylesOverride}}</style>
+    {{.headScript}}
   </head>
   <body>
+    {{.headerHtml}}
     <div id="swagger-ui"></div>
     <script src="./swagger-ui-bundle.js" charset="UTF-8"> </script>
     <script src="./swagger-ui-standalone-preset.js" charset="UTF-8"> </script>
@@ -28,6 +30,7 @@ const defaultSwaggerTemplate = `<!DOCTYPE html>
         window.ui = ui
       }
     </script>
+    {{.bodyScript}}
   </body>
 </html>`
 
@@ -57,7 +60,10 @@ type SwaggerOptions struct {
 	PersistAuthorization     bool            `json:"persistAuthorization"`
 	Plugins                  []SwaggerPlugin `json:"-"`
 	Presets                  []SwaggerPreset `json:"-"`
-	FavIcons                 FavIcons
+	FavIcons                 FavIcons        `json:"-"`
+	HeaderHtml               template.HTML   `json:"-"`
+	HeadScript               template.JS     `json:"-"`
+	BodyScript               template.JS     `json:"-"`
 }
 
 var defaultSwaggerFavIcons = FavIcons{
@@ -94,6 +100,15 @@ func (o SwaggerOptions) ToMap() map[string]any {
 	addMap(m, o.ValidatorUrl, "validatorUrl")
 	addMap(m, o.WithCredentials, "withCredentials")
 	addMap(m, o.PersistAuthorization, "persistAuthorization")
+	if o.HeaderHtml != "" {
+		m[htmlTagHeaderHtml] = o.HeaderHtml
+	}
+	if o.HeadScript != "" {
+		m[htmlTagHeadScript] = template.HTML(`<script>` + o.HeadScript + `</script>`)
+	}
+	if o.BodyScript != "" {
+		m[htmlTagBodyScript] = template.HTML(`<script>` + o.BodyScript + `</script>`)
+	}
 	return m
 }
 

@@ -11,22 +11,60 @@ func (a *api) SetupRoutes(r chi.Router) error {
 
 var apiDef = chioas.Definition{
 	DocOptions: chioas.DocOptions{
-		ServeDocs: true, // makes docs served as interactive UI on /docs/index.htm
-		UIStyle:   chioas.Redoc,
+		ServeDocs:      true, // makes docs served as interactive UI on /docs/index.htm
+		UIStyle:        chioas.Redoc,
+		StylesOverride: styling,
+		RedocOptions: chioas.RedocOptions{
+			HeaderHtml: `<div style="display:flex; margin:10px; justify-content:center;flex-wrap: wrap;">
+    <a class="chioasbtn" href="../swagger/index.html">Swagger</a>
+    <a class="chioasbtn" href="../rapidoc/index.html">Rapidoc</a>
+</div>`,
+		},
 		AlternateUIDocs: chioas.AlternateUIDocs{
 			"/swagger": {
-				UIStyle: chioas.Swagger,
+				UIStyle:        chioas.Swagger,
+				StylesOverride: styling,
 				SwaggerOptions: chioas.SwaggerOptions{
 					DeepLinking: true,
+					HeaderHtml: `<div style="display:flex; margin:10px; justify-content:center;flex-wrap: wrap;">
+    <a class="chioasbtn" href="../docs/index.html">Redoc</a>
+    <a class="chioasbtn" href="../rapidoc/index.html">Rapidoc</a>
+</div>`,
 				},
 			},
 			"/rapidoc": {
-				UIStyle: chioas.Rapidoc,
+				UIStyle:        chioas.Rapidoc,
+				StylesOverride: styling,
 				RapidocOptions: &chioas.RapidocOptions{
 					ShowHeader:         true,
 					HeadingText:        "Petstore",
 					Theme:              "dark",
-					ShowMethodInNavBar: "false",
+					ShowMethodInNavBar: "as-colored-block",
+					UsePathInNavBar:    true,
+					SchemaStyle:        "table",
+					HeadScript: `
+function getRapiDoc(){
+    return document.getElementById("thedoc");
+}
+function toggleView() {
+	let currRender = getRapiDoc().getAttribute('render-style');
+	let newRender = currRender === "read" ? "view" : "read";
+	getRapiDoc().setAttribute('render-style', newRender );
+}
+function toggleTheme(){
+	if (getRapiDoc().getAttribute('theme') === 'dark'){
+	    getRapiDoc().setAttribute('theme',"light");
+	}
+	else{
+	    getRapiDoc().setAttribute('theme',"dark");
+	}
+}`,
+					InnerHtml: `<div style="display:flex; margin:10px; justify-content:center;flex-wrap: wrap;">
+    <button class="chioasbtn" onclick="toggleView()">Change View</button>
+    <button class="chioasbtn" onclick="toggleTheme()" style="margin-right:30px">Change Theme</button>
+    <a class="chioasbtn" href="../docs/index.html">Redoc</a>
+    <a class="chioasbtn" href="../swagger/index.html">Swagger</a>
+</div>`,
 				},
 			},
 		},
@@ -79,6 +117,26 @@ Store](https://github.com/swagger-api/swagger-petstore/blob/master/src/main/reso
 	},
 	Components: &components,
 }
+
+const styling = `.chioasbtn{
+	min-width: 100px;
+	background-color: #47AFE8;
+	color: #fff;
+	font-size: 12px;
+	display: block;
+	border: none;
+	margin: 2px;
+	border-radius: 2px;
+	cursor: pointer;
+	outline: none;
+    text-align: center;
+    padding: 4px;
+    text-decoration: none;
+    font-family: sans-serif;
+}
+.chioasbtn:visited{
+    color: #fff;
+}`
 
 var components = chioas.Components{
 	Schemas: chioas.Schemas{
