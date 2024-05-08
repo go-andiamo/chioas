@@ -34,9 +34,12 @@ func TestSwaggerOptions_ToMap_NonEmpty(t *testing.T) {
 		ValidatorUrl:             "foo",
 		WithCredentials:          true,
 		PersistAuthorization:     true,
+		HeaderHtml:               `<div>HEADER</div>`,
+		HeadScript:               `head();`,
+		BodyScript:               `body();`,
 	}
 	m := o.ToMap()
-	assert.Equal(t, 20, len(m))
+	assert.Equal(t, 23, len(m))
 	assert.Contains(t, m, "dom_id")
 	assert.Contains(t, m, "layout")
 	assert.Contains(t, m, "deepLinking")
@@ -57,6 +60,9 @@ func TestSwaggerOptions_ToMap_NonEmpty(t *testing.T) {
 	assert.Contains(t, m, "validatorUrl")
 	assert.Contains(t, m, "withCredentials")
 	assert.Contains(t, m, "persistAuthorization")
+	assert.Equal(t, template.HTML(`<div>HEADER</div>`), m[htmlTagHeaderHtml])
+	assert.Equal(t, template.HTML(`<script>head();</script>`), m[htmlTagHeadScript])
+	assert.Equal(t, template.HTML(`<script>body();</script>`), m[htmlTagBodyScript])
 }
 
 func TestSwaggerOptions_OverrideFavIcons(t *testing.T) {

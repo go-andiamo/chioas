@@ -17,19 +17,24 @@ import (
 //go:embed status_schema.yaml petstore-logo.png
 var supportFilesFS embed.FS
 
-// we're using our own customized docs html template
-//
-//go:embed index_template.html
-var customizedSwaggerTemplate string
-
 var apiDef = chioas.Definition{
 	DocOptions: chioas.DocOptions{
-		ServeDocs:               true, // makes docs served as interactive UI on /docs/index.htm
-		UIStyle:                 chioas.Swagger,
+		ServeDocs: true, // makes docs served as interactive UI on /docs/index.htm
+		UIStyle:   chioas.Swagger,
+		StylesOverride: `.logo img {
+	padding: inherit;
+	margin: auto;
+    width: 200px;
+    display: block;
+}`,
+		SwaggerOptions: chioas.SwaggerOptions{
+			HeaderHtml: `<div class="logo" style="align-content: center">
+    <img src="./petstore-logo.png" alt="pet store logo">
+</div>`,
+		},
 		SupportFiles:            http.FileServer(http.FS(supportFilesFS)),
 		SupportFilesStripPrefix: true,
-		DocTemplate:             customizedSwaggerTemplate, // customized template to show logo
-		CheckRefs:               true,                      // make sure that any $ref's are valid!
+		CheckRefs:               true, // make sure that any $ref's are valid!
 	},
 	Info: chioas.Info{
 		Title: "Swagger Petstore - OpenAPI 3.0",
@@ -126,44 +131,3 @@ func commenter(handlerMethod string, comments ...string) []string {
 func (a *api) SetupRoutes(r chi.Router) error {
 	return a.Definition.SetupRoutes(r, a)
 }
-
-/*
-// customizing the html template (to show a logo) - copied from chioas/doc_options.go defaultSwaggerTemplate
-const customizedSwaggerTemplate = `<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <title>{{.title}}</title>
-    <meta charset="utf-8" />
-    <link rel="stylesheet" type="text/css" href="./swagger-ui.css" />
-    <link rel="stylesheet" type="text/css" href="./index.css" />
-    <link rel="icon" type="image/png" href="./favicon-32x32.png" sizes="32x32" />
-    <link rel="icon" type="image/png" href="./favicon-16x16.png" sizes="16x16" />
-    <style>{{.stylesOverride}}</style>
-    <style>
-        .logo img {
-            padding: inherit;
-            margin:auto;
-            width: 200px;
-            display: block;
-        }
-    </style>
-  </head>
-  <body>
-	<div class="logo">
-		<img src="petstore-logo.png" alt="pet store logo">
-	</div>
-    <div id="swagger-ui"></div>
-    <script src="./swagger-ui-bundle.js" charset="UTF-8"> </script>
-    <script src="./swagger-ui-standalone-preset.js" charset="UTF-8"> </script>
-    <script>
-      window.onload = function() {
-		let cfg = {{.swaggeropts}}
-		{{.swaggerpresets}}
-		{{.swaggerplugins}}
-        const ui = SwaggerUIBundle(cfg)
-        window.ui = ui
-      }
-    </script>
-  </body>
-</html>`
-*/

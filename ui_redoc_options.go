@@ -1,5 +1,7 @@
 package chioas
 
+import "html/template"
+
 const defaultRedocTemplate = `<html>
     <head>
         <title>{{.title}}</title>
@@ -8,8 +10,10 @@ const defaultRedocTemplate = `<html>
         <link href="https://fonts.googleapis.com/css?family=Montserrat:300,400,700|Roboto:300,400,700" rel="stylesheet">
         {{.favIcons}}
         <style>{{.stylesOverride}}</style>
+        {{.headScript}}
     </head>
     <body>
+        {{.headerHtml}}
         <div id="redoc-container"></div>
         <script src="{{.redocurl}}" crossorigin="anonymous"></script>
         <script src="{{.tryurl}}" crossorigin="anonymous"></script>
@@ -19,6 +23,7 @@ const defaultRedocTemplate = `<html>
                 redocOptions: {{.redocopts}}
             })
         </script>
+        {{.bodyScript}}
     </body>
 </html>`
 
@@ -56,44 +61,47 @@ body #redoc-container {
 
 // RedocOptions for use in DocOptions.RedocOptions (from https://github.com/Redocly/redoc#redoc-options-object)
 type RedocOptions struct {
-	DisableSearch                   bool        `json:"disableSearch,omitempty"`                   // disable search indexing and search box.
-	MinCharacterLengthToInitSearch  int         `json:"minCharacterLengthToInitSearch,omitempty"`  // set minimal characters length to init search, default 3, minimal 1.
-	ExpandDefaultServerVariables    bool        `json:"expandDefaultServerVariables,omitempty"`    // enable expanding default server variables, default false.
-	ExpandResponses                 string      `json:"expandResponses,omitempty"`                 // specify which responses to expand by default by response codes. Values should be passed as comma-separated list without spaces e.g. expandResponses="200,201". Special value "all" expands all responses by default. Be careful: this option can slow-down documentation rendering time.
-	GeneratedPayloadSamplesMaxDepth int         `json:"generatedPayloadSamplesMaxDepth,omitempty"` // set the maximum render depth for JSON payload samples (responses and request body). The default value is 10.
-	MaxDisplayedEnumValues          int         `json:"maxDisplayedEnumValues,omitempty"`          // display only specified number of enum values. hide rest values under spoiler.
-	HideDownloadButton              bool        `json:"hideDownloadButton,omitempty"`              // do not show "Download" spec button. THIS DOESN'T MAKE YOUR SPEC PRIVATE, it just hides the button.
-	DownloadFileName                string      `json:"downloadFileName,omitempty"`                // set a custom file name for the downloaded API definition file.
-	DownloadDefinitionUrl           string      `json:"downloadDefinitionUrl,omitempty"`           // If the 'Download' button is visible in the API reference documentation (hideDownloadButton=false), the URL configured here opens when that button is selected. Provide it as an absolute URL with the full URI scheme.
-	HideHostname                    bool        `json:"hideHostname,omitempty"`                    // if set, the protocol and hostname is not shown in the operation definition.
-	HideLoading                     bool        `json:"hideLoading,omitempty"`                     // do not show loading animation. Useful for small docs.
-	HideFab                         bool        `json:"hideFab,omitempty"`                         // do not show FAB in mobile view. Useful for implementing a custom floating action button.
-	HideSchemaPattern               bool        `json:"hideSchemaPattern,omitempty"`               // if set, the pattern is not shown in the schema.
-	HideSingleRequestSampleTab      bool        `json:"hideSingleRequestSampleTab,omitempty"`      // do not show the request sample tab for requests with only one sample.
-	ShowObjectSchemaExamples        bool        `json:"showObjectSchemaExamples,omitempty"`        // show object schema example in the properties, default false.
-	ExpandSingleSchemaField         bool        `json:"expandSingleSchemaField,omitempty"`         // automatically expand single field in a schema
-	SchemaExpansionLevel            any         `json:"schemaExpansionLevel,omitempty"`            // specifies whether to automatically expand schemas. Special value "all" expands all levels. The default value is 0.
-	JsonSampleExpandLevel           any         `json:"jsonSampleExpandLevel,omitempty"`           // set the default expand level for JSON payload samples (responses and request body). Special value "all" expands all levels. The default value is 2.
-	HideSchemaTitles                bool        `json:"hideSchemaTitles,omitempty"`                // do not display schema title next to the type
-	SimpleOneOfTypeLabel            bool        `json:"simpleOneOfTypeLabel,omitempty"`            // show only unique oneOf types in the label without titles
-	SortEnumValuesAlphabetically    bool        `json:"sortEnumValuesAlphabetically,omitempty"`    // set to true, sorts all enum values in all schemas alphabetically
-	SortOperationsAlphabetically    bool        `json:"sortOperationsAlphabetically,omitempty"`    // set to true, sorts operations in the navigation sidebar and in the middle panel alphabetically
-	SortTagsAlphabetically          bool        `json:"sortTagsAlphabetically,omitempty"`          // set to true, sorts tags in the navigation sidebar and in the middle panel alphabetically
-	MenuToggle                      bool        `json:"menuToggle,omitempty"`                      // if true, clicking second time on expanded menu item collapses it, default true.
-	NativeScrollbars                bool        `json:"nativeScrollbars,omitempty"`                // use native scrollbar for sidemenu instead of perfect-scroll (scrolling performance optimization for big specs).
-	OnlyRequiredInSamples           bool        `json:"onlyRequiredInSamples,omitempty"`           // shows only required fields in request samples.
-	PathInMiddlePanel               bool        `json:"pathInMiddlePanel,omitempty"`               // show path link and HTTP verb in the middle panel instead of the right one.
-	RequiredPropsFirst              bool        `json:"requiredPropsFirst,omitempty"`              // show required properties first ordered in the same order as in required array.
-	ScrollYOffset                   any         `json:"scrollYOffset,omitempty"`                   // If set, specifies a vertical scroll-offset. This is often useful when there are fixed positioned elements at the top of the page, such as navbars, headers etc; scrollYOffset can be specified in various ways:
-	ShowExtensions                  bool        `json:"showExtensions,omitempty"`                  // show vendor extensions ("x-" fields). Extensions used by Redoc are ignored. Can be boolean or an array of string with names of extensions to display.
-	SortPropsAlphabetically         bool        `json:"sortPropsAlphabetically,omitempty"`         // sort properties alphabetically.
-	PayloadSampleIndex              int         `json:"payloadSampleIdx,omitempty"`                // if set, payload sample is inserted at this index or last. Indexes start from 0.
-	Theme                           *RedocTheme `json:"theme,omitempty"`                           // Redoc theme
-	UntrustedSpec                   bool        `json:"untrustedSpec,omitempty"`                   // if set, the spec is considered untrusted and all HTML/markdown is sanitized to prevent XSS. Disabled by default for performance reasons. Enable this option if you work with untrusted user data!
-	Nonce                           any         `json:"nonce,omitempty"`                           // if set, the provided value is injected in every injected HTML element in the nonce attribute. Useful when using CSP, see https://webpack.js.org/guides/csp/.
-	SideNavStyle                    string      `json:"sideNavStyle,omitempty"`                    // can be specified in various ways: "summary-only" (default), "path-only" or id-only"
-	ShowWebhookVerb                 bool        `json:"showWebhookVerb,omitempty"`                 // when set to true, shows the HTTP request method for webhooks in operations and in the sidebar.
-	FavIcons                        FavIcons
+	DisableSearch                   bool          `json:"disableSearch,omitempty"`                   // disable search indexing and search box.
+	MinCharacterLengthToInitSearch  int           `json:"minCharacterLengthToInitSearch,omitempty"`  // set minimal characters length to init search, default 3, minimal 1.
+	ExpandDefaultServerVariables    bool          `json:"expandDefaultServerVariables,omitempty"`    // enable expanding default server variables, default false.
+	ExpandResponses                 string        `json:"expandResponses,omitempty"`                 // specify which responses to expand by default by response codes. Values should be passed as comma-separated list without spaces e.g. expandResponses="200,201". Special value "all" expands all responses by default. Be careful: this option can slow-down documentation rendering time.
+	GeneratedPayloadSamplesMaxDepth int           `json:"generatedPayloadSamplesMaxDepth,omitempty"` // set the maximum render depth for JSON payload samples (responses and request body). The default value is 10.
+	MaxDisplayedEnumValues          int           `json:"maxDisplayedEnumValues,omitempty"`          // display only specified number of enum values. hide rest values under spoiler.
+	HideDownloadButton              bool          `json:"hideDownloadButton,omitempty"`              // do not show "Download" spec button. THIS DOESN'T MAKE YOUR SPEC PRIVATE, it just hides the button.
+	DownloadFileName                string        `json:"downloadFileName,omitempty"`                // set a custom file name for the downloaded API definition file.
+	DownloadDefinitionUrl           string        `json:"downloadDefinitionUrl,omitempty"`           // If the 'Download' button is visible in the API reference documentation (hideDownloadButton=false), the URL configured here opens when that button is selected. Provide it as an absolute URL with the full URI scheme.
+	HideHostname                    bool          `json:"hideHostname,omitempty"`                    // if set, the protocol and hostname is not shown in the operation definition.
+	HideLoading                     bool          `json:"hideLoading,omitempty"`                     // do not show loading animation. Useful for small docs.
+	HideFab                         bool          `json:"hideFab,omitempty"`                         // do not show FAB in mobile view. Useful for implementing a custom floating action button.
+	HideSchemaPattern               bool          `json:"hideSchemaPattern,omitempty"`               // if set, the pattern is not shown in the schema.
+	HideSingleRequestSampleTab      bool          `json:"hideSingleRequestSampleTab,omitempty"`      // do not show the request sample tab for requests with only one sample.
+	ShowObjectSchemaExamples        bool          `json:"showObjectSchemaExamples,omitempty"`        // show object schema example in the properties, default false.
+	ExpandSingleSchemaField         bool          `json:"expandSingleSchemaField,omitempty"`         // automatically expand single field in a schema
+	SchemaExpansionLevel            any           `json:"schemaExpansionLevel,omitempty"`            // specifies whether to automatically expand schemas. Special value "all" expands all levels. The default value is 0.
+	JsonSampleExpandLevel           any           `json:"jsonSampleExpandLevel,omitempty"`           // set the default expand level for JSON payload samples (responses and request body). Special value "all" expands all levels. The default value is 2.
+	HideSchemaTitles                bool          `json:"hideSchemaTitles,omitempty"`                // do not display schema title next to the type
+	SimpleOneOfTypeLabel            bool          `json:"simpleOneOfTypeLabel,omitempty"`            // show only unique oneOf types in the label without titles
+	SortEnumValuesAlphabetically    bool          `json:"sortEnumValuesAlphabetically,omitempty"`    // set to true, sorts all enum values in all schemas alphabetically
+	SortOperationsAlphabetically    bool          `json:"sortOperationsAlphabetically,omitempty"`    // set to true, sorts operations in the navigation sidebar and in the middle panel alphabetically
+	SortTagsAlphabetically          bool          `json:"sortTagsAlphabetically,omitempty"`          // set to true, sorts tags in the navigation sidebar and in the middle panel alphabetically
+	MenuToggle                      bool          `json:"menuToggle,omitempty"`                      // if true, clicking second time on expanded menu item collapses it, default true.
+	NativeScrollbars                bool          `json:"nativeScrollbars,omitempty"`                // use native scrollbar for sidemenu instead of perfect-scroll (scrolling performance optimization for big specs).
+	OnlyRequiredInSamples           bool          `json:"onlyRequiredInSamples,omitempty"`           // shows only required fields in request samples.
+	PathInMiddlePanel               bool          `json:"pathInMiddlePanel,omitempty"`               // show path link and HTTP verb in the middle panel instead of the right one.
+	RequiredPropsFirst              bool          `json:"requiredPropsFirst,omitempty"`              // show required properties first ordered in the same order as in required array.
+	ScrollYOffset                   any           `json:"scrollYOffset,omitempty"`                   // If set, specifies a vertical scroll-offset. This is often useful when there are fixed positioned elements at the top of the page, such as navbars, headers etc; scrollYOffset can be specified in various ways:
+	ShowExtensions                  bool          `json:"showExtensions,omitempty"`                  // show vendor extensions ("x-" fields). Extensions used by Redoc are ignored. Can be boolean or an array of string with names of extensions to display.
+	SortPropsAlphabetically         bool          `json:"sortPropsAlphabetically,omitempty"`         // sort properties alphabetically.
+	PayloadSampleIndex              int           `json:"payloadSampleIdx,omitempty"`                // if set, payload sample is inserted at this index or last. Indexes start from 0.
+	Theme                           *RedocTheme   `json:"theme,omitempty"`                           // Redoc theme
+	UntrustedSpec                   bool          `json:"untrustedSpec,omitempty"`                   // if set, the spec is considered untrusted and all HTML/markdown is sanitized to prevent XSS. Disabled by default for performance reasons. Enable this option if you work with untrusted user data!
+	Nonce                           any           `json:"nonce,omitempty"`                           // if set, the provided value is injected in every injected HTML element in the nonce attribute. Useful when using CSP, see https://webpack.js.org/guides/csp/.
+	SideNavStyle                    string        `json:"sideNavStyle,omitempty"`                    // can be specified in various ways: "summary-only" (default), "path-only" or id-only"
+	ShowWebhookVerb                 bool          `json:"showWebhookVerb,omitempty"`                 // when set to true, shows the HTTP request method for webhooks in operations and in the sidebar.
+	FavIcons                        FavIcons      `json:"-"`
+	HeaderHtml                      template.HTML `json:"-"`
+	HeadScript                      template.JS   `json:"-"`
+	BodyScript                      template.JS   `json:"-"`
 }
 
 func (o RedocOptions) GetFavIcons() FavIcons {
@@ -139,6 +147,15 @@ func (o RedocOptions) ToMap() map[string]any {
 	addMapNonNil(m, o.Nonce, "nonce")
 	addMap(m, o.SideNavStyle, "sideNavStyle")
 	addMap(m, o.ShowWebhookVerb, "showWebhookVerb")
+	if o.HeaderHtml != "" {
+		m[htmlTagHeaderHtml] = o.HeaderHtml
+	}
+	if o.HeadScript != "" {
+		m[htmlTagHeadScript] = template.HTML(`<script>` + o.HeadScript + `</script>`)
+	}
+	if o.BodyScript != "" {
+		m[htmlTagBodyScript] = template.HTML(`<script>` + o.BodyScript + `</script>`)
+	}
 	return m
 }
 

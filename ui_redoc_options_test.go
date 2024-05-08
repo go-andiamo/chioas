@@ -2,6 +2,7 @@ package chioas
 
 import (
 	"github.com/stretchr/testify/assert"
+	"html/template"
 	"testing"
 )
 
@@ -62,4 +63,16 @@ func TestRedocOptions_ToMap_Theme_Empty(t *testing.T) {
 	assert.Contains(t, m, "theme")
 	m = m["theme"].(map[string]any)
 	assert.Empty(t, m)
+}
+
+func TestRedocOptions_ToMap_HeaderAndScripts(t *testing.T) {
+	o := &RedocOptions{
+		HeaderHtml: `<div>HEADER</div>`,
+		HeadScript: `head();`,
+		BodyScript: `body();`,
+	}
+	m := o.ToMap()
+	assert.Equal(t, template.HTML(`<div>HEADER</div>`), m[htmlTagHeaderHtml])
+	assert.Equal(t, template.HTML(`<script>head();</script>`), m[htmlTagHeadScript])
+	assert.Equal(t, template.HTML(`<script>body();</script>`), m[htmlTagBodyScript])
 }

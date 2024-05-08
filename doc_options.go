@@ -194,6 +194,7 @@ func (d *DocOptions) getTemplateData() (specName string, data map[string]any) {
 			htmlTagSwaggerPlugins: plugins,
 			htmlTagFavIcons:       optionsFavIcons(d.SwaggerOptions),
 		}
+		addHeaderAndScripts(data, swaggerOpts)
 	case Rapidoc:
 		data = optionsToMap(d.RapidocOptions)
 		data[htmlTagTitle] = defValue(d.Title, defaultTitle)
@@ -201,17 +202,34 @@ func (d *DocOptions) getTemplateData() (specName string, data map[string]any) {
 		data[htmlTagSpecName] = specName
 		data[htmlTagFavIcons] = optionsFavIcons(d.RapidocOptions)
 	default:
+		redocOpts := optionsToMap(d.RedocOptions)
 		data = map[string]any{
 			htmlTagTitle:          defValue(d.Title, defaultTitle),
 			htmlTagStylesOverride: template.CSS(defValue(d.StylesOverride, defaultRedocStylesOverride)),
 			htmlTagSpecName:       specName,
-			htmlTagRedocOpts:      optionsToMap(d.RedocOptions),
+			htmlTagRedocOpts:      redocOpts,
 			htmlTagRedocUrl:       defValue(d.RedocJsUrl, defaultRedocJsUrl),
 			htmlTagTryUrl:         defValue(d.TryJsUrl, defaultTryJsUrl),
 			htmlTagFavIcons:       optionsFavIcons(d.RedocOptions),
 		}
+		addHeaderAndScripts(data, redocOpts)
 	}
 	return
+}
+
+func addHeaderAndScripts(data, opts map[string]any) {
+	if v, ok := opts[htmlTagHeaderHtml]; ok {
+		data[htmlTagHeaderHtml] = v
+		delete(opts, htmlTagHeaderHtml)
+	}
+	if v, ok := opts[htmlTagHeadScript]; ok {
+		data[htmlTagHeadScript] = v
+		delete(opts, htmlTagHeadScript)
+	}
+	if v, ok := opts[htmlTagBodyScript]; ok {
+		data[htmlTagBodyScript] = v
+		delete(opts, htmlTagBodyScript)
+	}
 }
 
 func setupCachedRoutes(def *Definition, asJson bool, specData []byte, docsRoute *chi.Mux, tmp *template.Template, inData map[string]any, indexPage, specName string) (err error) {
@@ -385,6 +403,9 @@ const (
 	htmlTagSwaggerPresets = "swaggerpresets"
 	htmlTagSwaggerPlugins = "swaggerplugins"
 	htmlTagFavIcons       = "favIcons"
+	htmlTagHeadScript     = "headScript"
+	htmlTagBodyScript     = "bodyScript"
+	htmlTagHeaderHtml     = "headerHtml"
 )
 
 func defValue(v, def string) string {

@@ -497,6 +497,9 @@ func TestDocOptions_SwaggerOptions(t *testing.T) {
 				DeepLinking: true,
 				Plugins:     []SwaggerPlugin{"MyPlugin1", "MyPlugin2"},
 				Presets:     []SwaggerPreset{"MyPreset1", "MyPreset2"},
+				HeaderHtml:  `<div>HEADER</div>`,
+				HeadScript:  `head();`,
+				BodyScript:  `body();`,
 			},
 		},
 	}
@@ -516,6 +519,9 @@ func TestDocOptions_SwaggerOptions(t *testing.T) {
 	assert.Contains(t, data, `"url":"spec.yaml"`)
 	assert.Contains(t, data, `cfg.presets = [MyPreset1,MyPreset2]`)
 	assert.Contains(t, data, `cfg.plugins = [MyPlugin1,MyPlugin2]`)
+	assert.Contains(t, data, `<div>HEADER</div>`)
+	assert.Contains(t, data, `<script>head();</script>`)
+	assert.Contains(t, data, `<script>body();</script>`)
 
 	expectedSupportFiles := map[string]string{
 		"favicon-16x16.png":               "image/png",

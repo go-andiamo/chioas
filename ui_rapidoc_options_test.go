@@ -63,12 +63,16 @@ func TestRapidocOptions_ToMap(t *testing.T) {
     <img src="dog.png" style="width:40px; margin-right: 20px"> <span style="color:#fff"> <b>nav-logo</b> slot </span>
 </div>`
 	o = &RapidocOptions{
-		InnerHtml: testInner,
+		InnerHtml:  testInner,
+		HeadScript: `head();`,
+		BodyScript: `body();`,
 	}
 	m = o.ToMap()
-	assert.Equal(t, 2, len(m))
+	assert.Equal(t, 4, len(m))
 	inner := m["innerHtml"].(template.HTML)
 	assert.Equal(t, testInner, string(inner))
+	assert.Equal(t, template.HTML(`<script>head();</script>`), m[htmlTagHeadScript])
+	assert.Equal(t, template.HTML(`<script>body();</script>`), m[htmlTagBodyScript])
 }
 
 func TestRapidocOptions_OverrideFavIcons(t *testing.T) {
