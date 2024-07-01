@@ -528,13 +528,13 @@ func TestDocOptions_SwaggerOptions(t *testing.T) {
 		"favicon-32x32.png":               "image/png",
 		"index.css":                       "text/css; charset=utf-8",
 		"oauth2-redirect.html":            "text/html; charset=utf-8",
-		"swagger-initializer.js":          "application/javascript",
+		"swagger-initializer.js":          "text/javascript; charset=utf-8",
 		"swagger-ui.css":                  "text/css; charset=utf-8",
-		"swagger-ui.js":                   "application/javascript",
-		"swagger-ui-bundle.js":            "application/javascript",
-		"swagger-ui-es-bundle.js":         "application/javascript",
-		"swagger-ui-es-bundle-core.js":    "application/javascript",
-		"swagger-ui-standalone-preset.js": "application/javascript",
+		"swagger-ui.js":                   "text/javascript; charset=utf-8",
+		"swagger-ui-bundle.js":            "text/javascript; charset=utf-8",
+		"swagger-ui-es-bundle.js":         "text/javascript; charset=utf-8",
+		"swagger-ui-es-bundle-core.js":    "text/javascript; charset=utf-8",
+		"swagger-ui-standalone-preset.js": "text/javascript; charset=utf-8",
 	}
 	for filename, contentType := range expectedSupportFiles {
 		t.Run(filename, func(t *testing.T) {
@@ -655,8 +655,8 @@ func TestDocOptions_RapidocOptions(t *testing.T) {
 
 	expectedSupportFiles := map[string]string{
 		"default.min.css":  "text/css; charset=utf-8",
-		"highlight.min.js": "application/javascript",
-		"rapidoc-min.js":   "application/javascript",
+		"highlight.min.js": "text/javascript; charset=utf-8",
+		"rapidoc-min.js":   "text/javascript; charset=utf-8",
 	}
 	for filename, contentType := range expectedSupportFiles {
 		t.Run(filename, func(t *testing.T) {

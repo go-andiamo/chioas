@@ -19,7 +19,7 @@ const (
 // NewTypedMethodsHandlerBuilder creates a new handler for use on chioas.Definition and provides
 // capability to have typed methods/funcs for API endpoints.
 //
-// the options arg can be any of types ErrorHandler, Unmarshaler, ArgBuilder or ArgExtractor[T]
+// the options arg can be any of types ErrorHandler, Unmarshaler, ResponseHandler, ArgBuilder or ArgExtractor[T]
 //
 // if no Unmarshaler is passed then a default JSON unmarshaler is used - and if multiple Unmarshaler are passed then only the last one is used
 //
@@ -34,6 +34,8 @@ func NewTypedMethodsHandlerBuilder(options ...any) chioas.MethodHandlerBuilder {
 	for _, o := range options {
 		if o != nil {
 			switch ot := o.(type) {
+			case ResponseHandler:
+				result.responseHandler = ot
 			case ErrorHandler:
 				result.errorHandler = ot
 			case ArgBuilder:
@@ -62,10 +64,11 @@ func NewTypedMethodsHandlerBuilder(options ...any) chioas.MethodHandlerBuilder {
 }
 
 type builder struct {
-	errorHandler ErrorHandler
-	argBuilders  []ArgBuilder
-	unmarshaler  Unmarshaler
-	initErr      error
+	errorHandler    ErrorHandler
+	responseHandler ResponseHandler
+	argBuilders     []ArgBuilder
+	unmarshaler     Unmarshaler
+	initErr         error
 }
 
 // BuildHandler is normally called from chioas when building handlers (i.e. it implements the chioas.MethodHandlerBuilder interface)
@@ -219,10 +222,17 @@ func parseMethodName(methodName string) string {
 func (b *builder) getErrorHandler(thisApi any) ErrorHandler {
 	if b.errorHandler != nil {
 		return b.errorHandler
-	} else if thisApi != nil {
-		if eh, ok := thisApi.(ErrorHandler); ok {
-			return eh
-		}
+	} else if eh, ok := thisApi.(ErrorHandler); ok {
+		return eh
 	}
 	return defaultErrorHandler
+}
+
+func (b *builder) getResponseHandler(thisApi any) ResponseHandler {
+	if b.responseHandler != nil {
+		return b.responseHandler
+	} else if rh, ok := thisApi.(ResponseHandler); ok {
+		return rh
+	}
+	return nil
 }

@@ -220,10 +220,12 @@ func marshalerPtrHandler(v reflect.Value, b *builder, thisApi any, statusCode in
 func (ob *outsBuilder) handleReturnArgs(retArgs []reflect.Value, b *builder, thisApi any, writer http.ResponseWriter, request *http.Request) {
 	if ob.errArg != -1 {
 		if errArg := retArgs[ob.errArg]; errArg.IsValid() && !errArg.IsNil() {
-			if errArg.Interface() != nil {
+			if rh := b.getResponseHandler(thisApi); rh != nil {
+				rh.WriteErrorResponse(writer, request, errArg.Interface().(error), thisApi)
+			} else {
 				b.getErrorHandler(thisApi).HandleError(writer, request, errArg.Interface().(error))
-				return
 			}
+			return
 		}
 	}
 	statusCode := 0
@@ -232,7 +234,12 @@ func (ob *outsBuilder) handleReturnArgs(retArgs []reflect.Value, b *builder, thi
 	}
 	handled := false
 	if ob.marshableArg != -1 && retArgs[ob.marshableArg].IsValid() {
-		handled = ob.marshableHandler(retArgs[ob.marshableArg], b, thisApi, statusCode, writer, request)
+		if rh := b.getResponseHandler(thisApi); rh != nil {
+			handled = true
+			rh.WriteResponse(writer, request, retArgs[ob.marshableArg].Interface(), statusCode, thisApi)
+		} else {
+			handled = ob.marshableHandler(retArgs[ob.marshableArg], b, thisApi, statusCode, writer, request)
+		}
 	}
 	if !handled {
 		writer.WriteHeader(defaultStatusCode(statusCode, http.StatusOK))

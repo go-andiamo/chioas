@@ -53,17 +53,17 @@ func TestDefinition_SetupRoutes(t *testing.T) {
 	require.NoError(t, err)
 	res := httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 	req, err = http.NewRequest(http.MethodGet, "/subs", nil)
 	require.NoError(t, err)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 	req, err = http.NewRequest(http.MethodGet, "/subs/subsubs", nil)
 	require.NoError(t, err)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 
 	assert.Equal(t, 1, api.calls["/"])
 	assert.Equal(t, 1, api.calls["/subs"])
@@ -73,17 +73,17 @@ func TestDefinition_SetupRoutes(t *testing.T) {
 	require.NoError(t, err)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusMovedPermanently, res.Code)
+	assert.Equal(t, http.StatusMovedPermanently, res.Result().StatusCode)
 	req, err = http.NewRequest(http.MethodGet, "/docs/index.html", nil)
 	require.NoError(t, err)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 	req, err = http.NewRequest(http.MethodGet, "/docs/spec.yaml", nil)
 	require.NoError(t, err)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 }
 
 func TestDefinition_SetupRoutes_AutoHeads(t *testing.T) {
@@ -121,23 +121,23 @@ func TestDefinition_SetupRoutes_AutoHeads(t *testing.T) {
 	require.NoError(t, err)
 	res := httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusNotFound, res.Code)
+	assert.Equal(t, http.StatusNotFound, res.Result().StatusCode)
 	req, err = http.NewRequest(http.MethodHead, "/", nil)
 	require.NoError(t, err)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusConflict, res.Code)
+	assert.Equal(t, http.StatusConflict, res.Result().StatusCode)
 
 	req, err = http.NewRequest(http.MethodGet, "/subs", nil)
 	require.NoError(t, err)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusConflict, res.Code)
+	assert.Equal(t, http.StatusConflict, res.Result().StatusCode)
 	req, err = http.NewRequest(http.MethodHead, "/subs", nil)
 	require.NoError(t, err)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusConflict, res.Code)
+	assert.Equal(t, http.StatusConflict, res.Result().StatusCode)
 }
 
 func TestDefinition_SetupRoutes_AutoOptions(t *testing.T) {
@@ -176,14 +176,14 @@ func TestDefinition_SetupRoutes_AutoOptions(t *testing.T) {
 	require.NoError(t, err)
 	res := httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 	assert.Equal(t, "GET, HEAD, OPTIONS", res.Result().Header.Get(hdrAllow))
 
 	req, err = http.NewRequest(http.MethodOptions, "/subs", nil)
 	require.NoError(t, err)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 	assert.Equal(t, "GET, HEAD, POST, OPTIONS", res.Result().Header.Get(hdrAllow))
 }
 
@@ -226,7 +226,7 @@ func TestDefinition_SetupRoutes_AutoOptions_WithRootPayload(t *testing.T) {
 	require.NoError(t, err)
 	res := httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 	assert.Equal(t, "GET, OPTIONS", res.Result().Header.Get(hdrAllow))
 	assert.Equal(t, contentTypeYaml, res.Result().Header.Get(hdrContentType))
 	const expectYaml = `openapi: "3.0.3"
@@ -268,7 +268,7 @@ paths:
 	require.NoError(t, err)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 	assert.Equal(t, "GET, OPTIONS", res.Result().Header.Get(hdrAllow))
 	assert.Equal(t, contentTypeJson, res.Result().Header.Get(hdrContentType))
 	assert.Contains(t, res.Body.String(), `"title":"API Documentation"`)
@@ -278,7 +278,7 @@ paths:
 	require.NoError(t, err)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 	assert.Equal(t, "GET, OPTIONS", res.Result().Header.Get(hdrAllow))
 	assert.Equal(t, contentTypeJson, res.Result().Header.Get(hdrContentType))
 	assert.Equal(t, "null", res.Body.String())
@@ -287,7 +287,7 @@ paths:
 	require.NoError(t, err)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 	assert.Equal(t, "GET, POST, OPTIONS", res.Result().Header.Get(hdrAllow))
 	assert.Equal(t, "", res.Body.String())
 }
@@ -322,14 +322,14 @@ func TestDefinition_SetupRoutes_PathAutoOptions(t *testing.T) {
 	require.NoError(t, err)
 	res := httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 	assert.Equal(t, "OPTIONS", res.Result().Header.Get(hdrAllow))
 
 	req, err = http.NewRequest(http.MethodOptions, "/subs", nil)
 	require.NoError(t, err)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 	assert.Equal(t, "GET, HEAD, POST, OPTIONS", res.Result().Header.Get(hdrAllow))
 }
 
@@ -370,14 +370,14 @@ func TestDefinition_SetupRoutes_AuthMethodNotAllowed(t *testing.T) {
 	require.NoError(t, err)
 	res := httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusMethodNotAllowed, res.Code)
+	assert.Equal(t, http.StatusMethodNotAllowed, res.Result().StatusCode)
 	assert.Equal(t, "GET, HEAD, OPTIONS", res.Result().Header.Get(hdrAllow))
 
 	req, err = http.NewRequest(http.MethodPut, "/subs", nil)
 	require.NoError(t, err)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusMethodNotAllowed, res.Code)
+	assert.Equal(t, http.StatusMethodNotAllowed, res.Result().StatusCode)
 	assert.Equal(t, "GET, HEAD, POST, OPTIONS", res.Result().Header.Get(hdrAllow))
 
 	hf := d.methodNotAllowedHandler(nil)
@@ -385,7 +385,7 @@ func TestDefinition_SetupRoutes_AuthMethodNotAllowed(t *testing.T) {
 	require.NoError(t, err)
 	res = httptest.NewRecorder()
 	hf.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusMethodNotAllowed, res.Code)
+	assert.Equal(t, http.StatusMethodNotAllowed, res.Result().StatusCode)
 	assert.Equal(t, "OPTIONS", res.Result().Header.Get(hdrAllow))
 }
 
@@ -465,17 +465,17 @@ func TestDefinition_SetupRoutes_WithDisabledPath(t *testing.T) {
 	require.NoError(t, err)
 	res := httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 	req, err = http.NewRequest(http.MethodGet, "/subs", nil)
 	require.NoError(t, err)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 	req, err = http.NewRequest(http.MethodGet, "/docs/spec.yaml", nil)
 	require.NoError(t, err)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 	const expectYaml = `openapi: "3.0.3"
 info:
   title: "API Documentation"
@@ -510,17 +510,17 @@ paths:
 	require.NoError(t, err)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 	req, err = http.NewRequest(http.MethodGet, "/subs", nil)
 	require.NoError(t, err)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusNotFound, res.Code)
+	assert.Equal(t, http.StatusNotFound, res.Result().StatusCode)
 	req, err = http.NewRequest(http.MethodGet, "/docs/spec.yaml", nil)
 	require.NoError(t, err)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 	const expectDisabledYaml = `openapi: "3.0.3"
 info:
   title: "API Documentation"
@@ -861,12 +861,12 @@ func TestDefinition_Middlewares(t *testing.T) {
 	assert.NoError(t, err)
 	res := httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 	req, err = http.NewRequest(http.MethodPost, "/", nil)
 	assert.NoError(t, err)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusUnauthorized, res.Code)
+	assert.Equal(t, http.StatusUnauthorized, res.Result().StatusCode)
 }
 
 func TestDefinition_ApplyMiddlewares(t *testing.T) {
@@ -891,12 +891,12 @@ func TestDefinition_ApplyMiddlewares(t *testing.T) {
 	assert.NoError(t, err)
 	res := httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 	req, err = http.NewRequest(http.MethodPost, "/", nil)
 	assert.NoError(t, err)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusUnauthorized, res.Code)
+	assert.Equal(t, http.StatusUnauthorized, res.Result().StatusCode)
 }
 
 func TestDefinition_Path_ApplyMiddlewares(t *testing.T) {
@@ -925,12 +925,12 @@ func TestDefinition_Path_ApplyMiddlewares(t *testing.T) {
 	assert.NoError(t, err)
 	res := httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 	req, err = http.NewRequest(http.MethodPost, "/foo", nil)
 	assert.NoError(t, err)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusUnauthorized, res.Code)
+	assert.Equal(t, http.StatusUnauthorized, res.Result().StatusCode)
 }
 
 func testUnAuthPostMiddleware(next http.Handler) http.Handler {

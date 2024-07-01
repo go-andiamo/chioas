@@ -80,7 +80,7 @@ func TestJsonResponse_Write(t *testing.T) {
 			err := tc.response.write(res)
 			if tc.expectErr == "" {
 				assert.NoError(t, err)
-				assert.Equal(t, tc.expectStatus, res.Code)
+				assert.Equal(t, tc.expectStatus, res.Result().StatusCode)
 				assert.Equal(t, tc.expect, res.Body.String())
 				overrideCt := false
 				for _, hdr := range tc.response.Headers {

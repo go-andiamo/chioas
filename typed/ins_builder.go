@@ -349,12 +349,19 @@ func newSliceParamBuilder(argT reflect.Type, um Unmarshaler) inValueBuilder {
 func (inb *insBuilder) build(writer http.ResponseWriter, request *http.Request) ([]reflect.Value, error) {
 	var params []urit.PathVar
 	if ctx := chi.RouteContext(request.Context()); ctx != nil {
-		params = make([]urit.PathVar, len(ctx.URLParams.Keys))
+		params = make([]urit.PathVar, 0, len(ctx.URLParams.Keys))
+		pos := 0
+		npos := map[string]int{}
 		for i, k := range ctx.URLParams.Keys {
-			params[i] = urit.PathVar{
-				Position: i,
-				Name:     k,
-				Value:    ctx.URLParams.Values[i],
+			if k != "*" {
+				params = append(params, urit.PathVar{
+					Position:      pos,
+					NamedPosition: npos[k],
+					Name:          k,
+					Value:         ctx.URLParams.Values[i],
+				})
+				pos++
+				npos[k] = npos[k] + 1
 			}
 		}
 	} else {

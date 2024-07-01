@@ -172,3 +172,19 @@ func (m *MultiResponseMarshaler) finalHeaders(contentType string) [][2]string {
 	}
 	return append(m.Headers, [2]string{hdrContentType, contentType})
 }
+
+// ResponseHandler is an interface that can be used to write responses
+//
+// a ResponseHandler can be passed as an option to NewTypedMethodsHandlerBuilder
+//
+// The API itself can also implement this interface
+type ResponseHandler interface {
+	// WriteResponse writes a successful response
+	//
+	// the value and statusCode args are obtained from the return args of the typed handler
+	WriteResponse(writer http.ResponseWriter, request *http.Request, value any, statusCode int, thisApi any)
+	// WriteErrorResponse writes an error response
+	//
+	// the err arg is obtained from the error returned from the typed handler
+	WriteErrorResponse(writer http.ResponseWriter, request *http.Request, err error, thisApi any)
+}
