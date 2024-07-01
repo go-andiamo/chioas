@@ -36,7 +36,7 @@ func TestMultipartFormArgBuilder(t *testing.T) {
 	req.Header.Set(hdrContentType, "multipart/form-data")
 	res := httptest.NewRecorder()
 	hf.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusBadRequest, res.Code)
+	assert.Equal(t, http.StatusBadRequest, res.Result().StatusCode)
 	assert.False(t, called)
 
 	b = NewTypedMethodsHandlerBuilder(NewMultipartFormArgSupport(10000, true))
@@ -49,7 +49,7 @@ func TestMultipartFormArgBuilder(t *testing.T) {
 	req.Header.Set(hdrContentType, "multipart/form-data")
 	res = httptest.NewRecorder()
 	hf.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 	assert.True(t, called)
 	assert.Nil(t, storedForm)
 
@@ -73,7 +73,7 @@ binary data
 	req.Header.Set(hdrContentType, "multipart/form-data; boundary=xxx")
 	res = httptest.NewRecorder()
 	hf.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 	assert.True(t, called)
 	assert.NotNil(t, storedForm)
 	assert.Equal(t, 2, len(storedForm.Value))

@@ -178,17 +178,17 @@ func TestJsonResponseHandler(t *testing.T) {
 	res := httptest.NewRecorder()
 	jr := JsonResponse{}
 	assert.True(t, jsonResponseHandler(reflect.ValueOf(jr), b, nil, 0, res, req))
-	assert.Equal(t, http.StatusNoContent, res.Code)
+	assert.Equal(t, http.StatusNoContent, res.Result().StatusCode)
 
 	res = httptest.NewRecorder()
 	jr = JsonResponse{Error: NewApiError(http.StatusNotImplemented, "")}
 	assert.True(t, jsonResponseHandler(reflect.ValueOf(jr), b, nil, 0, res, req))
-	assert.Equal(t, http.StatusNotImplemented, res.Code)
+	assert.Equal(t, http.StatusNotImplemented, res.Result().StatusCode)
 
 	res = httptest.NewRecorder()
 	jr = JsonResponse{Error: errors.New("")}
 	assert.True(t, jsonResponseHandler(reflect.ValueOf(jr), b, nil, 0, res, req))
-	assert.Equal(t, http.StatusInternalServerError, res.Code)
+	assert.Equal(t, http.StatusInternalServerError, res.Result().StatusCode)
 }
 
 func TestJsonResponsePtrHandler(t *testing.T) {
@@ -197,27 +197,27 @@ func TestJsonResponsePtrHandler(t *testing.T) {
 	res := httptest.NewRecorder()
 	jr := &JsonResponse{}
 	assert.True(t, jsonResponsePtrHandler(reflect.ValueOf(jr), b, nil, 0, res, req))
-	assert.Equal(t, http.StatusNoContent, res.Code)
+	assert.Equal(t, http.StatusNoContent, res.Result().StatusCode)
 
 	res = httptest.NewRecorder()
 	jr = nil
 	assert.True(t, jsonResponsePtrHandler(reflect.ValueOf(jr), b, nil, 0, res, req))
-	assert.Equal(t, http.StatusNoContent, res.Code)
+	assert.Equal(t, http.StatusNoContent, res.Result().StatusCode)
 
 	res = httptest.NewRecorder()
 	jr = nil
 	assert.True(t, jsonResponsePtrHandler(reflect.ValueOf(jr), b, nil, http.StatusAccepted, res, req))
-	assert.Equal(t, http.StatusAccepted, res.Code)
+	assert.Equal(t, http.StatusAccepted, res.Result().StatusCode)
 
 	res = httptest.NewRecorder()
 	jr = &JsonResponse{Error: NewApiError(http.StatusNotImplemented, "")}
 	assert.True(t, jsonResponsePtrHandler(reflect.ValueOf(jr), b, nil, 0, res, req))
-	assert.Equal(t, http.StatusNotImplemented, res.Code)
+	assert.Equal(t, http.StatusNotImplemented, res.Result().StatusCode)
 
 	res = httptest.NewRecorder()
 	jr = &JsonResponse{Error: errors.New("")}
 	assert.True(t, jsonResponsePtrHandler(reflect.ValueOf(jr), b, nil, 0, res, req))
-	assert.Equal(t, http.StatusInternalServerError, res.Code)
+	assert.Equal(t, http.StatusInternalServerError, res.Result().StatusCode)
 }
 
 func TestBytesResponseHandler(t *testing.T) {
@@ -226,27 +226,27 @@ func TestBytesResponseHandler(t *testing.T) {
 	res := httptest.NewRecorder()
 	data := make([]byte, 0)
 	assert.True(t, bytesResponseHandler(reflect.ValueOf(data), b, nil, 0, res, req))
-	assert.Equal(t, http.StatusNoContent, res.Code)
+	assert.Equal(t, http.StatusNoContent, res.Result().StatusCode)
 
 	res = httptest.NewRecorder()
 	data = nil
 	assert.True(t, bytesResponseHandler(reflect.ValueOf(data), b, nil, 0, res, req))
-	assert.Equal(t, http.StatusNoContent, res.Code)
+	assert.Equal(t, http.StatusNoContent, res.Result().StatusCode)
 
 	res = httptest.NewRecorder()
 	data = nil
 	assert.True(t, bytesResponseHandler(reflect.ValueOf(data), b, nil, http.StatusAccepted, res, req))
-	assert.Equal(t, http.StatusAccepted, res.Code)
+	assert.Equal(t, http.StatusAccepted, res.Result().StatusCode)
 
 	res = httptest.NewRecorder()
 	data = []byte("null")
 	assert.True(t, bytesResponseHandler(reflect.ValueOf(data), b, nil, 0, res, req))
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 
 	res = httptest.NewRecorder()
 	data = []byte("null")
 	assert.True(t, bytesResponseHandler(reflect.ValueOf(data), b, nil, http.StatusCreated, res, req))
-	assert.Equal(t, http.StatusCreated, res.Code)
+	assert.Equal(t, http.StatusCreated, res.Result().StatusCode)
 }
 
 func TestResponseMarshalerHandler(t *testing.T) {
@@ -255,23 +255,23 @@ func TestResponseMarshalerHandler(t *testing.T) {
 	res := httptest.NewRecorder()
 	rm := &testResponseMarshaler{}
 	assert.True(t, responseMarshalerHandler(reflect.ValueOf(rm), b, nil, 0, res, req))
-	assert.Equal(t, http.StatusNoContent, res.Code)
+	assert.Equal(t, http.StatusNoContent, res.Result().StatusCode)
 
 	res = httptest.NewRecorder()
 	rm = &testResponseMarshaler{err: NewApiError(http.StatusNotFound, "")}
 	assert.True(t, responseMarshalerHandler(reflect.ValueOf(rm), b, nil, 0, res, req))
-	assert.Equal(t, http.StatusNotFound, res.Code)
+	assert.Equal(t, http.StatusNotFound, res.Result().StatusCode)
 
 	res = httptest.NewRecorder()
 	rm = &testResponseMarshaler{data: []byte("null"), hdrs: [][2]string{{hdrContentType, contentTypeXml}}}
 	assert.True(t, responseMarshalerHandler(reflect.ValueOf(rm), b, nil, 0, res, req))
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 	assert.Equal(t, contentTypeXml, res.Result().Header.Get(hdrContentType))
 
 	res = httptest.NewRecorder()
 	rm = &testResponseMarshaler{data: []byte("null"), hdrs: [][2]string{{hdrContentType, contentTypeXml}}}
 	assert.True(t, responseMarshalerHandler(reflect.ValueOf(rm), b, nil, http.StatusCreated, res, req))
-	assert.Equal(t, http.StatusCreated, res.Code)
+	assert.Equal(t, http.StatusCreated, res.Result().StatusCode)
 	assert.Equal(t, contentTypeXml, res.Result().Header.Get(hdrContentType))
 
 	var rmv ResponseMarshaler = nil
@@ -285,23 +285,23 @@ func TestMarshalerHandler(t *testing.T) {
 	res := httptest.NewRecorder()
 	s := struct{}{}
 	assert.True(t, marshalerHandler(reflect.ValueOf(s), b, nil, 0, res, req))
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 	assert.Equal(t, contentTypeJson, res.Result().Header.Get(hdrContentType))
 
 	res = httptest.NewRecorder()
 	s2 := &testUnmarshalble{}
 	assert.True(t, marshalerHandler(reflect.ValueOf(s2), b, nil, 0, res, req))
-	assert.Equal(t, http.StatusInternalServerError, res.Code)
+	assert.Equal(t, http.StatusInternalServerError, res.Result().StatusCode)
 
 	res = httptest.NewRecorder()
 	s2 = nil
 	assert.True(t, marshalerHandler(reflect.ValueOf(s2), b, nil, 0, res, req))
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 
 	res = httptest.NewRecorder()
 	s2 = nil
 	assert.True(t, marshalerHandler(reflect.ValueOf(s2), b, nil, http.StatusNoContent, res, req))
-	assert.Equal(t, http.StatusNoContent, res.Code)
+	assert.Equal(t, http.StatusNoContent, res.Result().StatusCode)
 }
 
 func TestMarshalerPtrHandler(t *testing.T) {
@@ -312,17 +312,17 @@ func TestMarshalerPtrHandler(t *testing.T) {
 
 	res := httptest.NewRecorder()
 	assert.False(t, marshalerPtrHandler(reflect.ValueOf(returnVal), b, nil, 0, res, req))
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 
 	res = httptest.NewRecorder()
 	returnVal = &someStruct{}
 	assert.True(t, marshalerPtrHandler(reflect.ValueOf(returnVal), b, nil, 0, res, req))
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 
 	res = httptest.NewRecorder()
 	returnVal = &someStruct{}
 	assert.True(t, marshalerPtrHandler(reflect.ValueOf(returnVal), b, nil, http.StatusCreated, res, req))
-	assert.Equal(t, http.StatusCreated, res.Code)
+	assert.Equal(t, http.StatusCreated, res.Result().StatusCode)
 }
 
 func TestAnyHandler(t *testing.T) {
@@ -426,7 +426,7 @@ func TestAnyHandler(t *testing.T) {
 			req, _ := http.NewRequest(http.MethodGet, "/", nil)
 			res := httptest.NewRecorder()
 			ob.handleReturnArgs(out, b, nil, res, req)
-			assert.Equal(t, tc.expectStatus, res.Code)
+			assert.Equal(t, tc.expectStatus, res.Result().StatusCode)
 		})
 	}
 }
@@ -499,7 +499,7 @@ func TestAnyOrErrorHandler(t *testing.T) {
 			req, _ := http.NewRequest(http.MethodGet, "/", nil)
 			res := httptest.NewRecorder()
 			ob.handleReturnArgs(out, b, nil, res, req)
-			assert.Equal(t, tc.expectStatus, res.Code)
+			assert.Equal(t, tc.expectStatus, res.Result().StatusCode)
 		})
 	}
 }
@@ -519,14 +519,14 @@ func TestHandleReturnArgs_NotHandled(t *testing.T) {
 	req, _ := http.NewRequest(http.MethodGet, "/", nil)
 	res := httptest.NewRecorder()
 	ob.handleReturnArgs(out, b, nil, res, req)
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 
 	returnSc = http.StatusAccepted
 	out = mf.Call([]reflect.Value{})
 	req, _ = http.NewRequest(http.MethodGet, "/", nil)
 	res = httptest.NewRecorder()
 	ob.handleReturnArgs(out, b, nil, res, req)
-	assert.Equal(t, http.StatusAccepted, res.Code)
+	assert.Equal(t, http.StatusAccepted, res.Result().StatusCode)
 }
 
 func TestHandleReturnArgs(t *testing.T) {
@@ -546,17 +546,17 @@ func TestHandleReturnArgs(t *testing.T) {
 	req, _ := http.NewRequest(http.MethodGet, "/", nil)
 	res := httptest.NewRecorder()
 	ob.handleReturnArgs(out, b, nil, res, req)
-	assert.Equal(t, http.StatusNoContent, res.Code)
+	assert.Equal(t, http.StatusNoContent, res.Result().StatusCode)
 
 	returnSc = http.StatusPaymentRequired
 	out = mf.Call([]reflect.Value{})
 	res = httptest.NewRecorder()
 	ob.handleReturnArgs(out, b, nil, res, req)
-	assert.Equal(t, http.StatusPaymentRequired, res.Code)
+	assert.Equal(t, http.StatusPaymentRequired, res.Result().StatusCode)
 
 	returnErr = NewApiError(http.StatusNotImplemented, "")
 	out = mf.Call([]reflect.Value{})
 	res = httptest.NewRecorder()
 	ob.handleReturnArgs(out, b, nil, res, req)
-	assert.Equal(t, http.StatusNotImplemented, res.Code)
+	assert.Equal(t, http.StatusNotImplemented, res.Result().StatusCode)
 }

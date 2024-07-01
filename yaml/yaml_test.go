@@ -783,6 +783,7 @@ func TestSafeString(t *testing.T) {
 		`application/json`:       `"application/json"`,
 		"\u0000\a\b\f\n\r\t\v\"": `"\0\a\b\f\n\r\t\v\""`,
 		`"foo"`:                  `"\"foo\""`,
+		`null`:                   `"null"`,
 	}
 	for s, expect := range testCases {
 		t.Run(s, func(t *testing.T) {

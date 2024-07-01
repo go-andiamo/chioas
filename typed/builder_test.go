@@ -40,6 +40,12 @@ func TestNewTypedMethodsHandlerBuilder(t *testing.T) {
 	assert.NotNil(t, raw.errorHandler)
 	assert.NotNil(t, raw.unmarshaler)
 	assert.Equal(t, um, raw.unmarshaler)
+
+	mhb = NewTypedMethodsHandlerBuilder(&testApiWithResponseHandler{})
+	raw, ok = mhb.(*builder)
+	assert.True(t, ok)
+	assert.Nil(t, raw.errorHandler)
+	assert.NotNil(t, raw.responseHandler)
 }
 
 func TestNewTypedMethodsHandlerBuilder_BadOption(t *testing.T) {
@@ -203,7 +209,7 @@ func TestTypedMethodsHandlerBuilder_HandlerFor_ZeroInSomeOut(t *testing.T) {
 	res := httptest.NewRecorder()
 	hf.ServeHTTP(res, req)
 	assert.True(t, called)
-	assert.Equal(t, http.StatusPaymentRequired, res.Code)
+	assert.Equal(t, http.StatusPaymentRequired, res.Result().StatusCode)
 
 	called = false
 	hf, err = tmhb.BuildHandler("/", http.MethodGet, chioas.Method{Handler: func() json.RawMessage {
@@ -258,7 +264,7 @@ func TestTypedMethodsHandlerBuilder_HandlerFor_SomeIn_BuilderErrors(t *testing.T
 	require.NoError(t, err)
 	res := httptest.NewRecorder()
 	hf.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusInternalServerError, res.Code)
+	assert.Equal(t, http.StatusInternalServerError, res.Result().StatusCode)
 }
 
 type testResponseMarshaler struct {
@@ -472,7 +478,7 @@ func TestTypedMethodsHandlerBuilder_ResponseTypes(t *testing.T) {
 			require.NoError(t, err)
 			res := httptest.NewRecorder()
 			hf.ServeHTTP(res, req)
-			assert.Equal(t, tc.expectStatus, res.Code)
+			assert.Equal(t, tc.expectStatus, res.Result().StatusCode)
 			if tc.expectBody != "" {
 				assert.Equal(t, tc.expectBody, res.Body.String())
 			}
@@ -524,6 +530,108 @@ func TestTypedMethodsHandlerBuilder_WithMethodExpressions(t *testing.T) {
 	r.ServeHTTP(res, req)
 	assert.True(t, dummy.bazCalled)
 }
+
+func TestTypedMethodsHandlerBuilder_WithResponseHandler(t *testing.T) {
+	dummy := &testApiWithResponseHandler{
+		statusCode: http.StatusPaymentRequired,
+	}
+	tmhb := NewTypedMethodsHandlerBuilder(dummy)
+	m := chioas.Method{
+		Handler: (*testApiWithResponseHandler).Foo,
+	}
+	mh, err := tmhb.BuildHandler("/", http.MethodGet, m, dummy)
+	assert.NoError(t, err)
+	assert.NotNil(t, mh)
+
+	req, _ := http.NewRequest(http.MethodGet, "/example", nil)
+	res := httptest.NewRecorder()
+	r := chi.NewRouter()
+	r.Get("/example", mh)
+	r.ServeHTTP(res, req)
+	assert.True(t, dummy.called)
+	assert.True(t, dummy.writeCalled)
+	assert.False(t, dummy.writeErrCalled)
+	assert.Equal(t, http.StatusPaymentRequired, res.Result().StatusCode)
+
+	dummy.called = false
+	dummy.writeCalled = false
+	dummy.statusCode = http.StatusBadRequest
+	dummy.err = errors.New("fooey")
+	req, _ = http.NewRequest(http.MethodGet, "/example", nil)
+	res = httptest.NewRecorder()
+	r.ServeHTTP(res, req)
+	assert.True(t, dummy.called)
+	assert.True(t, dummy.writeErrCalled)
+	assert.False(t, dummy.writeCalled)
+	assert.Equal(t, http.StatusBadRequest, res.Result().StatusCode)
+}
+
+func TestNewTypedMethodsHandlerBuilder_GetErrorHandler(t *testing.T) {
+	b := &builder{}
+	eh := b.getErrorHandler(nil)
+	assert.Equal(t, defaultErrorHandler, eh)
+
+	b = &builder{
+		errorHandler: &testErrorHandler{},
+	}
+	eh = b.getErrorHandler(nil)
+	assert.Equal(t, b.errorHandler, eh)
+
+	api := &testErrorHandler{}
+	b = &builder{}
+	eh = b.getErrorHandler(api)
+	assert.Equal(t, api, eh)
+}
+
+func TestNewTypedMethodsHandlerBuilder_GetResponseHandler(t *testing.T) {
+	b := &builder{}
+	rh := b.getResponseHandler(nil)
+	assert.Nil(t, rh)
+
+	b = &builder{
+		responseHandler: &testApiWithResponseHandler{},
+	}
+	rh = b.getResponseHandler(nil)
+	assert.Equal(t, b.responseHandler, rh)
+
+	b = &builder{}
+	api := &testApiWithResponseHandler{}
+	rh = b.getResponseHandler(api)
+	assert.Equal(t, api, rh)
+}
+
+type testErrorHandler struct{}
+
+var _ ErrorHandler = &testErrorHandler{}
+
+func (t *testErrorHandler) HandleError(writer http.ResponseWriter, request *http.Request, err error) {
+}
+
+type testApiWithResponseHandler struct {
+	called         bool
+	writeCalled    bool
+	writeErrCalled bool
+	statusCode     int
+	err            error
+	response       any
+}
+
+func (t *testApiWithResponseHandler) WriteResponse(writer http.ResponseWriter, request *http.Request, value any, statusCode int, thisApi any) {
+	t.writeCalled = true
+	writer.WriteHeader(t.statusCode)
+}
+
+func (t *testApiWithResponseHandler) WriteErrorResponse(writer http.ResponseWriter, request *http.Request, err error, thisApi any) {
+	t.writeErrCalled = true
+	writer.WriteHeader(t.statusCode)
+}
+
+func (t *testApiWithResponseHandler) Foo() (any, int, error) {
+	t.called = true
+	return t.response, t.statusCode, t.err
+}
+
+var _ ResponseHandler = &testApiWithResponseHandler{}
 
 type testUnmarshalble struct {
 }

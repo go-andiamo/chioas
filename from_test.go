@@ -64,7 +64,7 @@ func TestFromJson_ServeDocs(t *testing.T) {
 	req, _ := http.NewRequest(http.MethodGet, defaultDocsPath+"/"+defaultSpecNameJson, nil)
 	res := httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 	body, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
 	assert.Equal(t, []byte(testPetStoreJson), body)
@@ -72,11 +72,11 @@ func TestFromJson_ServeDocs(t *testing.T) {
 	req, _ = http.NewRequest(http.MethodGet, "/pets", nil)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 	req, _ = http.NewRequest(http.MethodGet, "/", nil)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 }
 
 func TestFromJson_Errors(t *testing.T) {
@@ -277,7 +277,7 @@ func TestFromYaml_ServeDocs(t *testing.T) {
 	req, _ := http.NewRequest(http.MethodGet, defaultDocsPath+"/"+defaultSpecName, nil)
 	res := httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 	body, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
 	assert.Equal(t, []byte(testPetstoreYaml), body)
@@ -285,11 +285,11 @@ func TestFromYaml_ServeDocs(t *testing.T) {
 	req, _ = http.NewRequest(http.MethodGet, "/pets", nil)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 	req, _ = http.NewRequest(http.MethodGet, "/", nil)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
 }
 
 func TestFromYaml_BadYaml(t *testing.T) {
