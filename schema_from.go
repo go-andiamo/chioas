@@ -180,7 +180,13 @@ func propertiesFrom(t reflect.Type, vo *reflect.Value) ([]Property, error) {
 	ptys := make([]Property, 0, l)
 	for i := 0; i < l; i++ {
 		fld := useT.Field(i)
-		if fld.IsExported() {
+		if fld.Anonymous {
+			if addPtys, err := propertiesFrom(fld.Type, vo); err == nil {
+				ptys = append(ptys, addPtys...)
+			} else {
+				return nil, err
+			}
+		} else if fld.IsExported() {
 			if pty, err := propertyFrom(fld, vo); err == nil && pty != nil {
 				ptys = append(ptys, *pty)
 			} else if err != nil {

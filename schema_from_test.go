@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/go-andiamo/chioas/yaml"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"reflect"
 	"strings"
 	"testing"
@@ -1631,4 +1632,36 @@ func TestSetNameFromJsonTag(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestSchema_From_Embedded(t *testing.T) {
+	type BaseStruct struct {
+		GivenName  string `json:"givenName" oas:"description:'Your first/given name',required,pattern:'^[A-Z][a-zA-Z]+$',example"`
+		FamilyName string `json:"familyName" oas:"description:'Your family name/surname',required,pattern:'^[A-Z][a-zA-Z]+$',example"`
+		Age        int    `oas:"name:age,required:true,example,#this is a comment,#\"this is another, with commas in it, comment\""`
+	}
+	type Person struct {
+		BaseStruct
+		SiblingNames []string `oas:"name:siblings,$ref:'Siblings'"`
+		Status       string   `oas:"name:status,enum:'single',enum:['married','divorced','undisclosed'],example"`
+	}
+	s, err := (&Schema{}).From(Person{
+		BaseStruct: BaseStruct{
+			GivenName:  "Bilbo",
+			FamilyName: "Baggins",
+			Age:        50,
+		},
+		Status: "single",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, s)
+	assert.Equal(t, 5, len(s.Properties))
+	assert.Equal(t, "givenName", s.Properties[0].Name)
+	assert.Equal(t, "Your first/given name", s.Properties[0].Description)
+	assert.Equal(t, "Bilbo", s.Properties[0].Example)
+	assert.Equal(t, "familyName", s.Properties[1].Name)
+	assert.Equal(t, "Baggins", s.Properties[1].Example)
+	assert.Equal(t, "age", s.Properties[2].Name)
+	assert.Equal(t, 50, s.Properties[2].Example)
+	assert.Equal(t, "single", s.Properties[4].Example)
 }
