@@ -27,11 +27,15 @@ type FavIcons map[int]string
 func (f FavIcons) toHtml() template.HTML {
 	result := make([]string, 0, len(f))
 	for k, v := range f {
+		href := v
 		typeAtt := ""
-		if mt := mime.TypeByExtension(filepath.Ext(v)); mt != "" {
-			typeAtt = `type="` + mt + `"`
+		if !strings.HasPrefix(v, "data:") {
+			href = "./" + href
+			if mt := mime.TypeByExtension(filepath.Ext(v)); mt != "" {
+				typeAtt = `type="` + mt + `"`
+			}
 		}
-		result = append(result, fmt.Sprintf(`<link rel="icon" %s href="./%s" sizes="%dx%d" />`, typeAtt, v, k, k))
+		result = append(result, fmt.Sprintf(`<link rel="icon" %s href="%s" sizes="%dx%d" />`, typeAtt, href, k, k))
 	}
 	return template.HTML(strings.Join(result, "\n"))
 }
