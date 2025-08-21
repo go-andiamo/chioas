@@ -52,12 +52,13 @@ func TestRapidocOptions_ToMap(t *testing.T) {
 	assert.Contains(t, string(atts), `text-color="#000000"`)
 
 	o = &RapidocOptions{
-		LogoSrc: "foo",
+		LogoSrc:   "foo",
+		LogoStyle: "width:20px",
 	}
 	m = o.ToMap()
 	assert.Equal(t, 2, len(m))
 	logoHtml := m["logo"].(template.HTML)
-	assert.Equal(t, `<img id="logo" slot="logo" src="foo">`, string(logoHtml))
+	assert.Equal(t, `<img id="logo" slot="logo" src="foo" style="width:20px">`, string(logoHtml))
 
 	const testInner = `<div slot="nav-logo" style="display: flex; align-items: center; justify-content: center;"> 
     <img src="dog.png" style="width:40px; margin-right: 20px"> <span style="color:#fff"> <b>nav-logo</b> slot </span>
