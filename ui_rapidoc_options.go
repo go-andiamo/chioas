@@ -59,6 +59,8 @@ type RapidocOptions struct {
 	SchemaExpandLevel      uint   // schema-expand-level
 	// LogoSrc is the src for Rapidoc logo
 	LogoSrc string
+	// LogoStyle is the html style attribute added to the logo image
+	LogoStyle string
 	// InnerHtml is any inner HTML for the <rapi-doc> element
 	InnerHtml  template.HTML
 	HeadScript template.JS
@@ -165,7 +167,7 @@ func (o RapidocOptions) ToMap() map[string]any {
 		"add_atts": template.HTMLAttr(strings.Join(atts, " ")),
 	}
 	if o.LogoSrc != "" {
-		result["logo"] = template.HTML(fmt.Sprintf(`<img id="logo" slot="logo" src="%s">`, safeAttValue(o.LogoSrc)))
+		result["logo"] = template.HTML(fmt.Sprintf(`<img id="logo" slot="logo" src="%s" style="%s">`, safeAttValue(o.LogoSrc), safeAttValue(o.LogoStyle)))
 	}
 	if o.InnerHtml != "" {
 		result["innerHtml"] = o.InnerHtml
