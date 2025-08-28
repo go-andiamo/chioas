@@ -37,7 +37,7 @@ type Response struct {
 	Description string
 	// NoContent indicates that this response has not content
 	//
-	// This does not eed to set this when status code is http.StatusNoContent
+	// This does not need to set this when status code is http.StatusNoContent
 	NoContent bool
 	// ContentType is the OAS content type
 	//

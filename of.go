@@ -48,6 +48,25 @@ func (ofs *Ofs) writeYaml(w yaml.Writer) {
 	}
 }
 
+type Of struct {
+	SchemaRef string
+	SchemaDef *Schema
+}
+
+func (o *Of) IsRef() bool {
+	return o.SchemaRef != ""
+}
+
+func (o *Of) Ref() string {
+	return o.SchemaRef
+}
+
+func (o *Of) Schema() *Schema {
+	return o.SchemaDef
+}
+
+var _ OfSchema = &Of{}
+
 type OfSchema interface {
 	IsRef() bool
 	Ref() string

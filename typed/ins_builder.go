@@ -165,12 +165,10 @@ func (inb *insBuilder) makeBuilderFromArgBuilders(arg reflect.Type, i int) (ok b
 			if ok, isBody = a.IsApplicable(arg, inb.method, inb.path); ok {
 				b := a
 				inb.valueBuilders[i] = func(argType reflect.Type, writer http.ResponseWriter, request *http.Request, params []urit.PathVar) (reflect.Value, error) {
-					if rv, err := b.BuildValue(argType, request, params); err == nil && rv.Type() == argType {
+					if rv, err := b.BuildValue(argType, request, params); err == nil {
 						return rv, nil
-					} else if err != nil {
-						return reflect.Value{}, err
 					} else {
-						return reflect.Value{}, fmt.Errorf("arg %d type mismatch from arg builder (method: %s, path: %s)", i, inb.method, inb.path)
+						return reflect.Value{}, err
 					}
 				}
 				if isBody {
