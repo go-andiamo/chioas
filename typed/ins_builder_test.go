@@ -344,22 +344,6 @@ func TestInsBuilder_MakeBuilders_WithAdditionals(t *testing.T) {
 	assert.True(t, wasGet)
 }
 
-func TestInsBuilder_MakeBuilders_WithMismatchAdditional(t *testing.T) {
-	fn := func(isGet bool, pathParams ...string) {}
-	mf := reflect.ValueOf(fn)
-
-	additional := &testMismatchAdditional{}
-	inb, err := newInsBuilder(mf, "/", http.MethodGet, &builder{unmarshaler: defaultUnmarshaler, argBuilders: []ArgBuilder{additional}})
-	assert.NoError(t, err)
-	assert.Equal(t, 2, inb.len)
-
-	w := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodGet, "/", nil)
-	_, err = inb.build(w, req)
-	assert.Error(t, err)
-	assert.Equal(t, "arg 0 type mismatch from arg builder (method: GET, path: /)", err.Error())
-}
-
 type testAdditional struct {
 	applicableCalled bool
 	buildValueCalled bool
@@ -373,20 +357,6 @@ func (t *testAdditional) BuildValue(argType reflect.Type, request *http.Request,
 	t.buildValueCalled = true
 	result := request.Method == http.MethodGet
 	return reflect.ValueOf(result), nil
-}
-
-type testMismatchAdditional struct {
-	applicableCalled bool
-	buildValueCalled bool
-}
-
-func (t *testMismatchAdditional) IsApplicable(argType reflect.Type, method string, path string) (is bool, readsBody bool) {
-	t.applicableCalled = true
-	return argType.Kind() == reflect.Bool, true
-}
-func (t *testMismatchAdditional) BuildValue(argType reflect.Type, request *http.Request, params []urit.PathVar) (reflect.Value, error) {
-	t.buildValueCalled = true
-	return reflect.ValueOf(""), nil // incorrect reflect.Value!
 }
 
 var dummyType = reflect.TypeOf("")

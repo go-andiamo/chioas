@@ -6,6 +6,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"io"
 	"net/http"
+	k8yaml "sigs.k8s.io/yaml"
 	"strings"
 )
 
@@ -198,6 +199,10 @@ func (d *Definition) WriteJson(writer io.Writer) (err error) {
 		}
 	}
 	return
+}
+
+func yaml2Json(yamlData []byte) (data []byte, err error) {
+	return k8yaml.YAMLToJSON(yamlData)
 }
 
 // AsYaml returns the spec as YAML data

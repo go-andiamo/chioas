@@ -415,14 +415,6 @@ func defValue(v, def string) string {
 	return def
 }
 
-func yaml2Json(yamlData []byte) (data []byte, err error) {
-	r := &node{}
-	if err = yaml.Unmarshal(yamlData, r); err == nil {
-		data, err = json.Marshal(r.Value)
-	}
-	return
-}
-
 type node struct {
 	Key   string
 	Value any
