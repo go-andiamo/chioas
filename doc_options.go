@@ -8,7 +8,6 @@ import (
 	"github.com/go-andiamo/chioas/rapidoc_ui"
 	"github.com/go-andiamo/chioas/swagger_ui"
 	"github.com/go-chi/chi/v5"
-	"gopkg.in/yaml.v3"
 	"html/template"
 	"mime"
 	"net/http"
@@ -413,36 +412,4 @@ func defValue(v, def string) string {
 		return v
 	}
 	return def
-}
-
-type node struct {
-	Key   string
-	Value any
-}
-
-func (n *node) UnmarshalYAML(value *yaml.Node) (err error) {
-	n.Key = value.Tag
-	switch value.Kind {
-	case yaml.ScalarNode:
-		n.Value = value.Value
-	case yaml.MappingNode:
-		childMap := make(map[string]any)
-		for i := 0; i < len(value.Content) && err == nil; i += 2 {
-			keyNode := value.Content[i]
-			valNode := value.Content[i+1]
-			child := &node{}
-			err = child.UnmarshalYAML(valNode)
-			childMap[keyNode.Value] = child.Value
-		}
-		n.Value = childMap
-	case yaml.SequenceNode:
-		childSlice := make([]any, len(value.Content))
-		for i, childNode := range value.Content {
-			child := &node{}
-			err = child.UnmarshalYAML(childNode)
-			childSlice[i] = child.Value
-		}
-		n.Value = childSlice
-	}
-	return
 }

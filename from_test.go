@@ -18,12 +18,18 @@ func TestFromJson(t *testing.T) {
 	handlers := Handlers{
 		"getRoot": testGetRoot,
 	}
+	mwPaths := []string{}
 	d, err := FromJson(r, &FromOptions{
 		Api:      api,
 		Handlers: handlers,
+		PathMiddlewares: func(path string) chi.Middlewares {
+			mwPaths = append(mwPaths, path)
+			return nil
+		},
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, 1, len(d.Paths))
+	assert.Equal(t, []string{"/", "/pets", "/pets/{petId}"}, mwPaths)
 	p, ok := d.Paths["/pets"]
 	assert.True(t, ok)
 	assert.Equal(t, 1, len(p.Paths))
@@ -182,7 +188,7 @@ func TestFromJson_Errors(t *testing.T) {
     }
   }
 }`,
-			expectErrMsg: "method 'GET' on path '/' not a map",
+			expectErrMsg: "method \"GET\" must be an object (on path \"/\")",
 		},
 		{
 			json: `{
@@ -190,22 +196,13 @@ func TestFromJson_Errors(t *testing.T) {
     "/": false
   }
 }`,
-			expectErrMsg: "path '/' not a map",
-		},
-		{
-			json: `{
-  "paths": {
-    "//": {
-    }
-  }
-}`,
-			expectErrMsg: "invalid path '//'",
+			expectErrMsg: "property \"/\" must be an object",
 		},
 		{
 			json: `{
   "paths": false
 }`,
-			expectErrMsg: "no paths defined",
+			expectErrMsg: "property \"paths\" must be an object",
 		},
 	}
 	for i, tc := range testCases {
@@ -237,7 +234,7 @@ func TestFromYaml(t *testing.T) {
 			return nil
 		},
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, 1, len(d.Paths))
 	assert.Equal(t, []string{"/", "/pets", "/pets/{petId}"}, mwPaths)
 	p, ok := d.Paths["/pets"]
@@ -293,7 +290,7 @@ func TestFromYaml_ServeDocs(t *testing.T) {
 }
 
 func TestFromYaml_BadYaml(t *testing.T) {
-	data := `null`
+	data := `this is not yaml`
 	r := bytes.NewReader([]byte(data))
 	api := &testApi{}
 	handlers := Handlers{
@@ -304,7 +301,6 @@ func TestFromYaml_BadYaml(t *testing.T) {
 		Handlers: handlers,
 	})
 	assert.Error(t, err)
-	assert.Equal(t, "bad yaml", err.Error())
 }
 
 func testGetRoot(w http.ResponseWriter, r *http.Request) {

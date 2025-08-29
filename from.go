@@ -3,10 +3,8 @@ package chioas
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/go-chi/chi/v5"
-	"golang.org/x/exp/slices"
 	"gopkg.in/yaml.v3"
 	"io"
 	"net/http"
@@ -37,18 +35,30 @@ import (
 // where the "GetRoot" must be a http.HandlerFunc method on the supplied api arg
 func FromJson(r io.Reader, opts *FromOptions) (result *Definition, err error) {
 	useOptions := defaultedFromOptions(opts, true)
+	result = &Definition{
+		DocOptions: *useOptions.DocOptions,
+	}
 	useReader := r
-	if useOptions.DocOptions.ServeDocs {
-		if useOptions.DocOptions.specData, err = io.ReadAll(r); err == nil {
-			useReader = bytes.NewReader(useOptions.DocOptions.specData)
+	if result.DocOptions.ServeDocs {
+		if result.DocOptions.specData, err = io.ReadAll(r); err == nil {
+			useReader = bytes.NewReader(result.DocOptions.specData)
 		}
 	}
 	if err == nil {
 		d := json.NewDecoder(useReader)
 		d.UseNumber()
-		obj := map[string]any{}
-		if err = d.Decode(&obj); err == nil {
-			result, err = useOptions.definitionFrom(obj)
+		if err = d.Decode(result); err == nil {
+			if useOptions.PathMiddlewares != nil {
+				result.Middlewares = useOptions.PathMiddlewares("/")
+				_ = result.WalkPaths(func(path string, pathDef *Path) (cont bool, err error) {
+					pathDef.Middlewares = useOptions.PathMiddlewares(path)
+					return true, nil
+				})
+			}
+			err = result.WalkMethods(func(path string, method string, methodDef *Method) (contd bool, err error) {
+				err = useOptions.setMethodHandler(path, method, methodDef)
+				return true, err
+			})
 		}
 	}
 	return
@@ -75,138 +85,40 @@ func FromJson(r io.Reader, opts *FromOptions) (result *Definition, err error) {
 // where the "GetRoot" must be a http.HandlerFunc method on the supplied api arg
 func FromYaml(r io.Reader, opts *FromOptions) (result *Definition, err error) {
 	useOptions := defaultedFromOptions(opts, false)
+	result = &Definition{
+		DocOptions: *useOptions.DocOptions,
+	}
 	useReader := r
-	if useOptions.DocOptions.ServeDocs {
-		if useOptions.DocOptions.specData, err = io.ReadAll(r); err == nil {
-			useReader = bytes.NewReader(useOptions.DocOptions.specData)
+	if result.DocOptions.ServeDocs {
+		if result.DocOptions.specData, err = io.ReadAll(r); err == nil {
+			useReader = bytes.NewReader(result.DocOptions.specData)
 		}
 	}
 	if err == nil {
 		d := yaml.NewDecoder(useReader)
-		rootNode := &node{}
-		if err = d.Decode(rootNode); err == nil {
-			rootObj, ok := rootNode.Value.(map[string]any)
-			if !ok {
-				err = errors.New("bad yaml")
-			} else {
-				result, err = useOptions.definitionFrom(rootObj)
+		if err = d.Decode(result); err == nil {
+			if useOptions.PathMiddlewares != nil {
+				result.Middlewares = useOptions.PathMiddlewares("/")
+				_ = result.WalkPaths(func(path string, pathDef *Path) (cont bool, err error) {
+					pathDef.Middlewares = useOptions.PathMiddlewares(path)
+					return true, nil
+				})
 			}
+			err = result.WalkMethods(func(path string, method string, methodDef *Method) (contd bool, err error) {
+				err = useOptions.setMethodHandler(path, method, methodDef)
+				return true, err
+			})
 		}
 	}
 	return
 }
 
-func (f *FromOptions) definitionFrom(obj map[string]any) (result *Definition, err error) {
-	result = &Definition{
-		DocOptions:  *f.DocOptions,
-		Methods:     Methods{},
-		Paths:       Paths{},
-		Middlewares: f.getPathMiddlewares("/"),
-	}
-	if paths, ok := getMap(obj, tagNamePaths); ok {
-		err = f.processPaths(result, paths)
-	} else {
-		err = errors.New("no paths defined")
-	}
-	return
-}
-
-func (f *FromOptions) processPaths(def *Definition, paths map[string]any) error {
-	for path, rawV := range paths {
-		if v, ok := rawV.(map[string]any); ok {
-			if path == "/" {
-				if err := f.processMethods(path, v, def.Methods); err != nil {
-					return err
-				}
-			} else if pObj, err := f.getPath(def, path); err == nil {
-				if err := f.processMethods(path, v, pObj.Methods); err != nil {
-					return err
-				}
-			} else {
-				return err
-			}
-		} else {
-			return fmt.Errorf("path '%s' not a map", path)
-		}
-	}
-	return nil
-}
-
-func (f *FromOptions) getPath(def *Definition, path string) (result Path, err error) {
-	parts := strings.Split(path, "/")
-	if len(parts) > 0 && parts[0] == "" {
-		parts = parts[1:]
-	}
-	if len(parts) > 0 && parts[len(parts)-1] == "" {
-		parts = parts[:len(parts)-1]
-	}
-	if l := len(parts); l > 0 && !slices.Contains(parts, "") {
-		curr := def.Paths
-		for i, pt := range parts {
-			if rp, ok := curr["/"+pt]; ok {
-				result = rp
-			} else {
-				result = Path{
-					Paths:       Paths{},
-					Methods:     Methods{},
-					Middlewares: f.getPathMiddlewares("/" + strings.Join(parts[:i+1], "/")),
-				}
-				curr["/"+pt] = result
-			}
-			if i == l-1 {
-				return
-			}
-			curr = result.Paths
-		}
-	} else {
-		err = fmt.Errorf("invalid path '%s'", path)
-	}
-	return
-}
-
-func (f *FromOptions) getPathMiddlewares(path string) chi.Middlewares {
-	if f.PathMiddlewares != nil {
-		return f.PathMiddlewares(path)
-	}
-	return nil
-}
-
-var chiMethods = map[string]bool{
-	http.MethodConnect: true,
-	http.MethodDelete:  true,
-	http.MethodGet:     true,
-	http.MethodHead:    true,
-	http.MethodOptions: true,
-	http.MethodPatch:   true,
-	http.MethodPost:    true,
-	http.MethodPut:     true,
-	http.MethodTrace:   true,
-}
-
-func (f *FromOptions) processMethods(path string, obj map[string]any, methods Methods) error {
-	for k, rawV := range obj {
-		m := strings.ToUpper(k)
-		if chiMethods[m] {
-			if v, ok := rawV.(map[string]any); ok {
-				if method, err := f.getMethod(path, m, v); err == nil && method != nil {
-					methods[m] = *method
-				} else if err != nil {
-					return err
-				}
-			} else {
-				return fmt.Errorf("method '%s' on path '%s' not a map", m, path)
-			}
-		}
-	}
-	return nil
-}
-
-func (f *FromOptions) getMethod(path string, method string, m map[string]any) (result *Method, err error) {
-	if rawV, ok := m["x-handler"]; ok {
-		if handlerName, ok := rawV.(string); ok {
+func (f *FromOptions) setMethodHandler(path string, method string, methodDef *Method) (err error) {
+	if v, ok := methodDef.Extensions["handler"]; ok {
+		if handlerName, ok := v.(string); ok {
 			var hf http.HandlerFunc
 			if hf, err = f.getMethodHandler(path, method, handlerName); err == nil {
-				result = &Method{Handler: hf}
+				methodDef.Handler = hf
 			}
 		} else {
 			err = fmt.Errorf("path '%s', method '%s' - 'x-handler' tag not a string", path, method)
@@ -214,7 +126,7 @@ func (f *FromOptions) getMethod(path string, method string, m map[string]any) (r
 	} else if f.Strict {
 		err = fmt.Errorf("path '%s', method '%s' - missing 'x-handler' tag", path, method)
 	}
-	return
+	return err
 }
 
 func (f *FromOptions) getMethodHandler(path string, method string, handlerName string) (http.HandlerFunc, error) {
@@ -233,15 +145,6 @@ func (f *FromOptions) getMethodHandler(path string, method string, handlerName s
 		}
 	}
 	return nil, fmt.Errorf("path '%s', method '%s' - 'x-handler' no method or func found for '%s'", path, method, handlerName)
-}
-
-func getMap(obj map[string]any, tagName string) (map[string]any, bool) {
-	if raw, ok := obj[tagName]; ok {
-		if m, ok := raw.(map[string]any); ok {
-			return m, true
-		}
-	}
-	return nil, false
 }
 
 // Handlers is a lookup, by name, used by FromJson or FromYaml
