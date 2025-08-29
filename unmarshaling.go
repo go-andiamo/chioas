@@ -112,6 +112,9 @@ func (d *Definition) unmarshalPaths(m map[string]any) (err error) {
 var pathSplitter = splitter.MustCreateSplitter('/', splitter.CurlyBrackets).AddDefaultOptions(splitter.IgnoreEmptyFirst, splitter.IgnoreEmptyLast)
 
 func unflattenHolders(holders []*pathHolder) (result map[string]*pathHolder, err error) {
+	slices.SortFunc(holders, func(a, b *pathHolder) int {
+		return strings.Compare(a.origPath, b.origPath)
+	})
 	result = make(map[string]*pathHolder, len(holders))
 	add := func(h *pathHolder) error {
 		if parts, err := pathSplitter.Split(h.path); err == nil {
@@ -170,9 +173,9 @@ func (ph *pathHolder) getPath() (result Path, err error) {
 	if result.Methods, err = ph.getMethods(); err == nil {
 		if len(ph.subs) > 0 {
 			result.Paths = make(Paths, len(ph.subs))
-			for _, holder := range ph.subs {
-				if result.Paths[holder.path], err = holder.getPath(); err != nil {
-					return
+			for path, holder := range ph.subs {
+				if result.Paths[path], err = holder.getPath(); err != nil {
+					break
 				}
 			}
 		}
