@@ -4,32 +4,1857 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/exp/maps"
 	"gopkg.in/yaml.v3"
+	"math"
 	"net/http"
+	"strings"
 	"testing"
 )
 
 func TestDefinition_UnmarshalJSON(t *testing.T) {
 	data, err := fullDefJson()
 	require.NoError(t, err)
-
-	fmt.Println(string(data))
-
+	//fmt.Println(string(data))
 	d := Definition{}
 	err = json.Unmarshal(data, &d)
 	require.NoError(t, err)
 }
 
+func TestDefinition_UnmarshalJSON_BadJson(t *testing.T) {
+	d := Definition{}
+	err := json.Unmarshal([]byte(`[]`), &d)
+	require.Error(t, err)
+}
+
 func TestDefinition_UnmarshalYAML(t *testing.T) {
 	data, err := fullDefYaml()
 	require.NoError(t, err)
-
-	fmt.Println(string(data))
-
+	//fmt.Println(string(data))
 	d := Definition{}
 	err = yaml.Unmarshal(data, &d)
 	require.NoError(t, err)
+}
+
+func TestDefinition_unmarshalObj_Errors(t *testing.T) {
+	t.Run("bad info", func(t *testing.T) {
+		d := &Definition{}
+		err := d.unmarshalObj(map[string]any{
+			tagNameInfo: "not an object",
+		})
+		require.Error(t, err)
+	})
+	t.Run("bad externalDocs", func(t *testing.T) {
+		d := &Definition{}
+		err := d.unmarshalObj(map[string]any{
+			tagNameExternalDocs: "not an object",
+		})
+		require.Error(t, err)
+	})
+}
+
+func TestDefinition_unmarshalObj(t *testing.T) {
+	m := map[string]any{
+		tagNameInfo:         map[string]any{},
+		tagNameExternalDocs: map[string]any{},
+		tagNameTags: []any{
+			map[string]any{
+				tagNameName: "test tag",
+			},
+		},
+		tagNameServers: []any{
+			map[string]any{
+				tagNameUrl: "test url",
+			},
+		},
+		tagNameSecurity: []any{
+			map[string]any{
+				"foo": []any{"all"},
+			},
+		},
+		tagNamePaths: map[string]any{
+			"/root": map[string]any{},
+		},
+		tagNameComponents: map[string]any{},
+		"x-foo":           "bar",
+	}
+	t.Run("success", func(t *testing.T) {
+		r, err := fromObj[Definition](m)
+		require.NoError(t, err)
+		assert.Len(t, r.Tags, 1)
+		assert.Len(t, r.Servers, 1)
+		assert.Len(t, r.Security, 1)
+		assert.NotNil(t, r.Components)
+		assert.Len(t, r.Paths, 1)
+		assert.Len(t, r.Extensions, 1)
+	})
+	t.Run("errors", func(t *testing.T) {
+		type bad struct{}
+		for k := range m {
+			if !strings.HasPrefix(k, "x-") {
+				m2 := maps.Clone(m)
+				m2[k] = bad{}
+				_, err := fromObj[Method](m2)
+				require.Error(t, err)
+			}
+		}
+	})
+}
+
+func TestDefinition_unmarshalPaths(t *testing.T) {
+	t.Run("root methods", func(t *testing.T) {
+		m := map[string]any{
+			tagNamePaths: map[string]any{
+				root: map[string]any{
+					"get":     map[string]any{},
+					"options": map[string]any{},
+				},
+			},
+		}
+		d := &Definition{}
+		err := d.unmarshalPaths(m)
+		require.NoError(t, err)
+		assert.Len(t, d.Methods, 2)
+		_, ok := d.Methods[http.MethodGet]
+		assert.True(t, ok)
+		_, ok = d.Methods[http.MethodOptions]
+		assert.True(t, ok)
+	})
+	t.Run("fill in ancestry", func(t *testing.T) {
+		m := map[string]any{
+			tagNamePaths: map[string]any{
+				"/foo/bar/baz": map[string]any{
+					"get": map[string]any{},
+				},
+			},
+		}
+		d := &Definition{}
+		err := d.unmarshalPaths(m)
+		require.NoError(t, err)
+		assert.Len(t, d.Paths, 1)
+		p, ok := d.Paths["/foo"]
+		require.True(t, ok)
+		p, ok = p.Paths["/bar"]
+		require.True(t, ok)
+		p, ok = p.Paths["/baz"]
+		require.True(t, ok)
+		assert.Len(t, p.Methods, 1)
+	})
+	t.Run("root method not object", func(t *testing.T) {
+		m := map[string]any{
+			tagNamePaths: map[string]any{
+				root: map[string]any{
+					"get": "not an object",
+				},
+			},
+		}
+		d := &Definition{}
+		err := d.unmarshalPaths(m)
+		require.Error(t, err)
+	})
+	t.Run("path method not object", func(t *testing.T) {
+		m := map[string]any{
+			tagNamePaths: map[string]any{
+				"/foo/bar": map[string]any{
+					"get": "not an object",
+				},
+			},
+		}
+		d := &Definition{}
+		err := d.unmarshalPaths(m)
+		require.Error(t, err)
+	})
+	t.Run("path method unmarshal object fails", func(t *testing.T) {
+		m := map[string]any{
+			tagNamePaths: map[string]any{
+				"/foo/bar": map[string]any{
+					"get": map[string]any{
+						tagNameDescription: false,
+					},
+				},
+			},
+		}
+		d := &Definition{}
+		err := d.unmarshalPaths(m)
+		require.Error(t, err)
+	})
+	t.Run("fails to split path", func(t *testing.T) {
+		m := map[string]any{
+			tagNamePaths: map[string]any{
+				"/api/{unbalanced}}": map[string]any{},
+			},
+		}
+		d := &Definition{}
+		err := d.unmarshalPaths(m)
+		require.Error(t, err)
+	})
+}
+
+func TestMethod_unmarshalObj(t *testing.T) {
+	m := map[string]any{
+		tagNameDescription: "test description",
+		tagNameSummary:     "test summary",
+		tagNameOperationId: "test operation id",
+		tagNameDeprecated:  true,
+		tagNameTags:        []any{"test tag"},
+		tagNameRequestBody: map[string]any{},
+		tagNameParameters: []any{
+			map[string]any{},
+		},
+		tagNameResponses: map[string]any{
+			"200": map[string]any{},
+		},
+		tagNameSecurity: []any{
+			map[string]any{},
+		},
+		"x-foo": "bar",
+	}
+	t.Run("success", func(t *testing.T) {
+		r, err := fromObj[Method](m)
+		require.NoError(t, err)
+		assert.Equal(t, "test description", r.Description)
+		assert.Equal(t, "test summary", r.Summary)
+		assert.Equal(t, "test operation id", r.OperationId)
+		assert.True(t, r.Deprecated)
+		assert.Equal(t, "test tag", r.Tag)
+		assert.NotNil(t, r.Request)
+		assert.Len(t, r.QueryParams, 1)
+		assert.Len(t, r.Responses, 1)
+		_, ok := r.Responses[200]
+		assert.True(t, ok)
+		assert.Len(t, r.Security, 0)
+		assert.True(t, r.OptionalSecurity)
+		assert.Len(t, r.Extensions, 1)
+	})
+	t.Run("success with security", func(t *testing.T) {
+		m2 := maps.Clone(m)
+		m2[tagNameSecurity] = []any{
+			map[string]any{
+				"foo": nil,
+			},
+		}
+		r, err := fromObj[Method](m2)
+		require.NoError(t, err)
+		assert.Len(t, r.Security, 1)
+		assert.Equal(t, "foo", r.Security[0].Name)
+		assert.False(t, r.OptionalSecurity)
+	})
+	t.Run("fails with invalid response code", func(t *testing.T) {
+		m2 := maps.Clone(m)
+		m2[tagNameResponses] = map[string]any{
+			"not a number": map[string]any{},
+		}
+		_, err := fromObj[Method](m2)
+		require.Error(t, err)
+	})
+	t.Run("errors", func(t *testing.T) {
+		type bad struct{}
+		for k := range m {
+			if !strings.HasPrefix(k, "x-") {
+				m2 := maps.Clone(m)
+				m2[k] = bad{}
+				_, err := fromObj[Method](m2)
+				require.Error(t, err)
+			}
+		}
+	})
+}
+
+func TestInfo_unmarshalObj(t *testing.T) {
+	m := map[string]any{
+		tagNameTitle:          "test title",
+		tagNameDescription:    "test description",
+		tagNameVersion:        "test version",
+		tagNameTermsOfService: "test terms of service",
+		tagNameContact:        map[string]any{},
+		tagNameLicense:        map[string]any{},
+		"x-foo":               "bar",
+	}
+	t.Run("success", func(t *testing.T) {
+		r, err := fromObj[Info](m)
+		require.NoError(t, err)
+		assert.Equal(t, "test title", r.Title)
+		assert.Equal(t, "test description", r.Description)
+		assert.Equal(t, "test version", r.Version)
+		assert.Equal(t, "test terms of service", r.TermsOfService)
+		assert.Len(t, r.Extensions, 1)
+	})
+	t.Run("errors", func(t *testing.T) {
+		type bad struct{}
+		for k := range m {
+			if !strings.HasPrefix(k, "x-") {
+				m2 := maps.Clone(m)
+				m2[k] = bad{}
+				_, err := fromObj[Info](m2)
+				require.Error(t, err)
+			}
+		}
+	})
+}
+
+func TestContact_unmarshalObj(t *testing.T) {
+	m := map[string]any{
+		tagNameName:  "test name",
+		tagNameUrl:   "test url",
+		tagNameEmail: "test email",
+		"x-foo":      "bar",
+	}
+	t.Run("success", func(t *testing.T) {
+		r, err := fromObj[Contact](m)
+		require.NoError(t, err)
+		assert.Equal(t, "test name", r.Name)
+		assert.Equal(t, "test url", r.Url)
+		assert.Equal(t, "test email", r.Email)
+		assert.Len(t, r.Extensions, 1)
+	})
+	t.Run("errors", func(t *testing.T) {
+		type bad struct{}
+		for k := range m {
+			if !strings.HasPrefix(k, "x-") {
+				m2 := maps.Clone(m)
+				m2[k] = bad{}
+				_, err := fromObj[Contact](m2)
+				require.Error(t, err)
+			}
+		}
+	})
+}
+
+func TestLicense_unmarshalObj(t *testing.T) {
+	m := map[string]any{
+		tagNameName: "test name",
+		tagNameUrl:  "test url",
+		"x-foo":     "bar",
+	}
+	t.Run("success", func(t *testing.T) {
+		r, err := fromObj[License](m)
+		require.NoError(t, err)
+		assert.Equal(t, "test name", r.Name)
+		assert.Equal(t, "test url", r.Url)
+		assert.Len(t, r.Extensions, 1)
+	})
+	t.Run("errors", func(t *testing.T) {
+		type bad struct{}
+		for k := range m {
+			if !strings.HasPrefix(k, "x-") {
+				m2 := maps.Clone(m)
+				m2[k] = bad{}
+				_, err := fromObj[License](m2)
+				require.Error(t, err)
+			}
+		}
+	})
+}
+
+func TestExternalDocs_unmarshalObj(t *testing.T) {
+	m := map[string]any{
+		tagNameDescription: "test description",
+		tagNameUrl:         "test url",
+		"x-foo":            "bar",
+	}
+	t.Run("success", func(t *testing.T) {
+		r, err := fromObj[ExternalDocs](m)
+		require.NoError(t, err)
+		assert.Equal(t, "test description", r.Description)
+		assert.Equal(t, "test url", r.Url)
+		assert.Len(t, r.Extensions, 1)
+	})
+	t.Run("errors", func(t *testing.T) {
+		type bad struct{}
+		for k := range m {
+			if !strings.HasPrefix(k, "x-") {
+				m2 := maps.Clone(m)
+				m2[k] = bad{}
+				_, err := fromObj[ExternalDocs](m2)
+				require.Error(t, err)
+			}
+		}
+	})
+}
+
+func TestTag_unmarshalObj(t *testing.T) {
+	m := map[string]any{
+		tagNameName:         "test name",
+		tagNameDescription:  "test description",
+		tagNameExternalDocs: map[string]any{},
+		"x-foo":             "bar",
+	}
+	t.Run("success", func(t *testing.T) {
+		r, err := fromObj[Tag](m)
+		require.NoError(t, err)
+		assert.Equal(t, "test name", r.Name)
+		assert.Equal(t, "test description", r.Description)
+		assert.Len(t, r.Extensions, 1)
+	})
+	t.Run("errors", func(t *testing.T) {
+		type bad struct{}
+		for k := range m {
+			if !strings.HasPrefix(k, "x-") {
+				m2 := maps.Clone(m)
+				m2[k] = bad{}
+				_, err := fromObj[Tag](m2)
+				require.Error(t, err)
+			}
+		}
+	})
+}
+
+func TestServer_unmarshalObj(t *testing.T) {
+	m := map[string]any{
+		tagNameDescription: "test description",
+		"x-foo":            "bar",
+	}
+	t.Run("success", func(t *testing.T) {
+		r, err := fromObj[Server](m)
+		require.NoError(t, err)
+		assert.Equal(t, "test description", r.Description)
+		assert.Len(t, r.Extensions, 1)
+	})
+	t.Run("errors", func(t *testing.T) {
+		type bad struct{}
+		for k := range m {
+			if !strings.HasPrefix(k, "x-") {
+				m2 := maps.Clone(m)
+				m2[k] = bad{}
+				_, err := fromObj[Server](m2)
+				require.Error(t, err)
+			}
+		}
+	})
+}
+
+func TestSecurityScheme_unmarshalObj(t *testing.T) {
+	m := map[string]any{
+		tagNameDescription: "test description",
+		tagNameType:        "test type",
+		tagNameScheme:      "test scheme",
+		tagNameName:        "test name",
+		tagNameIn:          "test in",
+		"x-foo":            "bar",
+	}
+	t.Run("success", func(t *testing.T) {
+		r, err := fromObj[SecurityScheme](m)
+		require.NoError(t, err)
+		assert.Equal(t, "test description", r.Description)
+		assert.Equal(t, "test type", r.Type)
+		assert.Equal(t, "test scheme", r.Scheme)
+		assert.Equal(t, "test name", r.ParamName)
+		assert.Equal(t, "test in", r.In)
+		assert.Len(t, r.Extensions, 1)
+	})
+	t.Run("errors", func(t *testing.T) {
+		type bad struct{}
+		for k := range m {
+			if !strings.HasPrefix(k, "x-") {
+				m2 := maps.Clone(m)
+				m2[k] = bad{}
+				_, err := fromObj[SecurityScheme](m2)
+				require.Error(t, err)
+			}
+		}
+	})
+}
+
+func TestExample_unmarshalObj(t *testing.T) {
+	m := map[string]any{
+		tagNameDescription: "test description",
+		tagNameSummary:     "test summary",
+		tagNameValue:       "test value",
+		"x-foo":            "bar",
+	}
+	t.Run("success", func(t *testing.T) {
+		r, err := fromObj[Example](m)
+		require.NoError(t, err)
+		assert.Equal(t, "test description", r.Description)
+		assert.Equal(t, "test summary", r.Summary)
+		assert.Equal(t, "test value", r.Value)
+		assert.Empty(t, r.ExampleRef)
+		assert.Len(t, r.Extensions, 1)
+	})
+	t.Run("ref", func(t *testing.T) {
+		m2 := maps.Clone(m)
+		m2[tagNameRef] = "test ref"
+		r, err := fromObj[Example](m2)
+		require.NoError(t, err)
+		assert.Equal(t, "test ref", r.ExampleRef)
+		assert.Empty(t, r.Description)
+		assert.Empty(t, r.Summary)
+		assert.Empty(t, r.Value)
+		assert.Empty(t, r.Extensions)
+
+		m2[tagNameRef] = struct{}{}
+		_, err = fromObj[Example](m2)
+		require.Error(t, err)
+	})
+	t.Run("errors", func(t *testing.T) {
+		type bad struct{}
+		for k := range m {
+			if k != tagNameValue && !strings.HasPrefix(k, "x-") {
+				m2 := maps.Clone(m)
+				m2[k] = bad{}
+				_, err := fromObj[Example](m2)
+				require.Error(t, err)
+			}
+		}
+	})
+}
+
+func TestCommonParameter_unmarshalObj(t *testing.T) {
+	m := map[string]any{
+		tagNameName:        "test name",
+		tagNameDescription: "test description",
+		tagNameRequired:    true,
+		tagNameIn:          "test in",
+		tagNameExample:     "test example",
+		"x-foo":            "bar",
+	}
+	t.Run("success", func(t *testing.T) {
+		r, err := fromObj[CommonParameter](m)
+		require.NoError(t, err)
+		assert.Equal(t, "test name", r.Name)
+		assert.Equal(t, "test description", r.Description)
+		assert.True(t, r.Required)
+		assert.Equal(t, "test in", r.In)
+		assert.Equal(t, "test example", r.Example)
+		assert.Len(t, r.Extensions, 1)
+	})
+	t.Run("errors", func(t *testing.T) {
+		type bad struct{}
+		for k := range m {
+			if k != tagNameExample && !strings.HasPrefix(k, "x-") {
+				m2 := maps.Clone(m)
+				m2[k] = bad{}
+				_, err := fromObj[CommonParameter](m2)
+				require.Error(t, err)
+			}
+		}
+	})
+}
+
+func TestQueryParam_unmarshalObj(t *testing.T) {
+	m := map[string]any{
+		tagNameName:        "test name",
+		tagNameDescription: "test description",
+		tagNameRequired:    true,
+		tagNameIn:          "test in",
+		tagNameExample:     "test example",
+		"x-foo":            "bar",
+	}
+	t.Run("success", func(t *testing.T) {
+		r, err := fromObj[QueryParam](m)
+		require.NoError(t, err)
+		assert.Equal(t, "test name", r.Name)
+		assert.Equal(t, "test description", r.Description)
+		assert.True(t, r.Required)
+		assert.Equal(t, "test in", r.In)
+		assert.Equal(t, "test example", r.Example)
+		assert.Len(t, r.Extensions, 1)
+	})
+	t.Run("errors", func(t *testing.T) {
+		type bad struct{}
+		for k := range m {
+			if k != tagNameExample && !strings.HasPrefix(k, "x-") {
+				m2 := maps.Clone(m)
+				m2[k] = bad{}
+				_, err := fromObj[QueryParam](m2)
+				require.Error(t, err)
+			}
+		}
+	})
+}
+
+func TestProperty_unmarshalObj(t *testing.T) {
+	m := map[string]any{
+		tagNameName:        "test name",
+		tagNameDescription: "test description",
+		tagNameType:        "test type",
+		tagNameItemType:    "test item type",
+		tagNameRequired:    true,
+		tagNameFormat:      "test format",
+		tagNameDeprecated:  true,
+		tagNameExample:     "test example",
+		tagNameEnum:        []any{nil},
+		tagNameProperties: map[string]any{
+			"foo": map[string]any{},
+		},
+		"x-foo": "bar",
+	}
+	t.Run("success", func(t *testing.T) {
+		r, err := fromObj[Property](m)
+		require.NoError(t, err)
+		assert.Equal(t, "test name", r.Name)
+		assert.Equal(t, "test description", r.Description)
+		assert.Equal(t, "test type", r.Type)
+		assert.Equal(t, "test item type", r.ItemType)
+		assert.True(t, r.Required)
+		assert.Equal(t, "test format", r.Format)
+		assert.True(t, r.Deprecated)
+		assert.Equal(t, "test example", r.Example)
+		assert.Len(t, r.Enum, 1)
+		assert.Len(t, r.Extensions, 1)
+		assert.Empty(t, r.SchemaRef)
+	})
+	t.Run("success ref", func(t *testing.T) {
+		m2 := maps.Clone(m)
+		m2[tagNameRef] = "test ref"
+		r, err := fromObj[Property](m2)
+		require.NoError(t, err)
+		assert.Equal(t, "test ref", r.SchemaRef)
+		assert.Empty(t, r.Name)
+		assert.Empty(t, r.Description)
+		assert.Empty(t, r.Type)
+		assert.Empty(t, r.ItemType)
+		assert.False(t, r.Required)
+		assert.Empty(t, r.Format)
+		assert.False(t, r.Deprecated)
+		assert.Empty(t, r.Example)
+		assert.Empty(t, r.Enum)
+		assert.Empty(t, r.Extensions)
+	})
+	t.Run("errors", func(t *testing.T) {
+		type bad struct{}
+		for k := range m {
+			if k != tagNameExample && !strings.HasPrefix(k, "x-") {
+				m2 := maps.Clone(m)
+				m2[k] = bad{}
+				_, err := fromObj[Property](m2)
+				require.Error(t, err)
+			}
+		}
+	})
+}
+
+func TestDiscriminator_unmarshalObj(t *testing.T) {
+	m := map[string]any{
+		tagNamePropertyName: "test property name",
+		tagNameMapping: map[string]any{
+			"foo": "bar",
+		},
+		"x-foo": "bar",
+	}
+	t.Run("success", func(t *testing.T) {
+		r, err := fromObj[Discriminator](m)
+		require.NoError(t, err)
+		assert.Equal(t, "test property name", r.PropertyName)
+		assert.Len(t, r.Mapping, 1)
+		assert.Len(t, r.Extensions, 1)
+	})
+	t.Run("bad mapping item", func(t *testing.T) {
+		m2 := maps.Clone(m)
+		m2[tagNameMapping] = map[string]any{
+			"foo": false,
+		}
+		_, err := fromObj[Discriminator](m2)
+		require.Error(t, err)
+	})
+	t.Run("errors", func(t *testing.T) {
+		type bad struct{}
+		for k := range m {
+			if !strings.HasPrefix(k, "x-") {
+				m2 := maps.Clone(m)
+				m2[k] = bad{}
+				_, err := fromObj[Discriminator](m2)
+				require.Error(t, err)
+			}
+		}
+	})
+}
+
+func TestRequest_unmarshalObj(t *testing.T) {
+	m := map[string]any{
+		tagNameDescription: "test description",
+		tagNameRequired:    true,
+		/*
+			tagNameContent: map[string]any{
+				contentTypeJson: map[string]any{
+					tagNameSchema: map[string]any{},
+				},
+			},
+		*/
+		tagNameExamples: []any{
+			map[string]any{},
+		},
+		"x-foo": "bar",
+	}
+	t.Run("success", func(t *testing.T) {
+		r, err := fromObj[Request](m)
+		require.NoError(t, err)
+		assert.Equal(t, "test description", r.Description)
+		assert.True(t, r.Required)
+		assert.Len(t, r.Examples, 1)
+		assert.Len(t, r.Extensions, 1)
+		assert.Empty(t, r.Ref)
+	})
+	t.Run("success with content", func(t *testing.T) {
+		m2 := map[string]any{
+			tagNameDescription: "test description",
+			tagNameRequired:    true,
+			tagNameContent: map[string]any{
+				contentTypeJson: map[string]any{
+					tagNameSchema: map[string]any{},
+					"x-foo":       "bar",
+				},
+			},
+		}
+		r, err := fromObj[Request](m2)
+		require.NoError(t, err)
+		assert.Equal(t, "test description", r.Description)
+		assert.True(t, r.Required)
+		assert.Len(t, r.Extensions, 1)
+		assert.Equal(t, contentTypeJson, r.ContentType)
+		assert.Empty(t, r.AlternativeContentTypes)
+		assert.Empty(t, r.Ref)
+	})
+	t.Run("success with multi content", func(t *testing.T) {
+		m2 := map[string]any{
+			tagNameDescription: "test description",
+			tagNameRequired:    true,
+			tagNameContent: map[string]any{
+				contentTypeJson: map[string]any{
+					tagNameSchema: map[string]any{},
+					"x-foo":       "bar",
+				},
+				"text/csv": map[string]any{
+					tagNameSchema: map[string]any{},
+					"x-foo":       "bar",
+				},
+			},
+		}
+		r, err := fromObj[Request](m2)
+		require.NoError(t, err)
+		assert.Equal(t, "test description", r.Description)
+		assert.True(t, r.Required)
+		assert.Len(t, r.Extensions, 1)
+		assert.Equal(t, contentTypeJson, r.ContentType)
+		assert.Len(t, r.AlternativeContentTypes, 1)
+		_, ok := r.AlternativeContentTypes["text/csv"]
+		assert.True(t, ok)
+		assert.Empty(t, r.Ref)
+	})
+	t.Run("success ref", func(t *testing.T) {
+		m2 := maps.Clone(m)
+		m2[tagNameRef] = "test ref"
+		r, err := fromObj[Request](m2)
+		require.NoError(t, err)
+		assert.Equal(t, "test ref", r.Ref)
+		assert.Empty(t, r.Description)
+		assert.False(t, r.Required)
+		assert.Empty(t, r.Examples)
+		assert.Empty(t, r.Extensions)
+	})
+	t.Run("errors", func(t *testing.T) {
+		type bad struct{}
+		for k := range m {
+			if !strings.HasPrefix(k, "x-") {
+				m2 := maps.Clone(m)
+				m2[k] = bad{}
+				_, err := fromObj[Request](m2)
+				require.Error(t, err)
+			}
+		}
+	})
+}
+
+func TestResponse_unmarshalObj(t *testing.T) {
+	m := map[string]any{
+		tagNameDescription: "test description",
+		tagNameExamples: []any{
+			map[string]any{},
+		},
+		"x-foo": "bar",
+	}
+	t.Run("success", func(t *testing.T) {
+		r, err := fromObj[Response](m)
+		require.NoError(t, err)
+		assert.Equal(t, "test description", r.Description)
+		assert.Len(t, r.Examples, 1)
+		assert.Len(t, r.Extensions, 1)
+		assert.Empty(t, r.Ref)
+	})
+	t.Run("success with content", func(t *testing.T) {
+		m2 := map[string]any{
+			tagNameDescription: "test description",
+			tagNameContent: map[string]any{
+				contentTypeJson: map[string]any{
+					tagNameSchema: map[string]any{},
+					"x-foo":       "bar",
+				},
+			},
+		}
+		r, err := fromObj[Response](m2)
+		require.NoError(t, err)
+		assert.Equal(t, "test description", r.Description)
+		assert.Len(t, r.Extensions, 1)
+		assert.Equal(t, contentTypeJson, r.ContentType)
+		assert.Empty(t, r.AlternativeContentTypes)
+		assert.Empty(t, r.Ref)
+	})
+	t.Run("success with multi content", func(t *testing.T) {
+		m2 := map[string]any{
+			tagNameDescription: "test description",
+			tagNameContent: map[string]any{
+				contentTypeJson: map[string]any{
+					tagNameSchema: map[string]any{},
+					"x-foo":       "bar",
+				},
+				"text/csv": map[string]any{
+					tagNameSchema: map[string]any{},
+					"x-foo":       "bar",
+				},
+			},
+		}
+		r, err := fromObj[Response](m2)
+		require.NoError(t, err)
+		assert.Equal(t, "test description", r.Description)
+		assert.Len(t, r.Extensions, 1)
+		assert.Equal(t, contentTypeJson, r.ContentType)
+		assert.Len(t, r.AlternativeContentTypes, 1)
+		_, ok := r.AlternativeContentTypes["text/csv"]
+		assert.True(t, ok)
+		assert.Empty(t, r.Ref)
+	})
+	t.Run("success ref", func(t *testing.T) {
+		m2 := maps.Clone(m)
+		m2[tagNameRef] = "test ref"
+		r, err := fromObj[Response](m2)
+		require.NoError(t, err)
+		assert.Equal(t, "test ref", r.Ref)
+		assert.Empty(t, r.Description)
+		assert.Empty(t, r.Examples)
+		assert.Empty(t, r.Extensions)
+	})
+	t.Run("errors", func(t *testing.T) {
+		type bad struct{}
+		for k := range m {
+			if !strings.HasPrefix(k, "x-") {
+				m2 := maps.Clone(m)
+				m2[k] = bad{}
+				_, err := fromObj[Request](m2)
+				require.Error(t, err)
+			}
+		}
+	})
+}
+
+func TestSchema_unmarshalObj(t *testing.T) {
+	m := map[string]any{
+		tagNameName:        "test name",
+		tagNameDescription: "test description",
+		tagNameType:        "test type",
+		tagNameFormat:      "test format",
+		tagNameRequired:    []any{"test required"},
+		tagNameProperties: map[string]any{
+			"foo": map[string]any{},
+		},
+		tagNameDiscriminator: map[string]any{},
+		tagNameDefault:       "test default",
+		tagNameExample:       "test example",
+		"x-foo":              "bar",
+	}
+	t.Run("success", func(t *testing.T) {
+		r, err := fromObj[Schema](m)
+		require.NoError(t, err)
+		assert.Equal(t, "test name", r.Name)
+		assert.Equal(t, "test description", r.Description)
+		assert.Equal(t, "test type", r.Type)
+		assert.Equal(t, "test format", r.Format)
+		assert.Len(t, r.RequiredProperties, 1)
+		assert.Len(t, r.Properties, 1)
+		assert.NotNil(t, r.Discriminator)
+		assert.Equal(t, "test default", r.Default)
+		assert.Equal(t, "test example", r.Example)
+		assert.Len(t, r.Extensions, 1)
+		assert.Empty(t, r.SchemaRef)
+	})
+	t.Run("success ref", func(t *testing.T) {
+		m2 := maps.Clone(m)
+		m2[tagNameRef] = "test ref"
+		r, err := fromObj[Schema](m2)
+		require.NoError(t, err)
+		assert.Equal(t, "test ref", r.SchemaRef)
+		assert.Empty(t, r.Name)
+		assert.Empty(t, r.Description)
+		assert.Empty(t, r.Type)
+		assert.Empty(t, r.Format)
+		assert.Empty(t, r.RequiredProperties)
+		assert.Empty(t, r.Properties)
+		assert.Nil(t, r.Discriminator)
+		assert.Empty(t, r.Default)
+		assert.Empty(t, r.Example)
+		assert.Empty(t, r.Extensions)
+	})
+	t.Run("errors", func(t *testing.T) {
+		type bad struct{}
+		for k := range m {
+			if k != tagNameExample && k != tagNameDefault && !strings.HasPrefix(k, "x-") {
+				m2 := maps.Clone(m)
+				m2[k] = bad{}
+				_, err := fromObj[Schema](m2)
+				require.Error(t, err)
+			}
+		}
+	})
+}
+
+func TestOfsFrom(t *testing.T) {
+	t.Run("success oneOf ref", func(t *testing.T) {
+		m := map[string]any{
+			tagNameOneOf: []any{
+				map[string]any{
+					tagNameRef: "test ref",
+				},
+			},
+		}
+		ofs, err := ofsFrom(m)
+		require.NoError(t, err)
+		assert.NotNil(t, ofs)
+		assert.Equal(t, OneOf, ofs.OfType)
+		assert.Len(t, ofs.Of, 1)
+		assert.True(t, ofs.Of[0].IsRef())
+		assert.Equal(t, "test ref", ofs.Of[0].Ref())
+		assert.Nil(t, ofs.Of[0].Schema())
+	})
+	t.Run("success oneOf schema", func(t *testing.T) {
+		m := map[string]any{
+			tagNameOneOf: []any{
+				map[string]any{
+					tagNameDescription: "test description",
+				},
+			},
+		}
+		ofs, err := ofsFrom(m)
+		require.NoError(t, err)
+		assert.NotNil(t, ofs)
+		assert.Equal(t, OneOf, ofs.OfType)
+		assert.Len(t, ofs.Of, 1)
+		assert.False(t, ofs.Of[0].IsRef())
+		assert.NotNil(t, ofs.Of[0].Schema())
+	})
+	t.Run("success anyOf ref", func(t *testing.T) {
+		m := map[string]any{
+			tagNameAnyOf: []any{
+				map[string]any{
+					tagNameRef: "test ref",
+				},
+			},
+		}
+		ofs, err := ofsFrom(m)
+		require.NoError(t, err)
+		assert.NotNil(t, ofs)
+		assert.Equal(t, AnyOf, ofs.OfType)
+		assert.Len(t, ofs.Of, 1)
+		assert.True(t, ofs.Of[0].IsRef())
+		assert.Equal(t, "test ref", ofs.Of[0].Ref())
+		assert.Nil(t, ofs.Of[0].Schema())
+	})
+	t.Run("success anyOf schema", func(t *testing.T) {
+		m := map[string]any{
+			tagNameAnyOf: []any{
+				map[string]any{
+					tagNameDescription: "test description",
+				},
+			},
+		}
+		ofs, err := ofsFrom(m)
+		require.NoError(t, err)
+		assert.NotNil(t, ofs)
+		assert.Equal(t, AnyOf, ofs.OfType)
+		assert.Len(t, ofs.Of, 1)
+		assert.False(t, ofs.Of[0].IsRef())
+		assert.NotNil(t, ofs.Of[0].Schema())
+	})
+	t.Run("success allOf ref", func(t *testing.T) {
+		m := map[string]any{
+			tagNameAllOf: []any{
+				map[string]any{
+					tagNameRef: "test ref",
+				},
+			},
+		}
+		ofs, err := ofsFrom(m)
+		require.NoError(t, err)
+		assert.NotNil(t, ofs)
+		assert.Equal(t, AllOf, ofs.OfType)
+		assert.Len(t, ofs.Of, 1)
+		assert.True(t, ofs.Of[0].IsRef())
+		assert.Equal(t, "test ref", ofs.Of[0].Ref())
+		assert.Nil(t, ofs.Of[0].Schema())
+	})
+	t.Run("success allOf schema", func(t *testing.T) {
+		m := map[string]any{
+			tagNameAllOf: []any{
+				map[string]any{
+					tagNameDescription: "test description",
+				},
+			},
+		}
+		ofs, err := ofsFrom(m)
+		require.NoError(t, err)
+		assert.NotNil(t, ofs)
+		assert.Equal(t, AllOf, ofs.OfType)
+		assert.Len(t, ofs.Of, 1)
+		assert.False(t, ofs.Of[0].IsRef())
+		assert.NotNil(t, ofs.Of[0].Schema())
+	})
+	t.Run("failure ref", func(t *testing.T) {
+		m := map[string]any{
+			tagNameAllOf: []any{
+				map[string]any{
+					tagNameRef: true,
+				},
+			},
+		}
+		_, err := ofsFrom(m)
+		require.Error(t, err)
+	})
+	t.Run("failure schema", func(t *testing.T) {
+		m := map[string]any{
+			tagNameAllOf: []any{
+				map[string]any{
+					tagNameDescription: true,
+				},
+			},
+		}
+		_, err := ofsFrom(m)
+		require.Error(t, err)
+	})
+	t.Run("none", func(t *testing.T) {
+		m := map[string]any{}
+		ofs, err := ofsFrom(m)
+		require.NoError(t, err)
+		assert.Nil(t, ofs)
+	})
+	t.Run("not array", func(t *testing.T) {
+		m := map[string]any{
+			tagNameOneOf: "not an array",
+		}
+		_, err := ofsFrom(m)
+		require.Error(t, err)
+	})
+	t.Run("invalid element", func(t *testing.T) {
+		m := map[string]any{
+			tagNameOneOf: []any{"some ref"},
+		}
+		_, err := ofsFrom(m)
+		require.Error(t, err)
+	})
+}
+
+func TestServersFrom(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		m := map[string]any{
+			tagNameServers: []any{
+				map[string]any{
+					tagNameUrl: "test url",
+				},
+			},
+		}
+		severs, err := serversFrom(m)
+		require.NoError(t, err)
+		assert.Len(t, severs, 1)
+		_, ok := severs["test url"]
+		assert.True(t, ok)
+	})
+	t.Run("none", func(t *testing.T) {
+		m := map[string]any{}
+		servers, err := serversFrom(m)
+		require.NoError(t, err)
+		assert.Nil(t, servers)
+	})
+	t.Run("invalid url", func(t *testing.T) {
+		m := map[string]any{
+			tagNameServers: []any{
+				map[string]any{
+					tagNameUrl: false,
+				},
+			},
+		}
+		_, err := serversFrom(m)
+		require.Error(t, err)
+	})
+	t.Run("invalid sever", func(t *testing.T) {
+		m := map[string]any{
+			tagNameServers: []any{
+				map[string]any{
+					tagNameUrl:         "test url",
+					tagNameDescription: false,
+				},
+			},
+		}
+		_, err := serversFrom(m)
+		require.Error(t, err)
+	})
+	t.Run("invalid element", func(t *testing.T) {
+		m := map[string]any{
+			tagNameServers: []any{
+				"not an object",
+			},
+		}
+		_, err := serversFrom(m)
+		require.Error(t, err)
+	})
+	t.Run("not an array", func(t *testing.T) {
+		m := map[string]any{
+			tagNameServers: "not an array",
+		}
+		_, err := serversFrom(m)
+		require.Error(t, err)
+	})
+}
+
+func TestSecurityFrom(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		m := map[string]any{
+			tagNameSecurity: []any{
+				map[string]any{
+					"test": []any{"foo", "bar"},
+				},
+			},
+		}
+		secs, err := securityFrom(m)
+		require.NoError(t, err)
+		assert.Len(t, secs, 1)
+		assert.Equal(t, "test", secs[0].Name)
+		assert.Equal(t, []string{"foo", "bar"}, secs[0].Scopes)
+	})
+	t.Run("non-string scope", func(t *testing.T) {
+		m := map[string]any{
+			tagNameSecurity: []any{
+				map[string]any{
+					"test": []any{false},
+				},
+			},
+		}
+		_, err := securityFrom(m)
+		require.Error(t, err)
+	})
+	t.Run("not array", func(t *testing.T) {
+		m := map[string]any{
+			tagNameSecurity: "not an array",
+		}
+		_, err := securityFrom(m)
+		require.Error(t, err)
+	})
+	t.Run("invalid element 1", func(t *testing.T) {
+		m := map[string]any{
+			tagNameSecurity: []any{
+				"not an object",
+			},
+		}
+		_, err := securityFrom(m)
+		require.Error(t, err)
+	})
+	t.Run("invalid element 2", func(t *testing.T) {
+		m := map[string]any{
+			tagNameSecurity: []any{
+				map[string]any{
+					"test": nil,
+				},
+			},
+		}
+		_, err := securityFrom(m)
+		require.Error(t, err)
+	})
+	t.Run("none", func(t *testing.T) {
+		m := map[string]any{}
+		secs, err := securityFrom(m)
+		require.NoError(t, err)
+		assert.Nil(t, secs)
+	})
+}
+
+func TestComponentsFrom(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		m := map[string]any{
+			tagNameComponents: map[string]any{
+				tagNameSchemas: map[string]any{
+					"test": map[string]any{},
+				},
+				tagNameSecuritySchemes: map[string]any{
+					"test": map[string]any{},
+				},
+				tagNameExamples: map[string]any{
+					"test": map[string]any{},
+				},
+				tagNameParameters: map[string]any{
+					"test": map[string]any{},
+				},
+				tagNameRequestBodies: map[string]any{
+					"test": map[string]any{},
+				},
+				tagNameResponses: map[string]any{
+					"test": map[string]any{},
+				},
+				"x-foo": "bar",
+			},
+		}
+		c, err := componentsFrom(m)
+		require.NoError(t, err)
+		assert.NotNil(t, c)
+		assert.Len(t, c.Schemas, 1)
+		assert.Len(t, c.SecuritySchemes, 1)
+		assert.Len(t, c.Examples, 1)
+		assert.Len(t, c.Parameters, 1)
+		assert.Len(t, c.Requests, 1)
+		assert.Len(t, c.Responses, 1)
+		assert.Len(t, c.Extensions, 1)
+	})
+	t.Run("bad schema", func(t *testing.T) {
+		m := map[string]any{
+			tagNameComponents: map[string]any{
+				tagNameSchemas: map[string]any{
+					"test": map[string]any{
+						tagNameDescription: true,
+					},
+				},
+			},
+		}
+		_, err := componentsFrom(m)
+		require.Error(t, err)
+	})
+	t.Run("bad security scheme", func(t *testing.T) {
+		m := map[string]any{
+			tagNameComponents: map[string]any{
+				tagNameSecuritySchemes: map[string]any{
+					"test": map[string]any{
+						tagNameDescription: true,
+					},
+				},
+			},
+		}
+		_, err := componentsFrom(m)
+		require.Error(t, err)
+	})
+	t.Run("bad example", func(t *testing.T) {
+		m := map[string]any{
+			tagNameComponents: map[string]any{
+				tagNameExamples: map[string]any{
+					"test": map[string]any{
+						tagNameDescription: true,
+					},
+				},
+			},
+		}
+		_, err := componentsFrom(m)
+		require.Error(t, err)
+	})
+	t.Run("bad parameter", func(t *testing.T) {
+		m := map[string]any{
+			tagNameComponents: map[string]any{
+				tagNameParameters: map[string]any{
+					"test": map[string]any{
+						tagNameDescription: true,
+					},
+				},
+			},
+		}
+		_, err := componentsFrom(m)
+		require.Error(t, err)
+	})
+	t.Run("bad request", func(t *testing.T) {
+		m := map[string]any{
+			tagNameComponents: map[string]any{
+				tagNameRequestBodies: map[string]any{
+					"test": map[string]any{
+						tagNameDescription: true,
+					},
+				},
+			},
+		}
+		_, err := componentsFrom(m)
+		require.Error(t, err)
+	})
+	t.Run("bad response", func(t *testing.T) {
+		m := map[string]any{
+			tagNameComponents: map[string]any{
+				tagNameResponses: map[string]any{
+					"test": map[string]any{
+						tagNameDescription: true,
+					},
+				},
+			},
+		}
+		_, err := componentsFrom(m)
+		require.Error(t, err)
+	})
+	t.Run("none", func(t *testing.T) {
+		m := map[string]any{}
+		c, err := componentsFrom(m)
+		require.NoError(t, err)
+		assert.Nil(t, c)
+	})
+	t.Run("not an object", func(t *testing.T) {
+		m := map[string]any{
+			tagNameComponents: false,
+		}
+		_, err := componentsFrom(m)
+		require.Error(t, err)
+	})
+}
+
+func TestContentType_unmarshalObj(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		m := map[string]any{
+			tagNameSchema: map[string]any{
+				tagNameDescription: "test description",
+				tagNameType:        "object",
+			},
+			tagNameExamples: map[string]any{
+				"foo": map[string]any{},
+			},
+			"x-foo": "bar",
+		}
+		r, err := fromObj[contentType](m)
+		require.NoError(t, err)
+		assert.False(t, r.isArray)
+		assert.NotNil(t, r.schema)
+		assert.Equal(t, "test description", r.schema.Description)
+		assert.Equal(t, "object", r.schema.Type)
+		assert.Len(t, r.examples, 1)
+		assert.Len(t, r.extensions, 1)
+	})
+	t.Run("success with ref", func(t *testing.T) {
+		m := map[string]any{
+			tagNameSchema: map[string]any{
+				tagNameRef: "some ref",
+			},
+		}
+		r, err := fromObj[contentType](m)
+		require.NoError(t, err)
+		assert.False(t, r.isArray)
+		assert.Nil(t, r.schema)
+		assert.Equal(t, "some ref", r.ref)
+	})
+	t.Run("success with items", func(t *testing.T) {
+		m := map[string]any{
+			tagNameSchema: map[string]any{
+				tagNameType: "array",
+				tagNameItems: map[string]any{
+					tagNameDescription: "test description",
+				},
+			},
+		}
+		r, err := fromObj[contentType](m)
+		require.NoError(t, err)
+		assert.True(t, r.isArray)
+		assert.Equal(t, "array", r.xType)
+		assert.Equal(t, "test description", r.schema.Description)
+		assert.NotNil(t, r.schema)
+	})
+	t.Run("fails with items not array type", func(t *testing.T) {
+		m := map[string]any{
+			tagNameSchema: map[string]any{
+				tagNameType: "object",
+				tagNameItems: map[string]any{
+					tagNameDescription: "test description",
+				},
+			},
+		}
+		_, err := fromObj[contentType](m)
+		require.Error(t, err)
+	})
+	t.Run("fails array type no items", func(t *testing.T) {
+		m := map[string]any{
+			tagNameSchema: map[string]any{
+				tagNameType: "array",
+			},
+		}
+		_, err := fromObj[contentType](m)
+		require.Error(t, err)
+	})
+	t.Run("fails items not an object", func(t *testing.T) {
+		m := map[string]any{
+			tagNameSchema: map[string]any{
+				tagNameType:  "array",
+				tagNameItems: "not an object",
+			},
+		}
+		_, err := fromObj[contentType](m)
+		require.Error(t, err)
+	})
+	t.Run("missing schema", func(t *testing.T) {
+		m := map[string]any{}
+		_, err := fromObj[contentType](m)
+		require.Error(t, err)
+	})
+	t.Run("bad schema", func(t *testing.T) {
+		m := map[string]any{
+			tagNameSchema: "not an object",
+		}
+		_, err := fromObj[contentType](m)
+		require.Error(t, err)
+	})
+	t.Run("bad schema type", func(t *testing.T) {
+		m := map[string]any{
+			tagNameSchema: map[string]any{
+				tagNameType: false,
+			},
+		}
+		_, err := fromObj[contentType](m)
+		require.Error(t, err)
+	})
+	t.Run("bad example", func(t *testing.T) {
+		m := map[string]any{
+			tagNameSchema: map[string]any{
+				tagNameDescription: "test description",
+			},
+			tagNameExamples: map[string]any{
+				"foo": map[string]any{
+					tagNameDescription: true,
+				},
+			},
+		}
+		_, err := fromObj[contentType](m)
+		require.Error(t, err)
+	})
+}
+
+func Test_schemaFrom(t *testing.T) {
+	t.Run("success ref", func(t *testing.T) {
+		m := map[string]any{
+			tagNameSchema: map[string]any{
+				tagNameRef: "test ref",
+			},
+		}
+		ref, schema, err := schemaFrom(m)
+		require.NoError(t, err)
+		assert.Equal(t, "test ref", ref)
+		assert.Nil(t, schema)
+	})
+	t.Run("success schema", func(t *testing.T) {
+		m := map[string]any{
+			tagNameSchema: map[string]any{},
+		}
+		ref, schema, err := schemaFrom(m)
+		require.NoError(t, err)
+		assert.Empty(t, ref)
+		assert.NotNil(t, schema)
+	})
+	t.Run("failure not object", func(t *testing.T) {
+		m := map[string]any{
+			tagNameSchema: "not an object",
+		}
+		_, _, err := schemaFrom(m)
+		require.Error(t, err)
+	})
+	t.Run("failure ref", func(t *testing.T) {
+		m := map[string]any{
+			tagNameSchema: map[string]any{
+				tagNameRef: struct{}{},
+			},
+		}
+		_, _, err := schemaFrom(m)
+		require.Error(t, err)
+	})
+	t.Run("failure schema", func(t *testing.T) {
+		m := map[string]any{
+			tagNameSchema: map[string]any{
+				tagNameName: struct{}{},
+			},
+		}
+		_, _, err := schemaFrom(m)
+		require.Error(t, err)
+	})
+}
+
+func TestObjFromProperty(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		r, err := objFromProperty[Request](map[string]any{"request": map[string]any{}}, "request")
+		require.NoError(t, err)
+		require.NotNil(t, r)
+	})
+	t.Run("nil", func(t *testing.T) {
+		r, err := objFromProperty[Request](map[string]any{}, "request")
+		require.NoError(t, err)
+		require.Nil(t, r)
+	})
+	t.Run("bad", func(t *testing.T) {
+		type bad struct{}
+		_, err := objFromProperty[bad](map[string]any{"request": map[string]any{}}, "request")
+		require.Error(t, err)
+	})
+	t.Run("not object", func(t *testing.T) {
+		_, err := objFromProperty[Request](map[string]any{"request": "not an object"}, "request")
+		require.Error(t, err)
+	})
+}
+
+func TestFromObj(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		r, err := fromObj[Request](map[string]any{})
+		require.NoError(t, err)
+		require.NotNil(t, r)
+	})
+	t.Run("bad", func(t *testing.T) {
+		type bad struct{}
+		_, err := fromObj[bad](map[string]any{})
+		require.Error(t, err)
+	})
+}
+
+func TestSliceFromProperty(t *testing.T) {
+	t.Run("nil", func(t *testing.T) {
+		r, err := sliceFromProperty[Request](map[string]any{}, "request")
+		require.NoError(t, err)
+		require.Nil(t, r)
+	})
+	t.Run("ok", func(t *testing.T) {
+		r, err := sliceFromProperty[Request](map[string]any{"request": []any{map[string]any{}}}, "request")
+		require.NoError(t, err)
+		require.Len(t, r, 1)
+	})
+	t.Run("bad", func(t *testing.T) {
+		type bad struct{}
+		_, err := sliceFromProperty[bad](map[string]any{"request": []any{map[string]any{}}}, "request")
+		require.Error(t, err)
+	})
+	t.Run("invalid element", func(t *testing.T) {
+		_, err := sliceFromProperty[Request](map[string]any{"request": []any{"not an object"}}, "request")
+		require.Error(t, err)
+	})
+	t.Run("not array", func(t *testing.T) {
+		_, err := sliceFromProperty[Request](map[string]any{"request": nil}, "request")
+		require.Error(t, err)
+	})
+}
+
+func TestNamedSliceFromProperty(t *testing.T) {
+	t.Run("nil", func(t *testing.T) {
+		r, n, err := namedSliceFromProperty[Request](map[string]any{}, "request")
+		require.NoError(t, err)
+		require.Nil(t, r)
+		require.Nil(t, n)
+	})
+	t.Run("ok map[string]any", func(t *testing.T) {
+		r, n, err := namedSliceFromProperty[Request](map[string]any{"request": map[string]any{"name": map[string]any{}}}, "request")
+		require.NoError(t, err)
+		require.Len(t, r, 1)
+		require.Len(t, n, 1)
+		assert.Equal(t, "name", n[0])
+	})
+	t.Run("ok map[any]any", func(t *testing.T) {
+		r, n, err := namedSliceFromProperty[Request](map[string]any{"request": map[any]any{400: map[string]any{}}}, "request")
+		require.NoError(t, err)
+		require.Len(t, r, 1)
+		require.Len(t, n, 1)
+		assert.Equal(t, "400", n[0])
+	})
+	t.Run("not a map", func(t *testing.T) {
+		_, _, err := namedSliceFromProperty[Request](map[string]any{"request": "not an object"}, "request")
+		require.Error(t, err)
+	})
+	t.Run("bad map[string]any", func(t *testing.T) {
+		type bad struct{}
+		_, _, err := namedSliceFromProperty[bad](map[string]any{"request": map[string]any{"name": map[string]any{}}}, "request")
+		require.Error(t, err)
+	})
+	t.Run("bad map[any]any", func(t *testing.T) {
+		type bad struct{}
+		_, _, err := namedSliceFromProperty[bad](map[string]any{"request": map[any]any{400: map[string]any{}}}, "request")
+		require.Error(t, err)
+	})
+	t.Run("invalid element map[string]any", func(t *testing.T) {
+		_, _, err := namedSliceFromProperty[Request](map[string]any{"request": map[string]any{"name": "not an object"}}, "request")
+		require.Error(t, err)
+	})
+	t.Run("invalid element map[any]any", func(t *testing.T) {
+		_, _, err := namedSliceFromProperty[Request](map[string]any{"request": map[any]any{400: "not an object"}}, "request")
+		require.Error(t, err)
+	})
+}
+
+func TestHasRef(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		ref, ok, err := hasRef(map[string]any{tagNameRef: "some ref"})
+		require.NoError(t, err)
+		require.True(t, ok)
+		require.Equal(t, "some ref", ref)
+	})
+	t.Run("no", func(t *testing.T) {
+		_, ok, err := hasRef(map[string]any{})
+		require.NoError(t, err)
+		require.False(t, ok)
+	})
+	t.Run("not string", func(t *testing.T) {
+		_, _, err := hasRef(map[string]any{tagNameRef: true})
+		require.Error(t, err)
+	})
+}
+
+func TestStringFromProperty(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		s, err := stringFromProperty(map[string]any{"pty": "some value"}, "pty")
+		require.NoError(t, err)
+		require.Equal(t, "some value", s)
+	})
+	t.Run("not there", func(t *testing.T) {
+		s, err := stringFromProperty(map[string]any{}, "pty")
+		require.NoError(t, err)
+		require.Equal(t, "", s)
+	})
+	t.Run("not string", func(t *testing.T) {
+		_, err := stringFromProperty(map[string]any{"pty": true}, "pty")
+		require.Error(t, err)
+	})
+}
+
+func TestJsonNumberFromProperty(t *testing.T) {
+	testCases := []struct {
+		value     any
+		expectErr bool
+		expect    string
+	}{
+		{
+			value:     nil,
+			expectErr: true,
+		},
+		{
+			value:  json.Number("1"),
+			expect: "1",
+		},
+		{
+			value:  "1",
+			expect: "1",
+		},
+		{
+			value:  1,
+			expect: "1",
+		},
+		{
+			value:  float32(1.1),
+			expect: "1.1",
+		},
+		{
+			value:  1.1,
+			expect: "1.1",
+		},
+		{
+			value:     math.NaN(),
+			expectErr: true,
+		},
+		{
+			value:     math.Inf(-1),
+			expectErr: true,
+		},
+		{
+			value:     float32(math.NaN()),
+			expectErr: true,
+		},
+		{
+			value:     float32(math.Inf(-1)),
+			expectErr: true,
+		},
+	}
+	for i, tc := range testCases {
+		t.Run(fmt.Sprintf("[%d]", i+1), func(t *testing.T) {
+			m := map[string]any{
+				"value": tc.value,
+			}
+			jn, err := jsonNumberFromProperty(m, "value")
+			if tc.expectErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, json.Number(tc.expect), jn)
+			}
+		})
+	}
+	t.Run("not there", func(t *testing.T) {
+		jn, err := jsonNumberFromProperty(map[string]any{}, "value")
+		require.NoError(t, err)
+		require.Equal(t, json.Number(""), jn)
+	})
+}
+
+func TestUintFromProperty(t *testing.T) {
+	testCases := []struct {
+		value     any
+		expectErr bool
+		expect    uint
+	}{
+		{
+			value:     nil,
+			expectErr: true,
+		},
+		{
+			value:  uint(1),
+			expect: 1,
+		},
+		{
+			value:  uint8(1),
+			expect: 1,
+		},
+		{
+			value:  uint16(1),
+			expect: 1,
+		},
+		{
+			value:  uint32(1),
+			expect: 1,
+		},
+		{
+			value:  uint64(1),
+			expect: 1,
+		},
+		{
+			value:  int(1),
+			expect: 1,
+		},
+		{
+			value:  int8(1),
+			expect: 1,
+		},
+		{
+			value:  int16(1),
+			expect: 1,
+		},
+		{
+			value:  int32(1),
+			expect: 1,
+		},
+		{
+			value:  int64(1),
+			expect: 1,
+		},
+		{
+			value:     -1,
+			expectErr: true,
+		},
+		{
+			value:  json.Number("1"),
+			expect: 1,
+		},
+		{
+			value:     json.Number("-1"),
+			expectErr: true,
+		},
+		{
+			value:  "1",
+			expect: 1,
+		},
+		{
+			value:     "-1",
+			expectErr: true,
+		},
+		{
+			value:  1.1,
+			expect: 1,
+		},
+		{
+			value:     math.Inf(-1),
+			expectErr: true,
+		},
+		{
+			value:     math.NaN(),
+			expectErr: true,
+		},
+		{
+			value:  float32(1.1),
+			expect: 1,
+		},
+		{
+			value:     float32(math.Inf(-1)),
+			expectErr: true,
+		},
+		{
+			value:     float32(math.NaN()),
+			expectErr: true,
+		},
+	}
+	for i, tc := range testCases {
+		t.Run(fmt.Sprintf("[%d]", i+1), func(t *testing.T) {
+			m := map[string]any{
+				"value": tc.value,
+			}
+			n, err := uintFromProperty(m, "value")
+			if tc.expectErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.expect, n)
+			}
+		})
+	}
+	t.Run("not there", func(t *testing.T) {
+		n, err := uintFromProperty(map[string]any{}, "value")
+		require.NoError(t, err)
+		require.Equal(t, uint(0), n)
+	})
+}
+
+func TestStringsSliceFromProperty(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		s, err := stringsSliceFromProperty(map[string]any{"value": []any{"test"}}, "value")
+		require.NoError(t, err)
+		require.Len(t, s, 1)
+		require.Equal(t, "test", s[0])
+	})
+	t.Run("not there", func(t *testing.T) {
+		s, err := stringsSliceFromProperty(map[string]any{}, "value")
+		require.NoError(t, err)
+		require.Nil(t, s)
+	})
+	t.Run("not array", func(t *testing.T) {
+		_, err := stringsSliceFromProperty(map[string]any{"value": "not an array"}, "value")
+		require.Error(t, err)
+	})
+	t.Run("invalid element", func(t *testing.T) {
+		_, err := stringsSliceFromProperty(map[string]any{"value": []any{true}}, "value")
+		require.Error(t, err)
+	})
+}
+
+func TestAnySliceFromProperty(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		s, err := anySliceFromProperty(map[string]any{"value": []any{"test"}}, "value")
+		require.NoError(t, err)
+		require.Len(t, s, 1)
+		require.Equal(t, "test", s[0])
+	})
+	t.Run("not there", func(t *testing.T) {
+		s, err := anySliceFromProperty(map[string]any{}, "value")
+		require.NoError(t, err)
+		require.Nil(t, s)
+	})
+	t.Run("not array", func(t *testing.T) {
+		_, err := anySliceFromProperty(map[string]any{"value": "not an array"}, "value")
+		require.Error(t, err)
+	})
+}
+
+func TestBooleanFromProperty(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		b, err := booleanFromProperty(map[string]any{"value": true}, "value")
+		require.NoError(t, err)
+		require.True(t, b)
+	})
+	t.Run("ok (string)", func(t *testing.T) {
+		b, err := booleanFromProperty(map[string]any{"value": "true"}, "value")
+		require.NoError(t, err)
+		require.True(t, b)
+	})
+	t.Run("not there", func(t *testing.T) {
+		b, err := booleanFromProperty(map[string]any{}, "value")
+		require.NoError(t, err)
+		require.False(t, b)
+	})
+	t.Run("invalid value", func(t *testing.T) {
+		_, err := booleanFromProperty(map[string]any{"value": 1}, "value")
+		require.Error(t, err)
+	})
+}
+
+func TestExtensionsFrom(t *testing.T) {
+	ex := extensionsFrom(map[string]any{
+		"foo": "bar",
+		"x-1": 1,
+		"x-2": "2",
+	})
+	require.Len(t, ex, 2)
+	require.Equal(t, 1, ex["1"])
+	require.Equal(t, "2", ex["2"])
 }
 
 func TestDefinition_UnmarshalJSON_PetstoreYaml(t *testing.T) {
@@ -444,6 +2269,9 @@ var testFullDef = Definition{
 								ExampleRef:  "example2",
 							},
 						},
+						Extensions: Extensions{
+							"foo": "bar",
+						},
 					},
 				},
 			},
@@ -480,6 +2308,9 @@ var testFullDef = Definition{
 								Description: "example2",
 								ExampleRef:  "example2",
 							},
+						},
+						Extensions: Extensions{
+							"foo": "bar",
 						},
 					},
 				},

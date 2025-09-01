@@ -189,6 +189,32 @@ func TestOf_WriteYaml(t *testing.T) {
       - b
 `,
 		},
+		{
+			ofs: &Ofs{
+				OfType: OneOf,
+				Of: []OfSchema{
+					&Of{
+						SchemaRef: "foo",
+					},
+				},
+			},
+			expect: `oneOf:
+  - $ref: "#/components/schemas/foo"
+`,
+		},
+		{
+			ofs: &Ofs{
+				OfType: OneOf,
+				Of: []OfSchema{
+					&Of{
+						SchemaDef: &Schema{},
+					},
+				},
+			},
+			expect: `oneOf:
+  - type: object
+`,
+		},
 	}
 	for i, tc := range testCases {
 		t.Run(fmt.Sprintf("[%d]", i+1), func(t *testing.T) {

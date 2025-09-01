@@ -83,6 +83,18 @@ func (r *Request) alternatives() ContentTypes {
 	return r.AlternativeContentTypes
 }
 
+func (r *Request) extensions() Extensions {
+	return nil
+}
+
+func (r *Request) additional() Additional {
+	return nil
+}
+
+func (r *Request) comment() string {
+	return ""
+}
+
 func (r *Request) writeYaml(w yaml.Writer) {
 	w.WriteTagStart(tagNameRequestBody)
 	if r.Ref == "" {

@@ -142,6 +142,14 @@ func (s *Schema) From(sample any) (*Schema, error) {
 	return nil, errors.New("sample must be a struct")
 }
 
+func SchemaFrom[T any](sample T) (*Schema, error) {
+	return (&Schema{}).From(sample)
+}
+
+func SchemaMustFrom[T any](sample T) *Schema {
+	return (&Schema{}).MustFrom(sample)
+}
+
 // MustFrom is the same as From except it panics on error
 func (s *Schema) MustFrom(sample any) *Schema {
 	if _, err := s.From(sample); err == nil {

@@ -112,6 +112,7 @@ func (d *Definition) unmarshalPaths(m map[string]any) (err error) {
 var pathSplitter = splitter.MustCreateSplitter('/', splitter.CurlyBrackets).AddDefaultOptions(splitter.IgnoreEmptyFirst, splitter.IgnoreEmptyLast)
 
 func unflattenHolders(holders []*pathHolder) (result map[string]*pathHolder, err error) {
+	// sort by paths so that descendants appear after parent...
 	slices.SortFunc(holders, func(a, b *pathHolder) int {
 		return strings.Compare(a.origPath, b.origPath)
 	})
@@ -119,11 +120,8 @@ func unflattenHolders(holders []*pathHolder) (result map[string]*pathHolder, err
 	add := func(h *pathHolder) error {
 		if parts, err := pathSplitter.Split(h.path); err == nil {
 			if len(parts) == 1 {
-				if curr, ok := result["/"+parts[0]]; ok {
-					curr.path = "/" + parts[0]
-				} else {
-					result["/"+parts[0]] = h
-				}
+				h.path = "/" + parts[0]
+				result[h.path] = h
 			} else {
 				parent := result["/"+parts[0]]
 				if parent == nil {
@@ -183,17 +181,26 @@ func (ph *pathHolder) getPath() (result Path, err error) {
 	return result, err
 }
 
+// UnmarshalMethods defines which methods are unmarshalled from OAS
+var UnmarshalMethods = map[string]bool{
+	http.MethodGet:     true,
+	http.MethodHead:    true,
+	http.MethodPost:    true,
+	http.MethodPut:     true,
+	http.MethodPatch:   true,
+	http.MethodDelete:  true,
+	http.MethodOptions: true,
+	http.MethodConnect: true,
+	http.MethodTrace:   true,
+}
+
 func (ph *pathHolder) getMethods() (Methods, error) {
 	if ph.methods == nil && ph.obj != nil {
 		// build methods...
 		ph.methods = make(Methods, len(ph.obj))
-		for _, method := range []string{http.MethodGet, http.MethodHead, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodOptions, http.MethodConnect, http.MethodTrace} {
-			var v any
-			var ok bool
-			if v, ok = ph.obj[strings.ToLower(method)]; !ok {
-				v, ok = ph.obj[method]
-			}
-			if ok {
+		for k, v := range ph.obj {
+			method := strings.ToUpper(k)
+			if UnmarshalMethods[method] {
 				if vm, ok := v.(map[string]any); ok {
 					if m, err := fromObj[Method](vm); err == nil {
 						ph.methods[method] = *m
@@ -304,6 +311,11 @@ func fromObj[T any](m map[string]any) (*T, error) {
 	}
 }
 
+func isUnmarshaler(t any) (unmarshaler, bool) {
+	u, ok := t.(unmarshaler)
+	return u, ok
+}
+
 func sliceFromProperty[T any](m map[string]any, name string) ([]T, error) {
 	if v, ok := m[name]; ok {
 		if vs, ok := v.([]any); ok {
@@ -346,6 +358,7 @@ func namedSliceFromProperty[T any](m map[string]any, name string) ([]T, []string
 			}
 			return result, names, nil
 		} else if vs, ok := v.(map[any]any); ok {
+			// because yaml unmarshals differently
 			result := make([]T, 0, len(vs))
 			names := make([]string, 0, len(vs))
 			for k, v := range vs {
@@ -398,12 +411,17 @@ func jsonNumberFromProperty(m map[string]any, name string) (jn json.Number, err 
 		case string:
 			return json.Number(vt), nil
 		case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
-			return json.Number(fmt.Sprintf("%s", vt)), nil
-		case float32, float64:
-			return json.Number(fmt.Sprintf("%s", vt)), nil
-		default:
-			err = fmt.Errorf(unMsgInvalidValue, name)
+			return json.Number(fmt.Sprintf("%v", vt)), nil
+		case float32:
+			if !math.IsNaN(float64(vt)) && !math.IsInf(float64(vt), 0) {
+				return json.Number(fmt.Sprintf("%v", vt)), nil
+			}
+		case float64:
+			if !math.IsNaN(vt) && !math.IsInf(vt, 0) {
+				return json.Number(fmt.Sprintf("%v", vt)), nil
+			}
 		}
+		return "", fmt.Errorf(unMsgInvalidValue, name)
 	}
 	return "", err
 }
@@ -471,7 +489,7 @@ func stringsSliceFromProperty(m map[string]any, name string) (s []string, err er
 				if ivs, ok := iv.(string); ok {
 					s[i] = ivs
 				} else {
-					err = fmt.Errorf(unMsgInvalidElement, name)
+					return nil, fmt.Errorf(unMsgInvalidElement, name)
 				}
 			}
 			return s, nil
@@ -511,11 +529,6 @@ func extensionsFrom(m map[string]any) Extensions {
 		}
 	}
 	return result
-}
-
-func isUnmarshaler(t any) (unmarshaler, bool) {
-	u, ok := t.(unmarshaler)
-	return u, ok
 }
 
 func (i *Info) unmarshalObj(m map[string]any) (err error) {
@@ -760,7 +773,7 @@ func schemaFrom(m map[string]any) (ref string, schema *Schema, err error) {
 	if v, ok := m[tagNameSchema]; ok {
 		if vm, ok := v.(map[string]any); ok {
 			ref, ok, err = hasRef(vm)
-			if !ok || err == nil {
+			if !ok && err == nil {
 				schema, err = fromObj[Schema](vm)
 			}
 		} else {
@@ -990,10 +1003,11 @@ func (r *Request) unmarshalContent(m map[string]any) (err error) {
 					r.Extensions = ct.extensions
 				} else {
 					r.AlternativeContentTypes[names[i]] = ContentType{
-						Schema:    ct.schema,
-						SchemaRef: ct.ref,
-						IsArray:   ct.isArray,
-						Examples:  ct.examples,
+						Schema:     ct.schema,
+						SchemaRef:  ct.ref,
+						IsArray:    ct.isArray,
+						Examples:   ct.examples,
+						Extensions: ct.extensions,
 					}
 				}
 			}
@@ -1045,10 +1059,11 @@ func (r *Response) unmarshalContent(m map[string]any) (err error) {
 					r.Extensions = ct.extensions
 				} else {
 					r.AlternativeContentTypes[names[i]] = ContentType{
-						Schema:    ct.schema,
-						SchemaRef: ct.ref,
-						IsArray:   ct.isArray,
-						Examples:  ct.examples,
+						Schema:     ct.schema,
+						SchemaRef:  ct.ref,
+						IsArray:    ct.isArray,
+						Examples:   ct.examples,
+						Extensions: ct.extensions,
 					}
 				}
 			}

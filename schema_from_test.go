@@ -1664,4 +1664,53 @@ func TestSchema_From_Embedded(t *testing.T) {
 	assert.Equal(t, "age", s.Properties[2].Name)
 	assert.Equal(t, 50, s.Properties[2].Example)
 	assert.Equal(t, "single", s.Properties[4].Example)
+	t.Run("embedded fails", func(t *testing.T) {
+		type Embedded struct {
+			Test string `oas:"bad token"`
+		}
+		type test struct {
+			Embedded
+		}
+		_, err := (&Schema{}).From(test{})
+		require.Error(t, err)
+	})
+}
+
+func TestSchemaFrom(t *testing.T) {
+	type test struct {
+		Test string `json:"test" oas:"description:'Test property',example"`
+	}
+	s, err := SchemaFrom(test{Test: "test example"})
+	require.NoError(t, err)
+	require.NotNil(t, s)
+	assert.Len(t, s.Properties, 1)
+	assert.Equal(t, "test", s.Properties[0].Name)
+	assert.Equal(t, "test example", s.Properties[0].Example)
+
+	s, err = SchemaFrom(&test{Test: "test example"})
+	require.NoError(t, err)
+	require.NotNil(t, s)
+	assert.Len(t, s.Properties, 1)
+	assert.Equal(t, "test", s.Properties[0].Name)
+	assert.Equal(t, "test example", s.Properties[0].Example)
+}
+
+func TestSchemaMustFrom(t *testing.T) {
+	t.Run("no panic", func(t *testing.T) {
+		require.NotPanics(t, func() {
+			type test struct {
+				Test string `json:"test" oas:"description:'Test property',example"`
+			}
+			_ = SchemaMustFrom(test{Test: "test example"})
+
+		})
+	})
+	t.Run("panics", func(t *testing.T) {
+		require.Panics(t, func() {
+			type test struct {
+				Test string `json:"test" oas:"bad token"`
+			}
+			_ = SchemaMustFrom(test{Test: "test example"})
+		})
+	})
 }
