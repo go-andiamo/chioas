@@ -41,6 +41,12 @@ type ContentType struct {
 	IsArray bool
 	// Examples is the ordered list of examples for the content type
 	Examples Examples
+	// Extensions is extension OAS yaml properties
+	Extensions Extensions
+	// Additional is any additional OAS spec yaml to be written
+	Additional Additional
+	// Comment is any comment(s) to appear in the OAS spec yaml (not used with Ref)
+	Comment string
 }
 
 func (ct ContentType) isArray() bool {
@@ -63,12 +69,27 @@ func (ct ContentType) alternatives() ContentTypes {
 	panic("ContentType does not have alternatives")
 }
 
+func (ct ContentType) extensions() Extensions {
+	return ct.Extensions
+}
+
+func (ct ContentType) additional() Additional {
+	return ct.Additional
+}
+
+func (ct ContentType) comment() string {
+	return ct.Comment
+}
+
 type contentWritable interface {
 	isArray() bool
 	schema() any
 	schemaRef() string
 	examples() Examples
 	alternatives() ContentTypes
+	extensions() Extensions
+	additional() Additional
+	comment() string
 }
 
 func writeContent(contentType string, cw contentWritable, w yaml.Writer) {
@@ -84,6 +105,7 @@ func writeContent(contentType string, cw contentWritable, w yaml.Writer) {
 
 func writeContentType(contentType string, cw contentWritable, w yaml.Writer) {
 	w.WriteTagStart(defValue(contentType, tagNameApplicationJson))
+	w.WriteComments(cw.comment())
 	w.WriteTagStart(tagNameSchema)
 	isArray := cw.isArray()
 	if schema := cw.schema(); schema != nil {
@@ -95,5 +117,7 @@ func writeContentType(contentType string, cw contentWritable, w yaml.Writer) {
 	}
 	w.WriteTagEnd()
 	cw.examples().writeYaml(w)
+	writeExtensions(cw.extensions(), w)
+	writeAdditional(cw.additional(), nil, w)
 	w.WriteTagEnd()
 }

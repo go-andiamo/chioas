@@ -106,6 +106,18 @@ func (r Response) alternatives() ContentTypes {
 	return r.AlternativeContentTypes
 }
 
+func (r Response) extensions() Extensions {
+	return nil
+}
+
+func (r Response) additional() Additional {
+	return nil
+}
+
+func (r Response) comment() string {
+	return ""
+}
+
 func (r Response) writeYaml(statusCode int, isHead bool, w yaml.Writer) {
 	w.WriteTagStart(strconv.Itoa(statusCode))
 	if r.Ref == "" {
