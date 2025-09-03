@@ -381,9 +381,17 @@ func namedSliceFromProperty[T any](m map[string]any, name string) ([]T, []string
 	return nil, nil, nil
 }
 
+// UnmarshalStrictRef is a global setting for Definition unmarshalling
+// and, if set to true, will cause errors when an object (e.g. schema, etc.) in the OAS spec
+// has a "$ref" property along with other properties
+var UnmarshalStrictRef = false
+
 func hasRef(m map[string]any) (string, bool, error) {
 	var err error
 	if v, ok := m[tagNameRef]; ok {
+		if UnmarshalStrictRef && len(m) > 1 {
+			return "", false, fmt.Errorf(`invalid spec - object has both %q and other properties`, tagNameRef)
+		}
 		if vs, ok := v.(string); ok {
 			return vs, true, nil
 		} else {
