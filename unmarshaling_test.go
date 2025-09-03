@@ -1581,6 +1581,19 @@ func TestHasRef(t *testing.T) {
 		_, _, err := hasRef(map[string]any{tagNameRef: true})
 		require.Error(t, err)
 	})
+	t.Run("UnmarshalStrictRef", func(t *testing.T) {
+		m := map[string]any{
+			tagNameRef:       "some ref",
+			"other property": "other value",
+		}
+		_, ok, err := hasRef(m)
+		require.NoError(t, err)
+		assert.True(t, ok)
+		UnmarshalStrictRef = true
+		defer func() { UnmarshalStrictRef = false }()
+		_, _, err = hasRef(m)
+		require.Error(t, err)
+	})
 }
 
 func TestStringFromProperty(t *testing.T) {

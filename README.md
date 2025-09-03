@@ -28,17 +28,19 @@ All you'll need to do is add `x-handler` tags to each method in the spec.
 
 See [From example](https://github.com/go-andiamo/chioas/tree/main/_examples/from)
 
+You can also unmarshal OAS YAML/JSON directly into a *Chioas* `Definition` (but this won't bind handlers)
+
 ### Choice of UI styles
-*Chioas* supports two different styles of API docs UI:
-1. Redoc (see [Redocly.redoc](https://github.com/Redocly/redoc) and [Redoc-try](https://github.com/wll8/redoc-try))
+*Chioas* supports three different styles of API docs UI:
+1. Rapidoc (see [rapidoc](https://github.com/rapi-doc/RapiDoc))
 2. Swagger (see [swagger-ui](https://github.com/swagger-api/swagger-ui))
-3. Rapidoc (see [rapidoc](https://github.com/rapi-doc/RapiDoc))
+3. Redoc (see [Redocly.redoc](https://github.com/Redocly/redoc) and [Redoc-try](https://github.com/wll8/redoc-try))
 
 Set the desired style using `DocOptions.UIStyle` (the default is `Redoc`).
 Notes:
-* statics for `Redoc` are served from CDNs
 * statics for `Swagger` are all served directly from *Chioas*
 * statics for `Rapidoc` are all served directly from *Chioas*
+* statics for `Redoc` are served from CDNs
 
 *Chioas* also supports serving multiple styles of UI on different docs paths (see `DocOptions.AlternateUIDocs` and [example](https://github.com/go-andiamo/chioas/tree/main/_examples/multi_ui))
 
@@ -50,6 +52,7 @@ Chioas comes with many bonus features that help in building complete APIs and sp
 * Optional automatically added `HEAD` methods for `GET` methods _(see `Definition.AutoHeadMethods`)_
 * Optional automatically added `OPTIONS` methods - with `Allow` header populated with actual allowed methods _(see `Definition.AutoOptionsMethods` and `Path.AutoOptionsMethod`)_
 * Optional automatically added Chi `MethodNotAllowed` handler to each path  - with `Allow` header populated with actual allowed methods _(see `Definition.AutoMethodNotAllowed`)_
+* Ref checking (useful for checking existing oas yaml/json)
 
 ## Installation
 To install chioas, use go get:
