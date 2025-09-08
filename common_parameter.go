@@ -1,13 +1,17 @@
 package chioas
 
-import "github.com/go-andiamo/chioas/yaml"
+import (
+	"github.com/go-andiamo/chioas/internal/tags"
+	"github.com/go-andiamo/chioas/internal/values"
+	"github.com/go-andiamo/chioas/yaml"
+)
 
 // CommonParameters is a map of CommonParameter, where the key is the name (that can be referenced by PathParam.Ref or QueryParam.Ref)
 type CommonParameters map[string]CommonParameter
 
 func (r CommonParameters) writeYaml(w yaml.Writer) {
 	if len(r) > 0 {
-		w.WriteTagStart(tagNameParameters)
+		w.WriteTagStart(tags.Parameters)
 		for name, rr := range r {
 			rr.writeYaml(name, w)
 		}
@@ -55,18 +59,18 @@ type CommonParameter struct {
 func (p CommonParameter) writeYaml(name string, w yaml.Writer) {
 	w.WriteComments(p.Comment)
 	w.WriteTagStart(name).
-		WriteTagValue(tagNameName, defValue(p.Name, name)).
-		WriteTagValue(tagNameDescription, p.Description).
-		WriteTagValue(tagNameIn, defValue(p.In, tagValueQuery)).
-		WriteTagValue(tagNameRequired, p.Required).
-		WriteTagValue(tagNameExample, p.Example)
-	w.WriteTagStart(tagNameSchema)
+		WriteTagValue(tags.Name, defValue(p.Name, name)).
+		WriteTagValue(tags.Description, p.Description).
+		WriteTagValue(tags.In, defValue(p.In, values.Query)).
+		WriteTagValue(tags.Required, p.Required).
+		WriteTagValue(tags.Example, p.Example)
+	w.WriteTagStart(tags.Schema)
 	if p.Schema != nil {
 		p.Schema.writeYaml(false, w)
 	} else if p.SchemaRef != "" {
 		writeSchemaRef(p.SchemaRef, false, w)
 	} else {
-		w.WriteTagValue(tagNameType, "string")
+		w.WriteTagValue(tags.Type, "string")
 	}
 	w.WriteTagEnd()
 	writeExtensions(p.Extensions, w)

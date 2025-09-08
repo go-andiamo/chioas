@@ -1,6 +1,7 @@
 package chioas
 
 import (
+	"github.com/go-andiamo/chioas/internal/tags"
 	"github.com/go-andiamo/chioas/yaml"
 	"github.com/go-andiamo/urit"
 	"golang.org/x/exp/slices"
@@ -185,12 +186,12 @@ func (m Methods) writeYaml(opts *DocOptions, autoHeads bool, autoOptions bool, t
 func (m Method) writeYaml(opts *DocOptions, template urit.Template, pathVars []urit.PathVar, knownParams PathParams, parentTag string, method string, w yaml.Writer) {
 	w.WriteTagStart(strings.ToLower(method)).
 		WriteComments(m.Comment).
-		WriteTagValue(tagNameSummary, m.Summary).
-		WriteTagValue(tagNameDescription, m.Description).
-		WriteTagValue(tagNameOperationId, m.getOperationId(opts, method, template, parentTag)).
-		WriteTagValue(tagNameDeprecated, nilBool(m.Deprecated))
+		WriteTagValue(tags.Summary, m.Summary).
+		WriteTagValue(tags.Description, m.Description).
+		WriteTagValue(tags.OperationId, m.getOperationId(opts, method, template, parentTag)).
+		WriteTagValue(tags.Deprecated, nilBool(m.Deprecated))
 	if m.OptionalSecurity || len(m.Security) > 0 {
-		w.WriteTagStart(tagNameSecurity)
+		w.WriteTagStart(tags.Security)
 		if m.OptionalSecurity {
 			w.WriteItem(yaml.LiteralValue{Value: "{}"})
 		}
@@ -198,7 +199,7 @@ func (m Method) writeYaml(opts *DocOptions, template urit.Template, pathVars []u
 		w.WriteTagEnd()
 	}
 	if tag := defaultTag(parentTag, m.Tag); tag != "" {
-		w.WriteTagStart(tagNameTags).
+		w.WriteTagStart(tags.Tags).
 			WriteItem(tag).
 			WriteTagEnd()
 	}
@@ -233,7 +234,7 @@ func (m Method) getOperationId(opts *DocOptions, method string, template urit.Te
 
 func (m Method) writeParams(pathVars []urit.PathVar, knownParams PathParams, w yaml.Writer) {
 	if has, pathParams := m.hasParams(pathVars, knownParams); has {
-		w.WriteTagStart(tagNameParameters)
+		w.WriteTagStart(tags.Parameters)
 		m.writePathParams(pathParams, w)
 		m.writeQueryParams(w)
 		w.WriteTagEnd()

@@ -2,6 +2,7 @@ package chioas
 
 import (
 	"fmt"
+	"github.com/go-andiamo/chioas/internal/values"
 	"github.com/go-andiamo/chioas/yaml"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -81,7 +82,7 @@ func TestProperty_WriteYaml(t *testing.T) {
 		{
 			property: Property{
 				Name: "foo",
-				Type: tagValueTypeObject,
+				Type: values.TypeObject,
 				Properties: Properties{
 					{
 						Name:     "bar",
@@ -100,8 +101,8 @@ func TestProperty_WriteYaml(t *testing.T) {
 		{
 			property: Property{
 				Name:     "foo",
-				Type:     tagValueTypeArray,
-				ItemType: tagValueTypeObject,
+				Type:     values.TypeArray,
+				ItemType: values.TypeObject,
 				Properties: Properties{
 					{
 						Name:     "bar",

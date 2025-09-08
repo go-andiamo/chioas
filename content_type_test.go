@@ -2,6 +2,7 @@ package chioas
 
 import (
 	"fmt"
+	"github.com/go-andiamo/chioas/internal/tags"
 	"github.com/go-andiamo/chioas/yaml"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -230,10 +231,10 @@ type mySchemaWriter struct {
 }
 
 func (m *mySchemaWriter) WriteSchema(w yaml.Writer) {
-	w.WriteTagValue(tagNameType, "object").
-		WriteTagStart(tagNameProperties).
+	w.WriteTagValue(tags.Type, "object").
+		WriteTagStart(tags.Properties).
 		WriteTagStart(`"foo"`).
-		WriteTagValue(tagNameType, "string").
+		WriteTagValue(tags.Type, "string").
 		WriteTagEnd().WriteTagEnd()
 }
 

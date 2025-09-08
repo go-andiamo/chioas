@@ -1,6 +1,7 @@
 package chioas
 
 import (
+	"github.com/go-andiamo/chioas/internal/tags"
 	"github.com/go-andiamo/chioas/yaml"
 )
 
@@ -15,11 +16,11 @@ const (
 func (ot OfType) TagName() string {
 	switch ot {
 	case AllOf:
-		return tagNameAllOf
+		return tags.AllOf
 	case AnyOf:
-		return tagNameAnyOf
+		return tags.AnyOf
 	}
-	return tagNameOneOf
+	return tags.OneOf
 }
 
 // Ofs is a representation of OAS oneOf, allOf or anyOf
@@ -39,7 +40,7 @@ func (ofs *Ofs) writeYaml(w yaml.Writer) {
 		w.WriteTagStart(ofs.OfType.TagName())
 		for _, of := range ofs.Of {
 			if of.IsRef() {
-				writeItemRef(tagNameSchemas, of.Ref(), w)
+				writeItemRef(tags.Schemas, of.Ref(), w)
 			} else {
 				of.Schema().writeOfYaml(w)
 			}

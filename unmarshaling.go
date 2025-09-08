@@ -3,6 +3,8 @@ package chioas
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/go-andiamo/chioas/internal/tags"
+	"github.com/go-andiamo/chioas/internal/values"
 	"github.com/go-andiamo/splitter"
 	"gopkg.in/yaml.v3"
 	"math"
@@ -38,17 +40,17 @@ func (d *Definition) UnmarshalYAML(value *yaml.Node) error {
 
 func (d *Definition) unmarshalObj(m map[string]any) (err error) {
 	d.Extensions = extensionsFrom(m)
-	if v, err := objFromProperty[Info](m, tagNameInfo); err != nil {
+	if v, err := objFromProperty[Info](m, tags.Info); err != nil {
 		return err
 	} else if v != nil {
 		d.Info = *v
 	}
-	if v, err := objFromProperty[ExternalDocs](m, tagNameExternalDocs); err != nil {
+	if v, err := objFromProperty[ExternalDocs](m, tags.ExternalDocs); err != nil {
 		return err
 	} else if v != nil {
 		d.Info.ExternalDocs = v
 	}
-	if d.Tags, err = sliceFromProperty[Tag](m, tagNameTags); err == nil {
+	if d.Tags, err = sliceFromProperty[Tag](m, tags.Tags); err == nil {
 		if d.Servers, err = serversFrom(m); err == nil {
 			if d.Security, err = securityFrom(m); err == nil {
 				if d.Components, err = componentsFrom(m); err == nil {
@@ -61,7 +63,7 @@ func (d *Definition) unmarshalObj(m map[string]any) (err error) {
 }
 
 func (d *Definition) unmarshalPaths(m map[string]any) (err error) {
-	if v, ok := m[tagNamePaths]; ok {
+	if v, ok := m[tags.Paths]; ok {
 		if paths, ok := v.(map[string]any); ok {
 			holders := make([]*pathHolder, 0, len(paths))
 			var rootPath *pathHolder
@@ -103,7 +105,7 @@ func (d *Definition) unmarshalPaths(m map[string]any) (err error) {
 				}
 			}
 		} else {
-			err = fmt.Errorf(unMsgMustBeObject, tagNamePaths)
+			err = fmt.Errorf(unMsgMustBeObject, tags.Paths)
 		}
 	}
 	return err
@@ -218,21 +220,21 @@ func (ph *pathHolder) getMethods() (Methods, error) {
 
 func (m *Method) unmarshalObj(o map[string]any) (err error) {
 	m.Extensions = extensionsFrom(o)
-	if m.Description, err = stringFromProperty(o, tagNameDescription); err == nil {
-		if m.Summary, err = stringFromProperty(o, tagNameSummary); err == nil {
-			if m.OperationId, err = stringFromProperty(o, tagNameOperationId); err == nil {
-				if m.Deprecated, err = booleanFromProperty(o, tagNameDeprecated); err == nil {
-					var tags []string
-					if tags, err = stringsSliceFromProperty(o, tagNameTags); err == nil {
-						if len(tags) > 0 {
-							m.Tag = tags[0]
+	if m.Description, err = stringFromProperty(o, tags.Description); err == nil {
+		if m.Summary, err = stringFromProperty(o, tags.Summary); err == nil {
+			if m.OperationId, err = stringFromProperty(o, tags.OperationId); err == nil {
+				if m.Deprecated, err = booleanFromProperty(o, tags.Deprecated); err == nil {
+					var tgs []string
+					if tgs, err = stringsSliceFromProperty(o, tags.Tags); err == nil {
+						if len(tgs) > 0 {
+							m.Tag = tgs[0]
 						}
 						if err = m.unmarshalSecurity(o); err == nil {
-							if m.Request, err = objFromProperty[Request](o, tagNameRequestBody); err == nil {
-								if m.QueryParams, err = sliceFromProperty[QueryParam](o, tagNameParameters); err == nil {
+							if m.Request, err = objFromProperty[Request](o, tags.RequestBody); err == nil {
+								if m.QueryParams, err = sliceFromProperty[QueryParam](o, tags.Parameters); err == nil {
 									var responses []Response
 									var codes []string
-									if responses, codes, err = namedSliceFromProperty[Response](o, tagNameResponses); err == nil && responses != nil {
+									if responses, codes, err = namedSliceFromProperty[Response](o, tags.Responses); err == nil && responses != nil {
 										m.Responses = make(Responses, len(responses))
 										for i, response := range responses {
 											var code int
@@ -256,7 +258,7 @@ func (m *Method) unmarshalObj(o map[string]any) (err error) {
 
 func (m *Method) unmarshalSecurity(o map[string]any) (err error) {
 	var secs []methodSecurity
-	if secs, err = sliceFromProperty[methodSecurity](o, tagNameSecurity); err == nil {
+	if secs, err = sliceFromProperty[methodSecurity](o, tags.Security); err == nil {
 		if len(secs) == 1 && !secs[0].set {
 			m.OptionalSecurity = true
 		} else {
@@ -388,14 +390,14 @@ var UnmarshalStrictRef = false
 
 func hasRef(m map[string]any) (string, bool, error) {
 	var err error
-	if v, ok := m[tagNameRef]; ok {
+	if v, ok := m[tags.Ref]; ok {
 		if UnmarshalStrictRef && len(m) > 1 {
-			return "", false, fmt.Errorf(`invalid spec - object has both %q and other properties`, tagNameRef)
+			return "", false, fmt.Errorf(`invalid spec - object has both %q and other properties`, tags.Ref)
 		}
 		if vs, ok := v.(string); ok {
 			return vs, true, nil
 		} else {
-			err = fmt.Errorf(unMsgMustBeString, tagNameRef)
+			err = fmt.Errorf(unMsgMustBeString, tags.Ref)
 		}
 	}
 	return "", false, err
@@ -541,12 +543,12 @@ func extensionsFrom(m map[string]any) Extensions {
 
 func (i *Info) unmarshalObj(m map[string]any) (err error) {
 	i.Extensions = extensionsFrom(m)
-	if i.Title, err = stringFromProperty(m, tagNameTitle); err == nil {
-		if i.Description, err = stringFromProperty(m, tagNameDescription); err == nil {
-			if i.Version, err = stringFromProperty(m, tagNameVersion); err == nil {
-				if i.TermsOfService, err = stringFromProperty(m, tagNameTermsOfService); err == nil {
-					if i.Contact, err = objFromProperty[Contact](m, tagNameContact); err == nil {
-						i.License, err = objFromProperty[License](m, tagNameLicense)
+	if i.Title, err = stringFromProperty(m, tags.Title); err == nil {
+		if i.Description, err = stringFromProperty(m, tags.Description); err == nil {
+			if i.Version, err = stringFromProperty(m, tags.Version); err == nil {
+				if i.TermsOfService, err = stringFromProperty(m, tags.TermsOfService); err == nil {
+					if i.Contact, err = objFromProperty[Contact](m, tags.Contact); err == nil {
+						i.License, err = objFromProperty[License](m, tags.License)
 					}
 				}
 			}
@@ -557,9 +559,9 @@ func (i *Info) unmarshalObj(m map[string]any) (err error) {
 
 func (c *Contact) unmarshalObj(m map[string]any) (err error) {
 	c.Extensions = extensionsFrom(m)
-	if c.Name, err = stringFromProperty(m, tagNameName); err == nil {
-		if c.Url, err = stringFromProperty(m, tagNameUrl); err == nil {
-			c.Email, err = stringFromProperty(m, tagNameEmail)
+	if c.Name, err = stringFromProperty(m, tags.Name); err == nil {
+		if c.Url, err = stringFromProperty(m, tags.Url); err == nil {
+			c.Email, err = stringFromProperty(m, tags.Email)
 		}
 	}
 	return err
@@ -567,37 +569,37 @@ func (c *Contact) unmarshalObj(m map[string]any) (err error) {
 
 func (l *License) unmarshalObj(m map[string]any) (err error) {
 	l.Extensions = extensionsFrom(m)
-	if l.Name, err = stringFromProperty(m, tagNameName); err == nil {
-		l.Url, err = stringFromProperty(m, tagNameUrl)
+	if l.Name, err = stringFromProperty(m, tags.Name); err == nil {
+		l.Url, err = stringFromProperty(m, tags.Url)
 	}
 	return err
 }
 
 func (x *ExternalDocs) unmarshalObj(m map[string]any) (err error) {
 	x.Extensions = extensionsFrom(m)
-	if x.Description, err = stringFromProperty(m, tagNameDescription); err == nil {
-		x.Url, err = stringFromProperty(m, tagNameUrl)
+	if x.Description, err = stringFromProperty(m, tags.Description); err == nil {
+		x.Url, err = stringFromProperty(m, tags.Url)
 	}
 	return err
 }
 
 func (t *Tag) unmarshalObj(m map[string]any) (err error) {
 	t.Extensions = extensionsFrom(m)
-	if t.Name, err = stringFromProperty(m, tagNameName); err == nil {
-		if t.Description, err = stringFromProperty(m, tagNameDescription); err == nil {
-			t.ExternalDocs, err = objFromProperty[ExternalDocs](m, tagNameExternalDocs)
+	if t.Name, err = stringFromProperty(m, tags.Name); err == nil {
+		if t.Description, err = stringFromProperty(m, tags.Description); err == nil {
+			t.ExternalDocs, err = objFromProperty[ExternalDocs](m, tags.ExternalDocs)
 		}
 	}
 	return err
 }
 
 func serversFrom(m map[string]any) (Servers, error) {
-	if v, ok := m[tagNameServers]; ok {
+	if v, ok := m[tags.Servers]; ok {
 		if vs, ok := v.([]any); ok {
 			result := make(Servers, len(vs))
 			for _, sv := range vs {
 				if svm, ok := sv.(map[string]any); ok {
-					if url, err := stringFromProperty(svm, tagNameUrl); err == nil {
+					if url, err := stringFromProperty(svm, tags.Url); err == nil {
 						if s, err := fromObj[Server](svm); err == nil {
 							result[url] = *s
 						} else {
@@ -607,12 +609,12 @@ func serversFrom(m map[string]any) (Servers, error) {
 						return nil, err
 					}
 				} else {
-					return nil, fmt.Errorf(unMsgInvalidElement, tagNameServers)
+					return nil, fmt.Errorf(unMsgInvalidElement, tags.Servers)
 				}
 			}
 			return result, nil
 		} else {
-			return nil, fmt.Errorf(unMsgMustBeArray, tagNameServers)
+			return nil, fmt.Errorf(unMsgMustBeArray, tags.Servers)
 		}
 	}
 	return nil, nil
@@ -620,12 +622,12 @@ func serversFrom(m map[string]any) (Servers, error) {
 
 func (s *Server) unmarshalObj(m map[string]any) (err error) {
 	s.Extensions = extensionsFrom(m)
-	s.Description, err = stringFromProperty(m, tagNameDescription)
+	s.Description, err = stringFromProperty(m, tags.Description)
 	return err
 }
 
 func securityFrom(m map[string]any) (SecuritySchemes, error) {
-	if s, ok := m[tagNameSecurity]; ok {
+	if s, ok := m[tags.Security]; ok {
 		if sv, ok := s.([]any); ok {
 			result := make(SecuritySchemes, 0)
 			for _, i := range sv {
@@ -646,22 +648,22 @@ func securityFrom(m map[string]any) (SecuritySchemes, error) {
 						result = append(result, *sec)
 					}
 				} else {
-					return nil, fmt.Errorf(unMsgInvalidElement, tagNameSecurity)
+					return nil, fmt.Errorf(unMsgInvalidElement, tags.Security)
 				}
 			}
 			return result, nil
 		} else {
-			return nil, fmt.Errorf(unMsgMustBeArray, tagNameSecurity)
+			return nil, fmt.Errorf(unMsgMustBeArray, tags.Security)
 		}
 	}
 	return nil, nil
 }
 
 func componentsFrom(m map[string]any) (*Components, error) {
-	if v, ok := m[tagNameComponents]; ok {
+	if v, ok := m[tags.Components]; ok {
 		if mv, ok := v.(map[string]any); ok {
 			result := &Components{Extensions: extensionsFrom(mv)}
-			if items, names, err := namedSliceFromProperty[Schema](mv, tagNameSchemas); err == nil {
+			if items, names, err := namedSliceFromProperty[Schema](mv, tags.Schemas); err == nil {
 				for i, _ := range items {
 					items[i].Name = names[i]
 				}
@@ -669,7 +671,7 @@ func componentsFrom(m map[string]any) (*Components, error) {
 			} else {
 				return nil, err
 			}
-			if items, names, err := namedSliceFromProperty[SecurityScheme](mv, tagNameSecuritySchemes); err == nil {
+			if items, names, err := namedSliceFromProperty[SecurityScheme](mv, tags.SecuritySchemes); err == nil {
 				for i, _ := range items {
 					items[i].Name = names[i]
 				}
@@ -677,7 +679,7 @@ func componentsFrom(m map[string]any) (*Components, error) {
 			} else {
 				return nil, err
 			}
-			if items, names, err := namedSliceFromProperty[Example](mv, tagNameExamples); err == nil {
+			if items, names, err := namedSliceFromProperty[Example](mv, tags.Examples); err == nil {
 				for i, _ := range items {
 					items[i].Name = names[i]
 				}
@@ -685,7 +687,7 @@ func componentsFrom(m map[string]any) (*Components, error) {
 			} else {
 				return nil, err
 			}
-			if items, names, err := namedSliceFromProperty[CommonParameter](mv, tagNameParameters); err == nil {
+			if items, names, err := namedSliceFromProperty[CommonParameter](mv, tags.Parameters); err == nil {
 				result.Parameters = make(CommonParameters, len(items))
 				for i, _ := range items {
 					result.Parameters[names[i]] = items[i]
@@ -693,7 +695,7 @@ func componentsFrom(m map[string]any) (*Components, error) {
 			} else {
 				return nil, err
 			}
-			if items, names, err := namedSliceFromProperty[Request](mv, tagNameRequestBodies); err == nil {
+			if items, names, err := namedSliceFromProperty[Request](mv, tags.RequestBodies); err == nil {
 				result.Requests = make(CommonRequests, len(items))
 				for i, _ := range items {
 					result.Requests[names[i]] = items[i]
@@ -701,7 +703,7 @@ func componentsFrom(m map[string]any) (*Components, error) {
 			} else {
 				return nil, err
 			}
-			if items, names, err := namedSliceFromProperty[Response](mv, tagNameResponses); err == nil {
+			if items, names, err := namedSliceFromProperty[Response](mv, tags.Responses); err == nil {
 				result.Responses = make(CommonResponses, len(items))
 				for i, _ := range items {
 					result.Responses[names[i]] = items[i]
@@ -711,7 +713,7 @@ func componentsFrom(m map[string]any) (*Components, error) {
 			}
 			return result, nil
 		} else {
-			return nil, fmt.Errorf(unMsgMustBeObject, tagNameComponents)
+			return nil, fmt.Errorf(unMsgMustBeObject, tags.Components)
 		}
 	}
 	return nil, nil
@@ -719,11 +721,11 @@ func componentsFrom(m map[string]any) (*Components, error) {
 
 func (s *SecurityScheme) unmarshalObj(m map[string]any) (err error) {
 	s.Extensions = extensionsFrom(m)
-	if s.Description, err = stringFromProperty(m, tagNameDescription); err == nil {
-		if s.Type, err = stringFromProperty(m, tagNameType); err == nil {
-			if s.Scheme, err = stringFromProperty(m, tagNameScheme); err == nil {
-				if s.ParamName, err = stringFromProperty(m, tagNameName); err == nil {
-					s.In, err = stringFromProperty(m, tagNameIn)
+	if s.Description, err = stringFromProperty(m, tags.Description); err == nil {
+		if s.Type, err = stringFromProperty(m, tags.Type); err == nil {
+			if s.Scheme, err = stringFromProperty(m, tags.Scheme); err == nil {
+				if s.ParamName, err = stringFromProperty(m, tags.Name); err == nil {
+					s.In, err = stringFromProperty(m, tags.In)
 				}
 			}
 		}
@@ -738,9 +740,9 @@ func (eg *Example) unmarshalObj(m map[string]any) (err error) {
 		eg.ExampleRef = ref
 	} else if err == nil {
 		eg.Extensions = extensionsFrom(m)
-		if eg.Summary, err = stringFromProperty(m, tagNameSummary); err == nil {
-			if eg.Description, err = stringFromProperty(m, tagNameDescription); err == nil {
-				eg.Value = m[tagNameValue]
+		if eg.Summary, err = stringFromProperty(m, tags.Summary); err == nil {
+			if eg.Description, err = stringFromProperty(m, tags.Description); err == nil {
+				eg.Value = m[tags.Value]
 			}
 		}
 	}
@@ -749,11 +751,11 @@ func (eg *Example) unmarshalObj(m map[string]any) (err error) {
 
 func (p *CommonParameter) unmarshalObj(m map[string]any) (err error) {
 	p.Extensions = extensionsFrom(m)
-	if p.Name, err = stringFromProperty(m, tagNameName); err == nil {
-		if p.Description, err = stringFromProperty(m, tagNameDescription); err == nil {
-			if p.Required, err = booleanFromProperty(m, tagNameRequired); err == nil {
-				if p.In, err = stringFromProperty(m, tagNameIn); err == nil {
-					p.Example = m[tagNameExample]
+	if p.Name, err = stringFromProperty(m, tags.Name); err == nil {
+		if p.Description, err = stringFromProperty(m, tags.Description); err == nil {
+			if p.Required, err = booleanFromProperty(m, tags.Required); err == nil {
+				if p.In, err = stringFromProperty(m, tags.In); err == nil {
+					p.Example = m[tags.Example]
 					p.SchemaRef, p.Schema, err = schemaFrom(m)
 				}
 			}
@@ -764,11 +766,11 @@ func (p *CommonParameter) unmarshalObj(m map[string]any) (err error) {
 
 func (p *QueryParam) unmarshalObj(m map[string]any) (err error) {
 	p.Extensions = extensionsFrom(m)
-	if p.Name, err = stringFromProperty(m, tagNameName); err == nil {
-		if p.Description, err = stringFromProperty(m, tagNameDescription); err == nil {
-			if p.Required, err = booleanFromProperty(m, tagNameRequired); err == nil {
-				if p.In, err = stringFromProperty(m, tagNameIn); err == nil {
-					p.Example = m[tagNameExample]
+	if p.Name, err = stringFromProperty(m, tags.Name); err == nil {
+		if p.Description, err = stringFromProperty(m, tags.Description); err == nil {
+			if p.Required, err = booleanFromProperty(m, tags.Required); err == nil {
+				if p.In, err = stringFromProperty(m, tags.In); err == nil {
+					p.Example = m[tags.Example]
 					p.SchemaRef, p.Schema, err = schemaFrom(m)
 				}
 			}
@@ -778,14 +780,14 @@ func (p *QueryParam) unmarshalObj(m map[string]any) (err error) {
 }
 
 func schemaFrom(m map[string]any) (ref string, schema *Schema, err error) {
-	if v, ok := m[tagNameSchema]; ok {
+	if v, ok := m[tags.Schema]; ok {
 		if vm, ok := v.(map[string]any); ok {
 			ref, ok, err = hasRef(vm)
 			if !ok && err == nil {
 				schema, err = fromObj[Schema](vm)
 			}
 		} else {
-			err = fmt.Errorf(unMsgMustBeObject, tagNameSchema)
+			err = fmt.Errorf(unMsgMustBeObject, tags.Schema)
 		}
 	}
 	return ref, schema, err
@@ -798,17 +800,17 @@ func (s *Schema) unmarshalObj(m map[string]any) (err error) {
 		s.SchemaRef = ref
 	} else if err == nil {
 		s.Extensions = extensionsFrom(m)
-		if s.Name, err = stringFromProperty(m, tagNameName); err == nil {
-			if s.Description, err = stringFromProperty(m, tagNameDescription); err == nil {
-				if s.Type, err = stringFromProperty(m, tagNameType); err == nil {
-					if s.Format, err = stringFromProperty(m, tagNameFormat); err == nil {
-						if s.RequiredProperties, err = stringsSliceFromProperty(m, tagNameRequired); err == nil {
+		if s.Name, err = stringFromProperty(m, tags.Name); err == nil {
+			if s.Description, err = stringFromProperty(m, tags.Description); err == nil {
+				if s.Type, err = stringFromProperty(m, tags.Type); err == nil {
+					if s.Format, err = stringFromProperty(m, tags.Format); err == nil {
+						if s.RequiredProperties, err = stringsSliceFromProperty(m, tags.Required); err == nil {
 							if s.Properties, err = unmarshalProperties(m); err == nil {
-								if s.Discriminator, err = objFromProperty[Discriminator](m, tagNameDiscriminator); err == nil {
+								if s.Discriminator, err = objFromProperty[Discriminator](m, tags.Discriminator); err == nil {
 									if s.Ofs, err = ofsFrom(m); err == nil {
-										s.Default = m[tagNameDefault]
-										s.Example = m[tagNameExample]
-										s.Enum, err = anySliceFromProperty(m, tagNameEnum)
+										s.Default = m[tags.Default]
+										s.Example = m[tags.Example]
+										s.Enum, err = anySliceFromProperty(m, tags.Enum)
 									}
 								}
 							}
@@ -822,10 +824,10 @@ func (s *Schema) unmarshalObj(m map[string]any) (err error) {
 }
 
 func unmarshalProperties(m map[string]any) (ptys Properties, err error) {
-	if _, ok := m[tagNameProperties]; ok {
+	if _, ok := m[tags.Properties]; ok {
 		var vs []Property
 		var names []string
-		if vs, names, err = namedSliceFromProperty[Property](m, tagNameProperties); err == nil {
+		if vs, names, err = namedSliceFromProperty[Property](m, tags.Properties); err == nil {
 			ptys = make(Properties, len(vs))
 			for i, _ := range vs {
 				vs[i].Name = names[i]
@@ -843,16 +845,16 @@ func (p *Property) unmarshalObj(m map[string]any) (err error) {
 		p.SchemaRef = ref
 	} else if err == nil {
 		p.Extensions = extensionsFrom(m)
-		if p.Name, err = stringFromProperty(m, tagNameName); err == nil {
-			if p.Description, err = stringFromProperty(m, tagNameDescription); err == nil {
-				if p.Type, err = stringFromProperty(m, tagNameType); err == nil {
-					if p.ItemType, err = stringFromProperty(m, tagNameItemType); err == nil {
-						if p.Required, err = booleanFromProperty(m, tagNameRequired); err == nil {
-							if p.Format, err = stringFromProperty(m, tagNameFormat); err == nil {
-								if p.Deprecated, err = booleanFromProperty(m, tagNameDeprecated); err == nil {
+		if p.Name, err = stringFromProperty(m, tags.Name); err == nil {
+			if p.Description, err = stringFromProperty(m, tags.Description); err == nil {
+				if p.Type, err = stringFromProperty(m, tags.Type); err == nil {
+					if p.ItemType, err = stringFromProperty(m, tags.ItemType); err == nil {
+						if p.Required, err = booleanFromProperty(m, tags.Required); err == nil {
+							if p.Format, err = stringFromProperty(m, tags.Format); err == nil {
+								if p.Deprecated, err = booleanFromProperty(m, tags.Deprecated); err == nil {
 									if p.Properties, err = unmarshalProperties(m); err == nil {
-										p.Example = m[tagNameExample]
-										if p.Enum, err = anySliceFromProperty(m, tagNameEnum); err == nil {
+										p.Example = m[tags.Example]
+										if p.Enum, err = anySliceFromProperty(m, tags.Enum); err == nil {
 											err = p.unmarshalConstraints(m)
 										}
 									}
@@ -869,20 +871,20 @@ func (p *Property) unmarshalObj(m map[string]any) (err error) {
 }
 
 func (p *Property) unmarshalConstraints(m map[string]any) (err error) {
-	if p.Constraints.Pattern, err = stringFromProperty(m, tagNamePattern); err == nil {
-		if p.Constraints.Maximum, err = jsonNumberFromProperty(m, tagNameMaximum); err == nil {
-			if p.Constraints.Minimum, err = jsonNumberFromProperty(m, tagNameMinimum); err == nil {
-				if p.Constraints.ExclusiveMinimum, err = booleanFromProperty(m, tagNameExclusiveMinimum); err == nil {
-					if p.Constraints.ExclusiveMaximum, err = booleanFromProperty(m, tagNameExclusiveMaximum); err == nil {
-						if p.Constraints.Nullable, err = booleanFromProperty(m, tagNameNullable); err == nil {
-							if p.Constraints.UniqueItems, err = booleanFromProperty(m, tagNameUniqueItems); err == nil {
-								if p.Constraints.MultipleOf, err = uintFromProperty(m, tagNameMultipleOf); err == nil {
-									if p.Constraints.MaxLength, err = uintFromProperty(m, tagNameMaxLength); err == nil {
-										if p.Constraints.MinLength, err = uintFromProperty(m, tagNameMinLength); err == nil {
-											if p.Constraints.MaxItems, err = uintFromProperty(m, tagNameMaxItems); err == nil {
-												if p.Constraints.MinItems, err = uintFromProperty(m, tagNameMinItems); err == nil {
-													if p.Constraints.MaxProperties, err = uintFromProperty(m, tagNameMaxProperties); err == nil {
-														p.Constraints.MinProperties, err = uintFromProperty(m, tagNameMinProperties)
+	if p.Constraints.Pattern, err = stringFromProperty(m, tags.Pattern); err == nil {
+		if p.Constraints.Maximum, err = jsonNumberFromProperty(m, tags.Maximum); err == nil {
+			if p.Constraints.Minimum, err = jsonNumberFromProperty(m, tags.Minimum); err == nil {
+				if p.Constraints.ExclusiveMinimum, err = booleanFromProperty(m, tags.ExclusiveMinimum); err == nil {
+					if p.Constraints.ExclusiveMaximum, err = booleanFromProperty(m, tags.ExclusiveMaximum); err == nil {
+						if p.Constraints.Nullable, err = booleanFromProperty(m, tags.Nullable); err == nil {
+							if p.Constraints.UniqueItems, err = booleanFromProperty(m, tags.UniqueItems); err == nil {
+								if p.Constraints.MultipleOf, err = uintFromProperty(m, tags.MultipleOf); err == nil {
+									if p.Constraints.MaxLength, err = uintFromProperty(m, tags.MaxLength); err == nil {
+										if p.Constraints.MinLength, err = uintFromProperty(m, tags.MinLength); err == nil {
+											if p.Constraints.MaxItems, err = uintFromProperty(m, tags.MaxItems); err == nil {
+												if p.Constraints.MinItems, err = uintFromProperty(m, tags.MinItems); err == nil {
+													if p.Constraints.MaxProperties, err = uintFromProperty(m, tags.MaxProperties); err == nil {
+														p.Constraints.MinProperties, err = uintFromProperty(m, tags.MinProperties)
 													}
 												}
 											}
@@ -902,17 +904,17 @@ func (p *Property) unmarshalConstraints(m map[string]any) (err error) {
 func ofsFrom(m map[string]any) (ofs *Ofs, err error) {
 	var v any
 	var ok bool
-	var tagName string
-	for _, tag := range []string{tagNameAllOf, tagNameOneOf, tagNameAnyOf} {
+	var name string
+	for _, tag := range []string{tags.AllOf, tags.OneOf, tags.AnyOf} {
 		if v, ok = m[tag]; ok {
 			ofs = &Ofs{
 				OfType: (map[string]OfType{
-					tagNameAllOf: AllOf,
-					tagNameOneOf: OneOf,
-					tagNameAnyOf: AnyOf,
+					tags.AllOf: AllOf,
+					tags.OneOf: OneOf,
+					tags.AnyOf: AnyOf,
 				})[tag],
 			}
-			tagName = tag
+			name = tag
 			break
 		}
 	}
@@ -934,12 +936,12 @@ func ofsFrom(m map[string]any) (ofs *Ofs, err error) {
 						}
 					}
 				} else {
-					err = fmt.Errorf(unMsgInvalidElement, tagName)
+					err = fmt.Errorf(unMsgInvalidElement, name)
 					break
 				}
 			}
 		} else {
-			err = fmt.Errorf(unMsgMustBeArray, tagName)
+			err = fmt.Errorf(unMsgMustBeArray, name)
 		}
 	}
 	return ofs, err
@@ -947,19 +949,19 @@ func ofsFrom(m map[string]any) (ofs *Ofs, err error) {
 
 func (d *Discriminator) unmarshalObj(m map[string]any) (err error) {
 	d.Extensions = extensionsFrom(m)
-	if d.PropertyName, err = stringFromProperty(m, tagNamePropertyName); err == nil {
-		if v, ok := m[tagNameMapping]; ok {
+	if d.PropertyName, err = stringFromProperty(m, tags.PropertyName); err == nil {
+		if v, ok := m[tags.Mapping]; ok {
 			if mm, ok := v.(map[string]any); ok {
 				d.Mapping = make(map[string]string, len(mm))
 				for k, mmv := range mm {
 					if mmvs, ok := mmv.(string); ok {
 						d.Mapping[k] = mmvs
 					} else {
-						err = fmt.Errorf(unMsgInvalidValue, tagNameDiscriminator+"."+tagNameMapping)
+						err = fmt.Errorf(unMsgInvalidValue, tags.Discriminator+"."+tags.Mapping)
 					}
 				}
 			} else {
-				err = fmt.Errorf(unMsgMustBeObject, tagNameDiscriminator+"."+tagNameMapping)
+				err = fmt.Errorf(unMsgMustBeObject, tags.Discriminator+"."+tags.Mapping)
 			}
 		}
 	}
@@ -973,9 +975,9 @@ func (r *Request) unmarshalObj(m map[string]any) (err error) {
 		r.Ref = ref
 	} else if err == nil {
 		r.Extensions = extensionsFrom(m)
-		if r.Examples, err = sliceFromProperty[Example](m, tagNameExamples); err == nil {
-			if r.Description, err = stringFromProperty(m, tagNameDescription); err == nil {
-				if r.Required, err = booleanFromProperty(m, tagNameRequired); err == nil {
+		if r.Examples, err = sliceFromProperty[Example](m, tags.Examples); err == nil {
+			if r.Description, err = stringFromProperty(m, tags.Description); err == nil {
+				if r.Required, err = booleanFromProperty(m, tags.Required); err == nil {
 					err = r.unmarshalContent(m)
 				}
 			}
@@ -987,7 +989,7 @@ func (r *Request) unmarshalObj(m map[string]any) (err error) {
 func (r *Request) unmarshalContent(m map[string]any) (err error) {
 	var cts []contentType
 	var names []string
-	if cts, names, err = namedSliceFromProperty[contentType](m, tagNameContent); err == nil {
+	if cts, names, err = namedSliceFromProperty[contentType](m, tags.Content); err == nil {
 		if len(cts) == 1 {
 			r.ContentType = names[0]
 			r.IsArray = cts[0].isArray
@@ -1031,8 +1033,8 @@ func (r *Response) unmarshalObj(m map[string]any) (err error) {
 		r.Ref = ref
 	} else if err == nil {
 		r.Extensions = extensionsFrom(m)
-		if r.Examples, err = sliceFromProperty[Example](m, tagNameExamples); err == nil {
-			if r.Description, err = stringFromProperty(m, tagNameDescription); err == nil {
+		if r.Examples, err = sliceFromProperty[Example](m, tags.Examples); err == nil {
+			if r.Description, err = stringFromProperty(m, tags.Description); err == nil {
 				err = r.unmarshalContent(m)
 			}
 		}
@@ -1043,7 +1045,7 @@ func (r *Response) unmarshalObj(m map[string]any) (err error) {
 func (r *Response) unmarshalContent(m map[string]any) (err error) {
 	var cts []contentType
 	var names []string
-	if cts, names, err = namedSliceFromProperty[contentType](m, tagNameContent); err == nil {
+	if cts, names, err = namedSliceFromProperty[contentType](m, tags.Content); err == nil {
 		if len(cts) == 1 {
 			r.ContentType = names[0]
 			r.IsArray = cts[0].isArray
@@ -1091,7 +1093,7 @@ type contentType struct {
 
 func (ct *contentType) unmarshalObj(m map[string]any) (err error) {
 	ct.extensions = extensionsFrom(m)
-	if items, names, err := namedSliceFromProperty[Example](m, tagNameExamples); err == nil {
+	if items, names, err := namedSliceFromProperty[Example](m, tags.Examples); err == nil {
 		for i, _ := range items {
 			items[i].Name = names[i]
 		}
@@ -1099,21 +1101,21 @@ func (ct *contentType) unmarshalObj(m map[string]any) (err error) {
 	} else {
 		return err
 	}
-	if s, ok := m[tagNameSchema]; ok {
+	if s, ok := m[tags.Schema]; ok {
 		if sm, ok := s.(map[string]any); ok {
-			if ct.xType, err = stringFromProperty(sm, tagNameType); err == nil {
-				v, ok := sm[tagNameItems]
+			if ct.xType, err = stringFromProperty(sm, tags.Type); err == nil {
+				v, ok := sm[tags.Items]
 				if ok {
-					if ct.xType != tagValueTypeArray {
-						err = fmt.Errorf(`property %q contains property %q when type is not %q`, tagNameSchema, tagNameItems, tagValueTypeArray)
+					if ct.xType != values.TypeArray {
+						err = fmt.Errorf(`property %q contains property %q when type is not %q`, tags.Schema, tags.Items, values.TypeArray)
 					} else if im, ok := v.(map[string]any); ok {
 						ct.isArray = true
 						sm = im
 					} else {
-						err = fmt.Errorf(unMsgMustBeObject, tagNameItems)
+						err = fmt.Errorf(unMsgMustBeObject, tags.Items)
 					}
-				} else if ct.xType == tagValueTypeArray {
-					err = fmt.Errorf(`property %q must contain property %q when type is %q`, tagNameSchema, tagNameItems, tagValueTypeArray)
+				} else if ct.xType == values.TypeArray {
+					err = fmt.Errorf(`property %q must contain property %q when type is %q`, tags.Schema, tags.Items, values.TypeArray)
 				}
 				if err == nil {
 					var ref string
@@ -1125,10 +1127,10 @@ func (ct *contentType) unmarshalObj(m map[string]any) (err error) {
 				}
 			}
 		} else {
-			err = fmt.Errorf(unMsgMustBeObject, tagNameSchema)
+			err = fmt.Errorf(unMsgMustBeObject, tags.Schema)
 		}
 	} else {
-		err = fmt.Errorf(`property %q value is missing "schema" property`, tagNameContent)
+		err = fmt.Errorf(`property %q value is missing "schema" property`, tags.Content)
 	}
 	return err
 }

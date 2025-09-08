@@ -1,6 +1,7 @@
 package chioas
 
 import (
+	"github.com/go-andiamo/chioas/internal/tags"
 	"github.com/go-andiamo/chioas/yaml"
 	"net/http"
 	"sort"
@@ -17,7 +18,7 @@ func (r Responses) writeYaml(isHead bool, w yaml.Writer) {
 			sortCodes = append(sortCodes, rc)
 		}
 		sort.Ints(sortCodes)
-		w.WriteTagStart(tagNameResponses)
+		w.WriteTagStart(tags.Responses)
 		for _, sc := range sortCodes {
 			r[sc].writeYaml(sc, isHead, w)
 		}
@@ -126,21 +127,21 @@ func (r Response) writeYaml(statusCode int, isHead bool, w yaml.Writer) {
 		if desc == "" {
 			desc = http.StatusText(statusCode)
 		}
-		w.WriteTagValue(tagNameDescription, desc)
+		w.WriteTagValue(tags.Description, desc)
 		if !isHead && !r.NoContent && statusCode != http.StatusNoContent {
 			writeContent(r.ContentType, r, w)
 		}
 		writeExtensions(r.Extensions, w)
 		writeAdditional(r.Additional, r, w)
 	} else {
-		writeRef(tagNameResponses, r.Ref, w)
+		writeRef(tags.Responses, r.Ref, w)
 	}
 	w.WriteTagEnd()
 }
 
 func (r Response) componentsWriteYaml(name string, w yaml.Writer) {
 	w.WriteTagStart(name)
-	w.WriteTagValue(tagNameDescription, r.Description)
+	w.WriteTagValue(tags.Description, r.Description)
 	if !r.NoContent {
 		writeContent(r.ContentType, r, w)
 	}

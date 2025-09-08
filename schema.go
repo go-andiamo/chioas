@@ -3,6 +3,8 @@ package chioas
 import (
 	"errors"
 	"fmt"
+	"github.com/go-andiamo/chioas/internal/tags"
+	"github.com/go-andiamo/chioas/internal/values"
 	"github.com/go-andiamo/chioas/yaml"
 	"reflect"
 	"strings"
@@ -23,7 +25,7 @@ func (ss Schemas) writeYaml(w yaml.Writer) {
 				m[s.Name] = struct{}{}
 			}
 		}
-		w.WriteTagStart(tagNameSchemas)
+		w.WriteTagStart(tags.Schemas)
 		for _, s := range ss {
 			s.writeYaml(true, w)
 		}
@@ -110,11 +112,11 @@ func (s *Schema) writeYaml(withName bool, w yaml.Writer) {
 	}
 	w.WriteComments(s.Comment)
 	if s.SchemaRef != "" {
-		writeSchemaRef(s.SchemaRef, s.Type == tagValueTypeArray, w)
+		writeSchemaRef(s.SchemaRef, s.Type == values.TypeArray, w)
 	} else {
-		w.WriteTagValue(tagNameDescription, s.Description).
-			WriteTagValue(tagNameType, defValue(s.Type, tagValueTypeObject)).
-			WriteTagValue(tagNameFormat, s.Format)
+		w.WriteTagValue(tags.Description, s.Description).
+			WriteTagValue(tags.Type, defValue(s.Type, values.TypeObject)).
+			WriteTagValue(tags.Format, s.Format)
 		if s.Ofs != nil {
 			s.Ofs.writeYaml(w)
 		}
@@ -122,23 +124,23 @@ func (s *Schema) writeYaml(withName bool, w yaml.Writer) {
 			s.Discriminator.writeYaml(w)
 		}
 		if reqs, has := s.getRequiredProperties(); has {
-			w.WriteTagStart(tagNameRequired)
+			w.WriteTagStart(tags.Required)
 			for _, rp := range reqs {
 				w.WriteItem(rp)
 			}
 			w.WriteTagEnd()
 		}
 		if len(s.Properties) > 0 {
-			w.WriteTagStart(tagNameProperties)
+			w.WriteTagStart(tags.Properties)
 			for _, p := range s.Properties {
 				p.writeYaml(w, true)
 			}
 			w.WriteTagEnd()
 		}
-		w.WriteTagValue(tagNameDefault, s.Default).
-			WriteTagValue(tagNameExample, s.Example)
+		w.WriteTagValue(tags.Default, s.Default).
+			WriteTagValue(tags.Example, s.Example)
 		if len(s.Enum) > 0 {
-			w.WriteTagStart(tagNameEnum)
+			w.WriteTagStart(tags.Enum)
 			for _, e := range s.Enum {
 				w.WriteItem(e)
 			}
@@ -153,27 +155,27 @@ func (s *Schema) writeYaml(withName bool, w yaml.Writer) {
 }
 
 func (s *Schema) writeOfYaml(w yaml.Writer) {
-	w.WriteTagValue(tagNameDescription, s.Description).
-		WriteItemStart(tagNameType, defValue(s.Type, tagValueTypeObject)).
-		WriteTagValue(tagNameFormat, s.Format)
+	w.WriteTagValue(tags.Description, s.Description).
+		WriteItemStart(tags.Type, defValue(s.Type, values.TypeObject)).
+		WriteTagValue(tags.Format, s.Format)
 	if reqs, has := s.getRequiredProperties(); has {
-		w.WriteTagStart(tagNameRequired)
+		w.WriteTagStart(tags.Required)
 		for _, rp := range reqs {
 			w.WriteItem(rp)
 		}
 		w.WriteTagEnd()
 	}
 	if len(s.Properties) > 0 {
-		w.WriteTagStart(tagNameProperties)
+		w.WriteTagStart(tags.Properties)
 		for _, p := range s.Properties {
 			p.writeYaml(w, true)
 		}
 		w.WriteTagEnd()
 	}
-	w.WriteTagValue(tagNameDefault, s.Default).
-		WriteTagValue(tagNameExample, s.Example)
+	w.WriteTagValue(tags.Default, s.Default).
+		WriteTagValue(tags.Example, s.Example)
 	if len(s.Enum) > 0 {
-		w.WriteTagStart(tagNameEnum)
+		w.WriteTagStart(tags.Enum)
 		for _, e := range s.Enum {
 			w.WriteItem(e)
 		}
@@ -209,8 +211,8 @@ func writeSchema(schema any, isArray bool, w yaml.Writer) {
 	}
 	if actual != nil {
 		if isArray {
-			w.WriteTagValue(tagNameType, tagValueTypeArray).
-				WriteTagStart(tagNameItems)
+			w.WriteTagValue(tags.Type, values.TypeArray).
+				WriteTagStart(tags.Items)
 		}
 		actual.writeYaml(false, w)
 		if isArray {
@@ -218,15 +220,15 @@ func writeSchema(schema any, isArray bool, w yaml.Writer) {
 		}
 	} else if writer != nil {
 		if isArray {
-			w.WriteTagValue(tagNameType, tagValueTypeArray).
-				WriteTagStart(tagNameItems)
+			w.WriteTagValue(tags.Type, values.TypeArray).
+				WriteTagStart(tags.Items)
 		}
 		writer.WriteSchema(w)
 		if isArray {
 			w.WriteTagEnd()
 		}
 	} else {
-		w.WriteTagValue(tagNameType, tagValueTypeNull)
+		w.WriteTagValue(tags.Type, values.TypeNull)
 	}
 }
 
@@ -309,29 +311,29 @@ func extractSchemaField(fld reflect.StructField, value *reflect.Value) (Property
 	var eg any
 	switch k {
 	case reflect.String:
-		ft = tagValueTypeString
+		ft = values.TypeString
 		if value != nil {
 			eg = value.Interface()
 		}
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		ft = tagValueTypeInteger
+		ft = values.TypeInteger
 		if value != nil {
 			eg = value.Interface()
 		}
 	case reflect.Float32, reflect.Float64:
-		ft = tagValueTypeNumber
+		ft = values.TypeNumber
 		if value != nil {
 			eg = value.Interface()
 		}
 	case reflect.Bool:
-		ft = tagValueTypeBoolean
+		ft = values.TypeBoolean
 		if value != nil {
 			eg = value.Interface()
 		}
 	case reflect.Slice:
-		ft = tagValueTypeArray
+		ft = values.TypeArray
 	case reflect.Map, reflect.Struct:
-		ft = tagValueTypeObject
+		ft = values.TypeObject
 	}
 	return Property{
 		Name:    name,

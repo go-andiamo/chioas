@@ -2,6 +2,8 @@ package chioas
 
 import (
 	"encoding/json"
+	"github.com/go-andiamo/chioas/internal/tags"
+	"github.com/go-andiamo/chioas/internal/values"
 	"github.com/go-andiamo/chioas/yaml"
 )
 
@@ -62,34 +64,34 @@ func (p Property) writeYaml(w yaml.Writer, top bool) {
 	w.WriteTagStart("\"" + p.Name + "\"").
 		WriteComments(p.Comment)
 	if p.SchemaRef != "" {
-		writeSchemaRef(p.SchemaRef, p.Type == tagValueTypeArray, w)
+		writeSchemaRef(p.SchemaRef, p.Type == values.TypeArray, w)
 	} else {
-		w.WriteTagValue(tagNameDescription, p.Description).
-			WriteTagValue(tagNameType, defValue(p.Type, tagValueTypeString))
-		if p.Type == tagValueTypeArray {
-			w.WriteTagStart(tagNameItems).
-				WriteTagValue(tagNameType, defValue(p.ItemType, tagValueTypeString))
+		w.WriteTagValue(tags.Description, p.Description).
+			WriteTagValue(tags.Type, defValue(p.Type, values.TypeString))
+		if p.Type == values.TypeArray {
+			w.WriteTagStart(tags.Items).
+				WriteTagValue(tags.Type, defValue(p.ItemType, values.TypeString))
 		}
-		w.WriteTagValue(tagNameExample, p.Example).
-			WriteTagValue(tagNameFormat, nilString(p.Format))
+		w.WriteTagValue(tags.Example, p.Example).
+			WriteTagValue(tags.Format, nilString(p.Format))
 		if len(p.Enum) > 0 {
-			w.WriteTagStart(tagNameEnum)
+			w.WriteTagStart(tags.Enum)
 			for _, e := range p.Enum {
 				w.WriteItem(e)
 			}
 			w.WriteTagEnd()
 		}
-		w.WriteTagValue(tagNameRequired, nilBool(p.Required && !top)).
-			WriteTagValue(tagNameDeprecated, nilBool(p.Deprecated))
+		w.WriteTagValue(tags.Required, nilBool(p.Required && !top)).
+			WriteTagValue(tags.Deprecated, nilBool(p.Deprecated))
 		p.Constraints.writeYaml(w)
-		if (p.Type == tagValueTypeObject || (p.Type == tagValueTypeArray && p.ItemType == tagValueTypeObject)) && len(p.Properties) > 0 {
-			w.WriteTagStart(tagNameProperties)
+		if (p.Type == values.TypeObject || (p.Type == values.TypeArray && p.ItemType == values.TypeObject)) && len(p.Properties) > 0 {
+			w.WriteTagStart(tags.Properties)
 			for _, sub := range p.Properties {
 				sub.writeYaml(w, false)
 			}
 			w.WriteTagEnd()
 		}
-		if p.Type == tagValueTypeArray {
+		if p.Type == values.TypeArray {
 			w.WriteTagEnd()
 		}
 	}
@@ -119,20 +121,20 @@ type Constraints struct {
 }
 
 func (c Constraints) writeYaml(w yaml.Writer) {
-	w.WriteTagValue(tagNamePattern, nilString(c.Pattern)).
-		WriteTagValue(tagNameMaximum, nilNumber(c.Maximum)).
-		WriteTagValue(tagNameMinimum, nilNumber(c.Minimum)).
-		WriteTagValue(tagNameExclusiveMaximum, nilBool(c.ExclusiveMaximum)).
-		WriteTagValue(tagNameExclusiveMinimum, nilBool(c.ExclusiveMinimum)).
-		WriteTagValue(tagNameNullable, nilBool(c.Nullable)).
-		WriteTagValue(tagNameMultipleOf, nilUint(c.MultipleOf)).
-		WriteTagValue(tagNameMaxLength, nilUint(c.MaxLength)).
-		WriteTagValue(tagNameMinLength, nilUint(c.MinLength)).
-		WriteTagValue(tagNameMaxItems, nilUint(c.MaxItems)).
-		WriteTagValue(tagNameMinItems, nilUint(c.MinItems)).
-		WriteTagValue(tagNameUniqueItems, nilBool(c.UniqueItems)).
-		WriteTagValue(tagNameMaxProperties, nilUint(c.MaxProperties)).
-		WriteTagValue(tagNameMinProperties, nilUint(c.MinProperties))
+	w.WriteTagValue(tags.Pattern, nilString(c.Pattern)).
+		WriteTagValue(tags.Maximum, nilNumber(c.Maximum)).
+		WriteTagValue(tags.Minimum, nilNumber(c.Minimum)).
+		WriteTagValue(tags.ExclusiveMaximum, nilBool(c.ExclusiveMaximum)).
+		WriteTagValue(tags.ExclusiveMinimum, nilBool(c.ExclusiveMinimum)).
+		WriteTagValue(tags.Nullable, nilBool(c.Nullable)).
+		WriteTagValue(tags.MultipleOf, nilUint(c.MultipleOf)).
+		WriteTagValue(tags.MaxLength, nilUint(c.MaxLength)).
+		WriteTagValue(tags.MinLength, nilUint(c.MinLength)).
+		WriteTagValue(tags.MaxItems, nilUint(c.MaxItems)).
+		WriteTagValue(tags.MinItems, nilUint(c.MinItems)).
+		WriteTagValue(tags.UniqueItems, nilBool(c.UniqueItems)).
+		WriteTagValue(tags.MaxProperties, nilUint(c.MaxProperties)).
+		WriteTagValue(tags.MinProperties, nilUint(c.MinProperties))
 	if c.Additional != nil {
 		for k, v := range c.Additional {
 			w.WriteTagValue(k, v)

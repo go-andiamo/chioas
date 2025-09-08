@@ -3,6 +3,7 @@ package chioas
 import (
 	"bufio"
 	"bytes"
+	"github.com/go-andiamo/chioas/internal/values"
 	"github.com/go-andiamo/chioas/yaml"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
@@ -177,14 +178,14 @@ func TestDefinition_SetupRoutes_AutoOptions(t *testing.T) {
 	res := httptest.NewRecorder()
 	router.ServeHTTP(res, req)
 	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
-	assert.Equal(t, "GET, HEAD, OPTIONS", res.Result().Header.Get(hdrAllow))
+	assert.Equal(t, "GET, HEAD, OPTIONS", res.Result().Header.Get(values.HdrAllow))
 
 	req, err = http.NewRequest(http.MethodOptions, "/subs", nil)
 	require.NoError(t, err)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
 	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
-	assert.Equal(t, "GET, HEAD, POST, OPTIONS", res.Result().Header.Get(hdrAllow))
+	assert.Equal(t, "GET, HEAD, POST, OPTIONS", res.Result().Header.Get(values.HdrAllow))
 }
 
 func TestDefinition_SetupRoutes_AutoOptions_WithRootPayload(t *testing.T) {
@@ -227,7 +228,7 @@ func TestDefinition_SetupRoutes_AutoOptions_WithRootPayload(t *testing.T) {
 	res := httptest.NewRecorder()
 	router.ServeHTTP(res, req)
 	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
-	assert.Equal(t, "GET, OPTIONS", res.Result().Header.Get(hdrAllow))
+	assert.Equal(t, "GET, OPTIONS", res.Result().Header.Get(values.HdrAllow))
 	assert.Equal(t, contentTypeYaml, res.Result().Header.Get(hdrContentType))
 	const expectYaml = `openapi: "3.0.3"
 info:
@@ -269,7 +270,7 @@ paths:
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
 	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
-	assert.Equal(t, "GET, OPTIONS", res.Result().Header.Get(hdrAllow))
+	assert.Equal(t, "GET, OPTIONS", res.Result().Header.Get(values.HdrAllow))
 	assert.Equal(t, contentTypeJson, res.Result().Header.Get(hdrContentType))
 	assert.Contains(t, res.Body.String(), `"title":"API Documentation"`)
 
@@ -279,7 +280,7 @@ paths:
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
 	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
-	assert.Equal(t, "GET, OPTIONS", res.Result().Header.Get(hdrAllow))
+	assert.Equal(t, "GET, OPTIONS", res.Result().Header.Get(values.HdrAllow))
 	assert.Equal(t, contentTypeJson, res.Result().Header.Get(hdrContentType))
 	assert.Equal(t, "null", res.Body.String())
 
@@ -288,7 +289,7 @@ paths:
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
 	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
-	assert.Equal(t, "GET, POST, OPTIONS", res.Result().Header.Get(hdrAllow))
+	assert.Equal(t, "GET, POST, OPTIONS", res.Result().Header.Get(values.HdrAllow))
 	assert.Equal(t, "", res.Body.String())
 }
 
@@ -323,14 +324,14 @@ func TestDefinition_SetupRoutes_PathAutoOptions(t *testing.T) {
 	res := httptest.NewRecorder()
 	router.ServeHTTP(res, req)
 	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
-	assert.Equal(t, "OPTIONS", res.Result().Header.Get(hdrAllow))
+	assert.Equal(t, "OPTIONS", res.Result().Header.Get(values.HdrAllow))
 
 	req, err = http.NewRequest(http.MethodOptions, "/subs", nil)
 	require.NoError(t, err)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
 	assert.Equal(t, http.StatusOK, res.Result().StatusCode)
-	assert.Equal(t, "GET, HEAD, POST, OPTIONS", res.Result().Header.Get(hdrAllow))
+	assert.Equal(t, "GET, HEAD, POST, OPTIONS", res.Result().Header.Get(values.HdrAllow))
 }
 
 func TestDefinition_SetupRoutes_AuthMethodNotAllowed(t *testing.T) {
@@ -371,14 +372,14 @@ func TestDefinition_SetupRoutes_AuthMethodNotAllowed(t *testing.T) {
 	res := httptest.NewRecorder()
 	router.ServeHTTP(res, req)
 	assert.Equal(t, http.StatusMethodNotAllowed, res.Result().StatusCode)
-	assert.Equal(t, "GET, HEAD, OPTIONS", res.Result().Header.Get(hdrAllow))
+	assert.Equal(t, "GET, HEAD, OPTIONS", res.Result().Header.Get(values.HdrAllow))
 
 	req, err = http.NewRequest(http.MethodPut, "/subs", nil)
 	require.NoError(t, err)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
 	assert.Equal(t, http.StatusMethodNotAllowed, res.Result().StatusCode)
-	assert.Equal(t, "GET, HEAD, POST, OPTIONS", res.Result().Header.Get(hdrAllow))
+	assert.Equal(t, "GET, HEAD, POST, OPTIONS", res.Result().Header.Get(values.HdrAllow))
 
 	hf := d.methodNotAllowedHandler(nil)
 	req, err = http.NewRequest(http.MethodGet, "/", nil)
@@ -386,7 +387,7 @@ func TestDefinition_SetupRoutes_AuthMethodNotAllowed(t *testing.T) {
 	res = httptest.NewRecorder()
 	hf.ServeHTTP(res, req)
 	assert.Equal(t, http.StatusMethodNotAllowed, res.Result().StatusCode)
-	assert.Equal(t, "OPTIONS", res.Result().Header.Get(hdrAllow))
+	assert.Equal(t, "OPTIONS", res.Result().Header.Get(values.HdrAllow))
 }
 
 func TestDefinition_SetupRoutes_ErrorsWithBadHandlers(t *testing.T) {

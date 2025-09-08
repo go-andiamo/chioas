@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/go-andiamo/chioas/internal/tags"
+	"github.com/go-andiamo/chioas/internal/values"
 	"github.com/go-andiamo/chioas/yaml"
 	"github.com/go-andiamo/splitter"
 	"golang.org/x/exp/slices"
@@ -165,7 +167,7 @@ func (s *Schema) Must(sample any) Schema {
 }
 
 func (s *Schema) schemaFrom(t reflect.Type, vo *reflect.Value) (*Schema, error) {
-	s.Type = tagValueTypeObject
+	s.Type = values.TypeObject
 	if ptys, err := propertiesFrom(t, vo); err == nil {
 		s.Properties = ptys
 		for _, pty := range ptys {
@@ -220,18 +222,18 @@ func propertyFrom(fld reflect.StructField, vo *reflect.Value) (*Property, error)
 	}
 	setPropertyType(pty, fld)
 	if pty.SchemaRef == "" {
-		if pty.Type == tagValueTypeObject || pty.Type == tagValueTypeArray {
+		if pty.Type == values.TypeObject || pty.Type == values.TypeArray {
 			k := fld.Type.Kind()
 			if k == reflect.Pointer {
 				k = fld.Type.Elem().Kind()
 			}
 			switch k {
 			case reflect.Struct:
-				if pty.Type == tagValueTypeObject {
+				if pty.Type == values.TypeObject {
 					return pty, setSubPropertiesStruct(pty, fld, vo)
 				}
 			case reflect.Slice:
-				if pty.Type == tagValueTypeArray {
+				if pty.Type == values.TypeArray {
 					return pty, setSubPropertiesSlice(pty, fld, vo)
 				}
 			}
@@ -280,7 +282,7 @@ func setSubPropertiesSlice(pty *Property, fld reflect.StructField, vo *reflect.V
 		k = subT.Elem().Kind()
 	}
 	oasType, _, isStruct := toOasTypeAndFormat(k, subT)
-	if oasType == tagValueTypeArray {
+	if oasType == values.TypeArray {
 		return errors.New("arrays of array not supported")
 	}
 	pty.ItemType = oasType
@@ -318,37 +320,37 @@ func toOasTypeAndFormat(k reflect.Kind, t reflect.Type) (oasType string, oasForm
 	switch k {
 	case reflect.Struct:
 		if t == dtType || t == dtTypePtr {
-			oasType = tagValueTypeString
+			oasType = values.TypeString
 			oasFormat = "date-time"
 		} else {
-			oasType = tagValueTypeObject
+			oasType = values.TypeObject
 			isStruct = true
 		}
 	case reflect.Map, reflect.Interface:
-		oasType = tagValueTypeObject
+		oasType = values.TypeObject
 	case reflect.Slice:
-		oasType = tagValueTypeArray
+		oasType = values.TypeArray
 	case reflect.String:
 		if t == jnType || t == jnTypePtr {
-			oasType = tagValueTypeNumber
+			oasType = values.TypeNumber
 		} else {
-			oasType = tagValueTypeString
+			oasType = values.TypeString
 		}
 	case reflect.Bool:
-		oasType = tagValueTypeBoolean
+		oasType = values.TypeBoolean
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Uint, reflect.Uint8, reflect.Uint16:
-		oasType = tagValueTypeInteger
+		oasType = values.TypeInteger
 	case reflect.Int32, reflect.Uint32:
-		oasType = tagValueTypeInteger
+		oasType = values.TypeInteger
 		oasFormat = "int32"
 	case reflect.Int64, reflect.Uint64:
-		oasType = tagValueTypeInteger
+		oasType = values.TypeInteger
 		oasFormat = "int64"
 	case reflect.Float32:
-		oasType = tagValueTypeNumber
+		oasType = values.TypeNumber
 		oasFormat = "float"
 	case reflect.Float64:
-		oasType = tagValueTypeNumber
+		oasType = values.TypeNumber
 		oasFormat = "double"
 	}
 	return
@@ -420,7 +422,7 @@ func setFromOasToken(seenRef bool, token string, pty *Property, fld reflect.Stru
 		value = parts[1]
 	}
 	isRef := false
-	if token == tagNameExample {
+	if token == tags.Example {
 		if hasValue {
 			return false, fmt.Errorf("oas tag token '%s' - must not have a value (flag only)", token)
 		}
@@ -445,7 +447,7 @@ func setFromOasToken(seenRef bool, token string, pty *Property, fld reflect.Stru
 				return false, err
 			}
 		}
-		isRef = token == tagNameRef
+		isRef = token == tags.Ref
 	} else {
 		return false, fmt.Errorf("unknown oas tag token '%s'", token)
 	}
@@ -469,21 +471,21 @@ func extractExample(fld reflect.StructField, vo *reflect.Value) (result any) {
 }
 
 var tokensAfterRef = map[string]bool{
-	tagNameRef:      true,
-	tagNameName:     true,
-	tagNameType:     true,
-	tagNameItemType: true,
-	tagNameRequired: true,
+	tags.Ref:      true,
+	tags.Name:     true,
+	tags.Type:     true,
+	tags.ItemType: true,
+	tags.Required: true,
 }
 
 var allowedTokenOnly = map[string]bool{
-	tagNameRequired:         true,
-	tagNameDeprecated:       true,
-	tagNameExample:          true,
-	tagNameExclusiveMaximum: true,
-	tagNameExclusiveMinimum: true,
-	tagNameNullable:         true,
-	tagNameUniqueItems:      true,
+	tags.Required:         true,
+	tags.Deprecated:       true,
+	tags.Example:          true,
+	tags.ExclusiveMaximum: true,
+	tags.ExclusiveMinimum: true,
+	tags.Nullable:         true,
+	tags.UniqueItems:      true,
 }
 
 func checkOasType(token string, value string) error {
@@ -495,27 +497,27 @@ func checkOasType(token string, value string) error {
 }
 
 var tokenSetters = map[string]func(pty *Property, value string, hasValue bool) error{
-	tagNameRef: func(pty *Property, value string, hasValue bool) error {
+	tags.Ref: func(pty *Property, value string, hasValue bool) error {
 		pty.SchemaRef = unquoteString(value)
 		return nil
 	},
-	tagNameDeprecated: func(pty *Property, value string, hasValue bool) error {
+	tags.Deprecated: func(pty *Property, value string, hasValue bool) error {
 		if hasValue {
 			if b, err := strconv.ParseBool(value); err == nil {
 				pty.Deprecated = b
 			} else {
-				return fmt.Errorf("invalid oas token '%s' value '%s'", tagNameDeprecated, value)
+				return fmt.Errorf("invalid oas token '%s' value '%s'", tags.Deprecated, value)
 			}
 		} else {
 			pty.Deprecated = true
 		}
 		return nil
 	},
-	tagNameDescription: func(pty *Property, value string, hasValue bool) error {
+	tags.Description: func(pty *Property, value string, hasValue bool) error {
 		pty.Description = unquoteString(value)
 		return nil
 	},
-	tagNameEnum: func(pty *Property, value string, hasValue bool) error {
+	tags.Enum: func(pty *Property, value string, hasValue bool) error {
 		if strings.HasPrefix(value, "[") && strings.HasSuffix(value, "]") {
 			pts, err := oasTagSplitter.Split(value[1:len(value)-1], splitter.TrimSpaces, splitter.IgnoreEmpties)
 			if err != nil {
@@ -529,149 +531,149 @@ var tokenSetters = map[string]func(pty *Property, value string, hasValue bool) e
 		}
 		return nil
 	},
-	tagNameExclusiveMaximum: func(pty *Property, value string, hasValue bool) error {
+	tags.ExclusiveMaximum: func(pty *Property, value string, hasValue bool) error {
 		if hasValue {
 			if b, err := strconv.ParseBool(value); err == nil {
 				pty.Constraints.ExclusiveMaximum = b
 			} else {
-				return fmt.Errorf("invalid oas token '%s' value '%s'", tagNameExclusiveMaximum, value)
+				return fmt.Errorf("invalid oas token '%s' value '%s'", tags.ExclusiveMaximum, value)
 			}
 		} else {
 			pty.Constraints.ExclusiveMaximum = true
 		}
 		return nil
 	},
-	tagNameExclusiveMinimum: func(pty *Property, value string, hasValue bool) error {
+	tags.ExclusiveMinimum: func(pty *Property, value string, hasValue bool) error {
 		if hasValue {
 			if b, err := strconv.ParseBool(value); err == nil {
 				pty.Constraints.ExclusiveMinimum = b
 			} else {
-				return fmt.Errorf("invalid oas token '%s' value '%s'", tagNameExclusiveMinimum, value)
+				return fmt.Errorf("invalid oas token '%s' value '%s'", tags.ExclusiveMinimum, value)
 			}
 		} else {
 			pty.Constraints.ExclusiveMinimum = true
 		}
 		return nil
 	},
-	tagNameFormat: func(pty *Property, value string, hasValue bool) error {
+	tags.Format: func(pty *Property, value string, hasValue bool) error {
 		pty.Format = unquoteString(value)
 		return nil
 	},
-	tagNameItemType: func(pty *Property, value string, hasValue bool) error {
+	tags.ItemType: func(pty *Property, value string, hasValue bool) error {
 		pty.ItemType = unquoteString(value)
-		return checkOasType(tagNameItemType, pty.ItemType)
+		return checkOasType(tags.ItemType, pty.ItemType)
 	},
-	tagNameMaximum: func(pty *Property, value string, hasValue bool) error {
+	tags.Maximum: func(pty *Property, value string, hasValue bool) error {
 		jn := json.Number(value)
 		if _, err := jn.Int64(); err != nil {
 			if _, err = jn.Float64(); err != nil {
-				return fmt.Errorf("invalid oas token '%s' value '%s'", tagNameMaximum, value)
+				return fmt.Errorf("invalid oas token '%s' value '%s'", tags.Maximum, value)
 			}
 		}
 		pty.Constraints.Maximum = jn
 		return nil
 	},
-	tagNameMinimum: func(pty *Property, value string, hasValue bool) error {
+	tags.Minimum: func(pty *Property, value string, hasValue bool) error {
 		jn := json.Number(value)
 		if _, err := jn.Int64(); err != nil {
 			if _, err = jn.Float64(); err != nil {
-				return fmt.Errorf("invalid oas token '%s' value '%s'", tagNameMinimum, value)
+				return fmt.Errorf("invalid oas token '%s' value '%s'", tags.Minimum, value)
 			}
 		}
 		pty.Constraints.Minimum = jn
 		return nil
 	},
-	tagNameMaxItems: func(pty *Property, value string, hasValue bool) error {
+	tags.MaxItems: func(pty *Property, value string, hasValue bool) error {
 		if i, err := strconv.ParseUint(value, 10, 32); err == nil {
 			pty.Constraints.MaxItems = uint(i)
 			return nil
 		}
-		return fmt.Errorf("invalid oas token '%s' value '%s'", tagNameMaxItems, value)
+		return fmt.Errorf("invalid oas token '%s' value '%s'", tags.MaxItems, value)
 	},
-	tagNameMinItems: func(pty *Property, value string, hasValue bool) error {
+	tags.MinItems: func(pty *Property, value string, hasValue bool) error {
 		if i, err := strconv.ParseUint(value, 10, 32); err == nil {
 			pty.Constraints.MinItems = uint(i)
 			return nil
 		}
-		return fmt.Errorf("invalid oas token '%s' value '%s'", tagNameMinItems, value)
+		return fmt.Errorf("invalid oas token '%s' value '%s'", tags.MinItems, value)
 	},
-	tagNameMaxLength: func(pty *Property, value string, hasValue bool) error {
+	tags.MaxLength: func(pty *Property, value string, hasValue bool) error {
 		if i, err := strconv.ParseUint(value, 10, 32); err == nil {
 			pty.Constraints.MaxLength = uint(i)
 			return nil
 		}
-		return fmt.Errorf("invalid oas token '%s' value '%s'", tagNameMaxLength, value)
+		return fmt.Errorf("invalid oas token '%s' value '%s'", tags.MaxLength, value)
 	},
-	tagNameMinLength: func(pty *Property, value string, hasValue bool) error {
+	tags.MinLength: func(pty *Property, value string, hasValue bool) error {
 		if i, err := strconv.ParseUint(value, 10, 32); err == nil {
 			pty.Constraints.MinLength = uint(i)
 			return nil
 		}
-		return fmt.Errorf("invalid oas token '%s' value '%s'", tagNameMinLength, value)
+		return fmt.Errorf("invalid oas token '%s' value '%s'", tags.MinLength, value)
 	},
-	tagNameMaxProperties: func(pty *Property, value string, hasValue bool) error {
+	tags.MaxProperties: func(pty *Property, value string, hasValue bool) error {
 		if i, err := strconv.ParseUint(value, 10, 32); err == nil {
 			pty.Constraints.MaxProperties = uint(i)
 			return nil
 		}
-		return fmt.Errorf("invalid oas token '%s' value '%s'", tagNameMaxProperties, value)
+		return fmt.Errorf("invalid oas token '%s' value '%s'", tags.MaxProperties, value)
 	},
-	tagNameMinProperties: func(pty *Property, value string, hasValue bool) error {
+	tags.MinProperties: func(pty *Property, value string, hasValue bool) error {
 		if i, err := strconv.ParseUint(value, 10, 32); err == nil {
 			pty.Constraints.MinProperties = uint(i)
 			return nil
 		}
-		return fmt.Errorf("invalid oas token '%s' value '%s'", tagNameMinProperties, value)
+		return fmt.Errorf("invalid oas token '%s' value '%s'", tags.MinProperties, value)
 	},
-	tagNameMultipleOf: func(pty *Property, value string, hasValue bool) error {
+	tags.MultipleOf: func(pty *Property, value string, hasValue bool) error {
 		if i, err := strconv.ParseUint(value, 10, 32); err == nil {
 			pty.Constraints.MultipleOf = uint(i)
 			return nil
 		}
-		return fmt.Errorf("invalid oas token '%s' value '%s'", tagNameMultipleOf, value)
+		return fmt.Errorf("invalid oas token '%s' value '%s'", tags.MultipleOf, value)
 	},
-	tagNameName: func(pty *Property, value string, hasValue bool) error {
+	tags.Name: func(pty *Property, value string, hasValue bool) error {
 		pty.Name = unquoteString(value)
 		return nil
 	},
-	tagNameNullable: func(pty *Property, value string, hasValue bool) error {
+	tags.Nullable: func(pty *Property, value string, hasValue bool) error {
 		if hasValue {
 			if b, err := strconv.ParseBool(value); err == nil {
 				pty.Constraints.Nullable = b
 			} else {
-				return fmt.Errorf("invalid oas token '%s' value '%s'", tagNameNullable, value)
+				return fmt.Errorf("invalid oas token '%s' value '%s'", tags.Nullable, value)
 			}
 		} else {
 			pty.Constraints.Nullable = true
 		}
 		return nil
 	},
-	tagNamePattern: func(pty *Property, value string, hasValue bool) error {
+	tags.Pattern: func(pty *Property, value string, hasValue bool) error {
 		pty.Constraints.Pattern = unquoteString(value)
 		return nil
 	},
-	tagNameRequired: func(pty *Property, value string, hasValue bool) error {
+	tags.Required: func(pty *Property, value string, hasValue bool) error {
 		if hasValue {
 			if b, err := strconv.ParseBool(value); err == nil {
 				pty.Required = b
 			} else {
-				return fmt.Errorf("invalid oas token '%s' value '%s'", tagNameRequired, value)
+				return fmt.Errorf("invalid oas token '%s' value '%s'", tags.Required, value)
 			}
 		} else {
 			pty.Required = true
 		}
 		return nil
 	},
-	tagNameType: func(pty *Property, value string, hasValue bool) error {
+	tags.Type: func(pty *Property, value string, hasValue bool) error {
 		pty.Type = unquoteString(value)
-		return checkOasType(tagNameType, pty.Type)
+		return checkOasType(tags.Type, pty.Type)
 	},
-	tagNameUniqueItems: func(pty *Property, value string, hasValue bool) error {
+	tags.UniqueItems: func(pty *Property, value string, hasValue bool) error {
 		if hasValue {
 			if b, err := strconv.ParseBool(value); err == nil {
 				pty.Constraints.UniqueItems = b
 			} else {
-				return fmt.Errorf("invalid oas token '%s' value '%s'", tagNameUniqueItems, value)
+				return fmt.Errorf("invalid oas token '%s' value '%s'", tags.UniqueItems, value)
 			}
 		} else {
 			pty.Constraints.UniqueItems = true

@@ -1,6 +1,9 @@
 package chioas
 
-import "github.com/go-andiamo/chioas/yaml"
+import (
+	"github.com/go-andiamo/chioas/internal/tags"
+	"github.com/go-andiamo/chioas/yaml"
+)
 
 // Info represents the OAS info section of the spec
 type Info struct {
@@ -27,12 +30,12 @@ type Info struct {
 }
 
 func (i Info) writeYaml(w yaml.Writer) {
-	w.WriteTagStart(tagNameInfo).
+	w.WriteTagStart(tags.Info).
 		WriteComments(i.Comment).
-		WriteTagValue(tagNameTitle, defValue(i.Title, defaultTitle)).
-		WriteTagValue(tagNameDescription, i.Description).
-		WriteTagValue(tagNameVersion, defValue(i.Version, "1.0.0")).
-		WriteTagValue(tagNameTermsOfService, i.TermsOfService)
+		WriteTagValue(tags.Title, defValue(i.Title, defaultTitle)).
+		WriteTagValue(tags.Description, i.Description).
+		WriteTagValue(tags.Version, defValue(i.Version, "1.0.0")).
+		WriteTagValue(tags.TermsOfService, i.TermsOfService)
 	if i.Contact != nil {
 		i.Contact.writeYaml(w)
 	}
@@ -60,11 +63,11 @@ type Contact struct {
 
 func (c *Contact) writeYaml(w yaml.Writer) {
 	if c.Name != "" || c.Url != "" || c.Email != "" {
-		w.WriteTagStart(tagNameContact).
+		w.WriteTagStart(tags.Contact).
 			WriteComments(c.Comment).
-			WriteTagValue(tagNameName, c.Name).
-			WriteTagValue(tagNameUrl, c.Url).
-			WriteTagValue(tagNameEmail, c.Email)
+			WriteTagValue(tags.Name, c.Name).
+			WriteTagValue(tags.Url, c.Url).
+			WriteTagValue(tags.Email, c.Email)
 		writeExtensions(c.Extensions, w)
 		w.WriteTagEnd()
 	}
@@ -82,10 +85,10 @@ type License struct {
 
 func (l *License) writeYaml(w yaml.Writer) {
 	if l.Name != "" {
-		w.WriteTagStart(tagNameLicense).
+		w.WriteTagStart(tags.License).
 			WriteComments(l.Comment).
-			WriteTagValue(tagNameName, l.Name).
-			WriteTagValue(tagNameUrl, l.Url)
+			WriteTagValue(tags.Name, l.Name).
+			WriteTagValue(tags.Url, l.Url)
 		writeExtensions(l.Extensions, w)
 		w.WriteTagEnd()
 	}
@@ -103,10 +106,10 @@ type ExternalDocs struct {
 
 func (x *ExternalDocs) writeYaml(w yaml.Writer) {
 	if x.Url != "" {
-		w.WriteTagStart(tagNameExternalDocs).
+		w.WriteTagStart(tags.ExternalDocs).
 			WriteComments(x.Comment).
-			WriteTagValue(tagNameDescription, x.Description).
-			WriteTagValue(tagNameUrl, x.Url)
+			WriteTagValue(tags.Description, x.Description).
+			WriteTagValue(tags.Url, x.Url)
 		writeExtensions(x.Extensions, w)
 		w.WriteTagEnd()
 	}

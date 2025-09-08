@@ -2,6 +2,7 @@ package chioas
 
 import (
 	"errors"
+	"github.com/go-andiamo/chioas/internal/tags"
 	"github.com/go-andiamo/chioas/yaml"
 )
 
@@ -24,13 +25,13 @@ func (d *Discriminator) writeYaml(w yaml.Writer) {
 		w.SetError(errors.New("discriminator without property name"))
 		return
 	}
-	w.WriteTagStart(tagNameDiscriminator).
+	w.WriteTagStart(tags.Discriminator).
 		WriteComments(d.Comment).
-		WriteTagValue(tagNamePropertyName, d.PropertyName)
+		WriteTagValue(tags.PropertyName, d.PropertyName)
 	if d.Mapping != nil && len(d.Mapping) > 0 {
-		w.WriteTagStart(tagNameMapping)
+		w.WriteTagStart(tags.Mapping)
 		for k, v := range d.Mapping {
-			w.WriteTagValue(k, refCheck(tagNameSchemas, v, w))
+			w.WriteTagValue(k, refCheck(tags.Schemas, v, w))
 		}
 		w.WriteTagEnd()
 	}

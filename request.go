@@ -1,6 +1,7 @@
 package chioas
 
 import (
+	"github.com/go-andiamo/chioas/internal/tags"
 	"github.com/go-andiamo/chioas/yaml"
 )
 
@@ -96,24 +97,24 @@ func (r *Request) comment() string {
 }
 
 func (r *Request) writeYaml(w yaml.Writer) {
-	w.WriteTagStart(tagNameRequestBody)
+	w.WriteTagStart(tags.RequestBody)
 	if r.Ref == "" {
 		w.WriteComments(r.Comment).
-			WriteTagValue(tagNameDescription, r.Description).
-			WriteTagValue(tagNameRequired, r.Required)
+			WriteTagValue(tags.Description, r.Description).
+			WriteTagValue(tags.Required, r.Required)
 		writeContent(r.ContentType, r, w)
 		writeExtensions(r.Extensions, w)
 		writeAdditional(r.Additional, r, w)
 	} else {
-		writeRef(tagNameRequestBodies, r.Ref, w)
+		writeRef(tags.RequestBodies, r.Ref, w)
 	}
 	w.WriteTagEnd()
 }
 
 func (r *Request) componentsWriteYaml(name string, w yaml.Writer) {
 	w.WriteTagStart(name).
-		WriteTagValue(tagNameDescription, r.Description).
-		WriteTagValue(tagNameRequired, r.Required)
+		WriteTagValue(tags.Description, r.Description).
+		WriteTagValue(tags.Required, r.Required)
 	writeContent(r.ContentType, r, w)
 	writeExtensions(r.Extensions, w)
 	writeAdditional(r.Additional, r, w)

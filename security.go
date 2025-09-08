@@ -1,6 +1,9 @@
 package chioas
 
-import "github.com/go-andiamo/chioas/yaml"
+import (
+	"github.com/go-andiamo/chioas/internal/tags"
+	"github.com/go-andiamo/chioas/yaml"
+)
 
 // SecuritySchemes is an ordered collection of SecurityScheme
 //
@@ -20,7 +23,7 @@ func (ss SecuritySchemes) writeYaml(w yaml.Writer, asSecurity bool) {
 				s.writeYaml(w, true)
 			}
 		} else {
-			w.WriteTagStart(tagNameSecuritySchemes)
+			w.WriteTagStart(tags.SecuritySchemes)
 			for _, s := range ss {
 				s.writeYaml(w, false)
 			}
@@ -76,11 +79,11 @@ func (s SecurityScheme) writeYaml(w yaml.Writer, asSecurity bool) {
 	} else {
 		w.WriteTagStart(s.Name).
 			WriteComments(s.Comment).
-			WriteTagValue(tagNameDescription, s.Description).
-			WriteTagValue(tagNameType, defValue(s.Type, "http")).
-			WriteTagValue(tagNameScheme, s.Scheme).
-			WriteTagValue(tagNameIn, s.In).
-			WriteTagValue(tagNameName, s.ParamName)
+			WriteTagValue(tags.Description, s.Description).
+			WriteTagValue(tags.Type, defValue(s.Type, "http")).
+			WriteTagValue(tags.Scheme, s.Scheme).
+			WriteTagValue(tags.In, s.In).
+			WriteTagValue(tags.Name, s.ParamName)
 		writeExtensions(s.Extensions, w)
 		writeAdditional(s.Additional, s, w)
 		w.WriteTagEnd()
