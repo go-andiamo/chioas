@@ -1,6 +1,9 @@
 package chioas
 
-import "github.com/go-andiamo/chioas/yaml"
+import (
+	"github.com/go-andiamo/chioas/internal/tags"
+	"github.com/go-andiamo/chioas/yaml"
+)
 
 // CommonRequests is a map of Request, where the key is the name (that can be referenced by Request.Ref)
 type CommonRequests map[string]Request
@@ -37,7 +40,7 @@ type Components struct {
 }
 
 func (c *Components) writeYaml(w yaml.Writer) {
-	w.WriteComments(c.Comment).WriteTagStart(tagNameComponents)
+	w.WriteComments(c.Comment).WriteTagStart(tags.Components)
 	c.Schemas.writeYaml(w)
 	if c.Requests != nil {
 		c.Requests.writeYaml(w)
@@ -57,7 +60,7 @@ func (c *Components) writeYaml(w yaml.Writer) {
 
 func (r CommonRequests) writeYaml(w yaml.Writer) {
 	if len(r) > 0 {
-		w.WriteTagStart(tagNameRequestBodies)
+		w.WriteTagStart(tags.RequestBodies)
 		for name, rr := range r {
 			rr.componentsWriteYaml(name, w)
 		}
@@ -67,7 +70,7 @@ func (r CommonRequests) writeYaml(w yaml.Writer) {
 
 func (r CommonResponses) writeYaml(w yaml.Writer) {
 	if len(r) > 0 {
-		w.WriteTagStart(tagNameResponses)
+		w.WriteTagStart(tags.Responses)
 		for name, rr := range r {
 			rr.componentsWriteYaml(name, w)
 		}

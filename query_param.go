@@ -1,6 +1,10 @@
 package chioas
 
-import "github.com/go-andiamo/chioas/yaml"
+import (
+	"github.com/go-andiamo/chioas/internal/tags"
+	"github.com/go-andiamo/chioas/internal/values"
+	"github.com/go-andiamo/chioas/yaml"
+)
 
 // QueryParams represents an ordered collection of QueryParam
 type QueryParams []QueryParam
@@ -54,25 +58,25 @@ func (qp QueryParams) writeYaml(w yaml.Writer) {
 
 func (p QueryParam) writeYaml(w yaml.Writer) {
 	if p.Ref == "" {
-		w.WriteItemStart(tagNameName, p.Name).
+		w.WriteItemStart(tags.Name, p.Name).
 			WriteComments(p.Comment).
-			WriteTagValue(tagNameDescription, p.Description).
-			WriteTagValue(tagNameIn, defValue(p.In, tagValueQuery)).
-			WriteTagValue(tagNameRequired, p.Required).
-			WriteTagValue(tagNameExample, p.Example)
-		w.WriteTagStart(tagNameSchema)
+			WriteTagValue(tags.Description, p.Description).
+			WriteTagValue(tags.In, defValue(p.In, values.Query)).
+			WriteTagValue(tags.Required, p.Required).
+			WriteTagValue(tags.Example, p.Example)
+		w.WriteTagStart(tags.Schema)
 		if p.Schema != nil {
 			p.Schema.writeYaml(false, w)
 		} else if p.SchemaRef != "" {
 			writeSchemaRef(p.SchemaRef, false, w)
 		} else {
-			w.WriteTagValue(tagNameType, "string")
+			w.WriteTagValue(tags.Type, "string")
 		}
 		w.WriteTagEnd()
 		writeExtensions(p.Extensions, w)
 		writeAdditional(p.Additional, p, w)
 		w.WriteTagEnd()
 	} else {
-		writeItemRef(tagNameParameters, p.Ref, w)
+		writeItemRef(tags.Parameters, p.Ref, w)
 	}
 }

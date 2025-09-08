@@ -3,6 +3,8 @@ package chioas
 import (
 	"errors"
 	"fmt"
+	"github.com/go-andiamo/chioas/internal/refs"
+	"github.com/go-andiamo/chioas/internal/tags"
 	"github.com/go-andiamo/chioas/yaml"
 	"github.com/stretchr/testify/assert"
 	"net/http"
@@ -65,11 +67,11 @@ func TestWriteRef_Errors(t *testing.T) {
 	writeRef("", "/my-schema", w)
 	data, err := w.Bytes()
 	assert.NoError(t, err)
-	assert.Equal(t, tagNameRef+": \"/my-schema\"\n", string(data))
+	assert.Equal(t, tags.Ref+": \"/my-schema\"\n", string(data))
 
 	w = yaml.NewWriter(nil)
 	w.RefChecker(&testRefErrorringChecker{})
-	writeRef("", refComponentsPrefix+tagNameSchemas+"/my-schema", w)
+	writeRef("", refs.ComponentsPrefix+tags.Schemas+"/my-schema", w)
 	_, err = w.Bytes()
 	assert.Error(t, err)
 
@@ -77,7 +79,7 @@ func TestWriteRef_Errors(t *testing.T) {
 	writeRef("foo", "bar", w)
 	data, err = w.Bytes()
 	assert.NoError(t, err)
-	assert.Equal(t, tagNameRef+": \""+refComponentsPrefix+"foo/bar\"\n", string(data))
+	assert.Equal(t, tags.Ref+": \""+refs.ComponentsPrefix+"foo/bar\"\n", string(data))
 }
 
 func TestWriteItemRef_Errors(t *testing.T) {
@@ -92,11 +94,11 @@ func TestWriteItemRef_Errors(t *testing.T) {
 	writeItemRef("", "/my-schema", w)
 	data, err := w.Bytes()
 	assert.NoError(t, err)
-	assert.Equal(t, "- "+tagNameRef+": \"/my-schema\"\n", string(data))
+	assert.Equal(t, "- "+tags.Ref+": \"/my-schema\"\n", string(data))
 
 	w = yaml.NewWriter(nil)
 	w.RefChecker(&testRefErrorringChecker{})
-	writeItemRef("", refComponentsPrefix+tagNameSchemas+"/my-schema", w)
+	writeItemRef("", refs.ComponentsPrefix+tags.Schemas+"/my-schema", w)
 	_, err = w.Bytes()
 	assert.Error(t, err)
 
@@ -104,7 +106,7 @@ func TestWriteItemRef_Errors(t *testing.T) {
 	writeItemRef("foo", "bar", w)
 	data, err = w.Bytes()
 	assert.NoError(t, err)
-	assert.Equal(t, "- "+tagNameRef+": \""+refComponentsPrefix+"foo/bar\"\n", string(data))
+	assert.Equal(t, "- "+tags.Ref+": \""+refs.ComponentsPrefix+"foo/bar\"\n", string(data))
 }
 
 func TestDefinition_RefCheck(t *testing.T) {
@@ -133,39 +135,39 @@ func TestDefinition_RefCheck(t *testing.T) {
 	}
 	defWithoutComponents := &Definition{}
 
-	err := defWithComponents.RefCheck(tagNameSchemas, "good")
+	err := defWithComponents.RefCheck(tags.Schemas, "good")
 	assert.NoError(t, err)
-	err = defWithComponents.RefCheck(tagNameSchemas, "bad")
+	err = defWithComponents.RefCheck(tags.Schemas, "bad")
 	assert.Error(t, err)
-	err = defWithoutComponents.RefCheck(tagNameSchemas, "good")
+	err = defWithoutComponents.RefCheck(tags.Schemas, "good")
 	assert.Error(t, err)
 
-	err = defWithComponents.RefCheck(tagNameRequestBodies, "good")
+	err = defWithComponents.RefCheck(tags.RequestBodies, "good")
 	assert.NoError(t, err)
-	err = defWithComponents.RefCheck(tagNameRequestBodies, "bad")
+	err = defWithComponents.RefCheck(tags.RequestBodies, "bad")
 	assert.Error(t, err)
-	err = defWithoutComponents.RefCheck(tagNameRequestBodies, "good")
+	err = defWithoutComponents.RefCheck(tags.RequestBodies, "good")
 	assert.Error(t, err)
 
-	err = defWithComponents.RefCheck(tagNameResponses, "good")
+	err = defWithComponents.RefCheck(tags.Responses, "good")
 	assert.NoError(t, err)
-	err = defWithComponents.RefCheck(tagNameResponses, "bad")
+	err = defWithComponents.RefCheck(tags.Responses, "bad")
 	assert.Error(t, err)
-	err = defWithoutComponents.RefCheck(tagNameResponses, "good")
+	err = defWithoutComponents.RefCheck(tags.Responses, "good")
 	assert.Error(t, err)
 
-	err = defWithComponents.RefCheck(tagNameParameters, "good")
+	err = defWithComponents.RefCheck(tags.Parameters, "good")
 	assert.NoError(t, err)
-	err = defWithComponents.RefCheck(tagNameParameters, "bad")
+	err = defWithComponents.RefCheck(tags.Parameters, "bad")
 	assert.Error(t, err)
-	err = defWithoutComponents.RefCheck(tagNameParameters, "good")
+	err = defWithoutComponents.RefCheck(tags.Parameters, "good")
 	assert.Error(t, err)
 
-	err = defWithComponents.RefCheck(tagNameExamples, "good")
+	err = defWithComponents.RefCheck(tags.Examples, "good")
 	assert.NoError(t, err)
-	err = defWithComponents.RefCheck(tagNameExamples, "bad")
+	err = defWithComponents.RefCheck(tags.Examples, "bad")
 	assert.Error(t, err)
-	err = defWithoutComponents.RefCheck(tagNameExamples, "good")
+	err = defWithoutComponents.RefCheck(tags.Examples, "good")
 	assert.Error(t, err)
 
 	err = defWithComponents.RefCheck("unknown", "good")
@@ -435,7 +437,7 @@ func TestRefCheck(t *testing.T) {
 			expect: "/my-schema",
 		},
 		{
-			ref:       refComponentsPrefix + tagNameSchemas + "/my-schema",
+			ref:       refs.ComponentsPrefix + tags.Schemas + "/my-schema",
 			expectErr: true,
 		},
 	}
@@ -470,16 +472,16 @@ func TestNeedsRefCheck(t *testing.T) {
 			expectRef: "/my-schema.yaml",
 		},
 		{
-			area:       tagNameSchemas,
+			area:       tags.Schemas,
 			ref:        "my-schema",
 			expect:     true,
-			expectArea: tagNameSchemas,
+			expectArea: tags.Schemas,
 			expectRef:  "my-schema",
 		},
 		{
-			ref:        refComponentsPrefix + tagNameSchemas + "/my-schema",
+			ref:        refs.ComponentsPrefix + tags.Schemas + "/my-schema",
 			expect:     true,
-			expectArea: tagNameSchemas,
+			expectArea: tags.Schemas,
 			expectRef:  "my-schema",
 		},
 	}

@@ -2,6 +2,8 @@ package chioas
 
 import (
 	"fmt"
+	"github.com/go-andiamo/chioas/internal/refs"
+	"github.com/go-andiamo/chioas/internal/tags"
 	"strings"
 )
 
@@ -55,27 +57,27 @@ func (m Method) checkRefs(path string, method string, def *Definition) (result [
 func (c *Components) checkRefs(def *Definition) (result []error) {
 	for i, s := range c.Schemas {
 		seen := map[string]bool{
-			canonicalRef(tagNameSchemas, s.Name): true,
+			refs.Canonical(tags.Schemas, s.Name): true,
 		}
-		result = append(result, s.checkRefs(fmt.Sprintf(refComponentsPrefix+tagNameSchemas+"[%d]", i), "", def, seen)...)
+		result = append(result, s.checkRefs(fmt.Sprintf(refs.ComponentsPrefix+tags.Schemas+"[%d]", i), "", def, seen)...)
 	}
 	for name, r := range c.Requests {
-		result = append(result, r.checkRefs(fmt.Sprintf(refComponentsPrefix+tagNameRequestBodies+"[%s]", name), "", def)...)
+		result = append(result, r.checkRefs(fmt.Sprintf(refs.ComponentsPrefix+tags.RequestBodies+"[%s]", name), "", def)...)
 	}
 	for name, r := range c.Responses {
-		result = append(result, r.checkRefs(fmt.Sprintf(refComponentsPrefix+tagNameResponses+"[%s]", name), "", def)...)
+		result = append(result, r.checkRefs(fmt.Sprintf(refs.ComponentsPrefix+tags.Responses+"[%s]", name), "", def)...)
 	}
 	for name, p := range c.Parameters {
-		result = append(result, p.checkRefs(fmt.Sprintf(refComponentsPrefix+tagNameParameters+"[%s]", name), name, def)...)
+		result = append(result, p.checkRefs(fmt.Sprintf(refs.ComponentsPrefix+tags.Parameters+"[%s]", name), name, def)...)
 	}
 	for i, eg := range c.Examples {
-		result = append(result, eg.checkRefs(fmt.Sprintf(refComponentsPrefix+tagNameExamples+"[%d]", i), "", def)...)
+		result = append(result, eg.checkRefs(fmt.Sprintf(refs.ComponentsPrefix+tags.Examples+"[%d]", i), "", def)...)
 	}
 	return result
 }
 
 func (p CommonParameter) checkRefs(path string, name string, def *Definition) (result []error) {
-	ref, area, ok, err := isInternalRef(p.SchemaRef, tagNameSchemas)
+	ref, area, ok, err := isInternalRef(p.SchemaRef, tags.Schemas)
 	if ok {
 		err = def.RefCheck(area, ref)
 	}
@@ -97,7 +99,7 @@ func (p CommonParameter) checkRefs(path string, name string, def *Definition) (r
 
 func (p Path) checkRefs(path string, def *Definition) (result []error) {
 	for name, pp := range p.PathParams {
-		ref, area, ok, err := isInternalRef(pp.Ref, tagNameParameters)
+		ref, area, ok, err := isInternalRef(pp.Ref, tags.Parameters)
 		if ok {
 			err = def.RefCheck(area, ref)
 		}
@@ -110,7 +112,7 @@ func (p Path) checkRefs(path string, def *Definition) (result []error) {
 				Item:     pp,
 			})
 		}
-		ref, area, ok, err = isInternalRef(pp.SchemaRef, tagNameSchemas)
+		ref, area, ok, err = isInternalRef(pp.SchemaRef, tags.Schemas)
 		if ok {
 			err = def.RefCheck(area, ref)
 		}
@@ -148,10 +150,10 @@ func isInternalRef(r string, defArea string) (ref string, area string, ok bool, 
 	if r == "" {
 		return "", "", false, nil
 	}
-	if strings.HasPrefix(r, refComponentsPrefix) {
-		if parts := strings.Split(r[len(refComponentsPrefix):], "/"); len(parts) == 2 {
+	if strings.HasPrefix(r, refs.ComponentsPrefix) {
+		if parts := strings.Split(r[len(refs.ComponentsPrefix):], "/"); len(parts) == 2 {
 			if parts[0] != defArea {
-				return "", "", false, fmt.Errorf("incorrect ref path %q - expected %q", r, refComponentsPrefix+defArea+"/"+parts[1])
+				return "", "", false, fmt.Errorf("incorrect ref path %q - expected %q", r, refs.ComponentsPrefix+defArea+"/"+parts[1])
 			}
 			return parts[1], parts[0], true, nil
 		} else {
@@ -164,7 +166,7 @@ func isInternalRef(r string, defArea string) (ref string, area string, ok bool, 
 }
 
 func (r *Request) checkRefs(path string, method string, def *Definition) (result []error) {
-	ref, area, ok, err := isInternalRef(r.Ref, tagNameRequestBodies)
+	ref, area, ok, err := isInternalRef(r.Ref, tags.RequestBodies)
 	if ok {
 		err = def.RefCheck(area, ref)
 	}
@@ -177,7 +179,7 @@ func (r *Request) checkRefs(path string, method string, def *Definition) (result
 			Item:   r,
 		})
 	}
-	ref, area, ok, err = isInternalRef(r.SchemaRef, tagNameSchemas)
+	ref, area, ok, err = isInternalRef(r.SchemaRef, tags.Schemas)
 	if ok {
 		err = def.RefCheck(area, ref)
 	}
@@ -205,7 +207,7 @@ func (r *Request) checkRefs(path string, method string, def *Definition) (result
 }
 
 func (r Response) checkRefs(path string, method string, def *Definition) (result []error) {
-	ref, area, ok, err := isInternalRef(r.Ref, tagNameResponses)
+	ref, area, ok, err := isInternalRef(r.Ref, tags.Responses)
 	if ok {
 		err = def.RefCheck(area, ref)
 	}
@@ -218,7 +220,7 @@ func (r Response) checkRefs(path string, method string, def *Definition) (result
 			Item:   r,
 		})
 	}
-	ref, area, ok, err = isInternalRef(r.SchemaRef, tagNameSchemas)
+	ref, area, ok, err = isInternalRef(r.SchemaRef, tags.Schemas)
 	if ok {
 		err = def.RefCheck(area, ref)
 	}
@@ -247,7 +249,7 @@ func (r Response) checkRefs(path string, method string, def *Definition) (result
 
 func (c ContentTypes) checkRefs(path string, method string, def *Definition) (result []error) {
 	for _, ct := range c {
-		ref, area, ok, err := isInternalRef(ct.SchemaRef, tagNameSchemas)
+		ref, area, ok, err := isInternalRef(ct.SchemaRef, tags.Schemas)
 		if ok {
 			err = def.RefCheck(area, ref)
 		}
@@ -282,7 +284,7 @@ func (egs Examples) checkRefs(path string, method string, def *Definition) (resu
 }
 
 func (eg Example) checkRefs(path string, method string, def *Definition) (result []error) {
-	ref, area, ok, err := isInternalRef(eg.ExampleRef, tagNameExamples)
+	ref, area, ok, err := isInternalRef(eg.ExampleRef, tags.Examples)
 	if ok {
 		err = def.RefCheck(area, ref)
 	}
@@ -300,7 +302,7 @@ func (eg Example) checkRefs(path string, method string, def *Definition) (result
 
 func (qp QueryParams) checkRefs(path string, method string, def *Definition) (result []error) {
 	for _, p := range qp {
-		ref, area, ok, err := isInternalRef(p.Ref, tagNameParameters)
+		ref, area, ok, err := isInternalRef(p.Ref, tags.Parameters)
 		if ok {
 			err = def.RefCheck(area, ref)
 		}
@@ -312,7 +314,7 @@ func (qp QueryParams) checkRefs(path string, method string, def *Definition) (re
 				Item: p,
 			})
 		}
-		ref, area, ok, err = isInternalRef(p.SchemaRef, tagNameSchemas)
+		ref, area, ok, err = isInternalRef(p.SchemaRef, tags.Schemas)
 		if ok {
 			err = def.RefCheck(area, ref)
 		}
@@ -336,10 +338,10 @@ func (s *Schema) checkRefs(path string, method string, def *Definition, seen map
 	if seen == nil {
 		seen = make(map[string]bool)
 	}
-	ref, area, ok, err := isInternalRef(s.SchemaRef, tagNameSchemas)
+	ref, area, ok, err := isInternalRef(s.SchemaRef, tags.Schemas)
 	if ok {
 		err = def.RefCheck(area, ref)
-		cRef := canonicalRef(area, ref)
+		cRef := refs.Canonical(area, ref)
 		if seen[cRef] {
 			result = append(result, &RefError{
 				Msg:    "cyclic ref",
@@ -375,10 +377,10 @@ func (s *Schema) checkRefs(path string, method string, def *Definition, seen map
 }
 
 func (p Property) checkRefs(path string, method string, def *Definition, seen map[string]bool) (result []error) {
-	ref, area, ok, err := isInternalRef(p.SchemaRef, tagNameSchemas)
+	ref, area, ok, err := isInternalRef(p.SchemaRef, tags.Schemas)
 	if ok {
 		err = def.RefCheck(area, ref)
-		cRef := canonicalRef(area, ref)
+		cRef := refs.Canonical(area, ref)
 		if seen[cRef] {
 			result = append(result, &RefError{
 				Msg:    "cyclic ref",
@@ -409,7 +411,7 @@ func (p Property) checkRefs(path string, method string, def *Definition, seen ma
 
 func (d *Discriminator) checkRefs(path string, method string, def *Definition) (result []error) {
 	for _, r := range d.Mapping {
-		ref, area, ok, err := isInternalRef(r, tagNameSchemas)
+		ref, area, ok, err := isInternalRef(r, tags.Schemas)
 		if ok {
 			err = def.RefCheck(area, ref)
 		}
@@ -429,7 +431,7 @@ func (d *Discriminator) checkRefs(path string, method string, def *Definition) (
 func (ofs *Ofs) checkRefs(path string, method string, def *Definition) (result []error) {
 	for _, of := range ofs.Of {
 		if of.IsRef() {
-			ref, area, ok, err := isInternalRef(of.Ref(), tagNameSchemas)
+			ref, area, ok, err := isInternalRef(of.Ref(), tags.Schemas)
 			if ok {
 				err = def.RefCheck(area, ref)
 			}
@@ -447,9 +449,4 @@ func (ofs *Ofs) checkRefs(path string, method string, def *Definition) (result [
 		}
 	}
 	return result
-}
-
-// canonical ref like "#/components/schemas/User"
-func canonicalRef(area, name string) string {
-	return refComponentsPrefix + area + "/" + name
 }

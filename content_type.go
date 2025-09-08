@@ -1,6 +1,10 @@
 package chioas
 
-import "github.com/go-andiamo/chioas/yaml"
+import (
+	"github.com/go-andiamo/chioas/internal/tags"
+	"github.com/go-andiamo/chioas/internal/values"
+	"github.com/go-andiamo/chioas/yaml"
+)
 
 // ContentTypes is used by Response.AlternativeContentTypes and Request.AlternativeContentTypes to denote alternative content types
 //
@@ -93,7 +97,7 @@ type contentWritable interface {
 }
 
 func writeContent(contentType string, cw contentWritable, w yaml.Writer) {
-	w.WriteTagStart(tagNameContent)
+	w.WriteTagStart(tags.Content)
 	writeContentType(contentType, cw, w)
 	if alts := cw.alternatives(); alts != nil {
 		for altCt, altCw := range alts {
@@ -104,16 +108,16 @@ func writeContent(contentType string, cw contentWritable, w yaml.Writer) {
 }
 
 func writeContentType(contentType string, cw contentWritable, w yaml.Writer) {
-	w.WriteTagStart(defValue(contentType, tagNameApplicationJson))
+	w.WriteTagStart(defValue(contentType, tags.ApplicationJson))
 	w.WriteComments(cw.comment())
-	w.WriteTagStart(tagNameSchema)
+	w.WriteTagStart(tags.Schema)
 	isArray := cw.isArray()
 	if schema := cw.schema(); schema != nil {
 		writeSchema(schema, isArray, w)
 	} else if schemaRef := cw.schemaRef(); schemaRef != "" {
 		writeSchemaRef(schemaRef, isArray, w)
 	} else {
-		w.WriteTagValue(tagNameType, tagValueTypeObject)
+		w.WriteTagValue(tags.Type, values.TypeObject)
 	}
 	w.WriteTagEnd()
 	cw.examples().writeYaml(w)

@@ -1,6 +1,10 @@
 package chioas
 
-import "github.com/go-andiamo/chioas/yaml"
+import (
+	"github.com/go-andiamo/chioas/internal/tags"
+	"github.com/go-andiamo/chioas/internal/values"
+	"github.com/go-andiamo/chioas/yaml"
+)
 
 // PathParams is a map of PathParam where the key is the param name
 type PathParams map[string]PathParam
@@ -40,25 +44,25 @@ type PathParam struct {
 
 func (pp PathParam) writeYaml(name string, w yaml.Writer) {
 	if pp.Ref == "" {
-		w.WriteItemStart(tagNameName, name).
+		w.WriteItemStart(tags.Name, name).
 			WriteComments(pp.Comment).
-			WriteTagValue(tagNameDescription, pp.Description).
-			WriteTagValue(tagNameIn, tagValuePath).
-			WriteTagValue(tagNameRequired, true).
-			WriteTagValue(tagNameExample, pp.Example)
-		w.WriteTagStart(tagNameSchema)
+			WriteTagValue(tags.Description, pp.Description).
+			WriteTagValue(tags.In, values.Path).
+			WriteTagValue(tags.Required, true).
+			WriteTagValue(tags.Example, pp.Example)
+		w.WriteTagStart(tags.Schema)
 		if pp.Schema != nil {
 			pp.Schema.writeYaml(false, w)
 		} else if pp.SchemaRef != "" {
 			writeSchemaRef(pp.SchemaRef, false, w)
 		} else {
-			w.WriteTagValue(tagNameType, "string")
+			w.WriteTagValue(tags.Type, "string")
 		}
 		w.WriteTagEnd()
 		writeExtensions(pp.Extensions, w)
 		writeAdditional(pp.Additional, pp, w)
 		w.WriteTagEnd()
 	} else {
-		writeItemRef(tagNameParameters, pp.Ref, w)
+		writeItemRef(tags.Parameters, pp.Ref, w)
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/go-andiamo/chioas/internal/tags"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/maps"
@@ -42,14 +43,14 @@ func TestDefinition_unmarshalObj_Errors(t *testing.T) {
 	t.Run("bad info", func(t *testing.T) {
 		d := &Definition{}
 		err := d.unmarshalObj(map[string]any{
-			tagNameInfo: "not an object",
+			tags.Info: "not an object",
 		})
 		require.Error(t, err)
 	})
 	t.Run("bad externalDocs", func(t *testing.T) {
 		d := &Definition{}
 		err := d.unmarshalObj(map[string]any{
-			tagNameExternalDocs: "not an object",
+			tags.ExternalDocs: "not an object",
 		})
 		require.Error(t, err)
 	})
@@ -57,28 +58,28 @@ func TestDefinition_unmarshalObj_Errors(t *testing.T) {
 
 func TestDefinition_unmarshalObj(t *testing.T) {
 	m := map[string]any{
-		tagNameInfo:         map[string]any{},
-		tagNameExternalDocs: map[string]any{},
-		tagNameTags: []any{
+		tags.Info:         map[string]any{},
+		tags.ExternalDocs: map[string]any{},
+		tags.Tags: []any{
 			map[string]any{
-				tagNameName: "test tag",
+				tags.Name: "test tag",
 			},
 		},
-		tagNameServers: []any{
+		tags.Servers: []any{
 			map[string]any{
-				tagNameUrl: "test url",
+				tags.Url: "test url",
 			},
 		},
-		tagNameSecurity: []any{
+		tags.Security: []any{
 			map[string]any{
 				"foo": []any{"all"},
 			},
 		},
-		tagNamePaths: map[string]any{
+		tags.Paths: map[string]any{
 			"/root": map[string]any{},
 		},
-		tagNameComponents: map[string]any{},
-		"x-foo":           "bar",
+		tags.Components: map[string]any{},
+		"x-foo":         "bar",
 	}
 	t.Run("success", func(t *testing.T) {
 		r, err := fromObj[Definition](m)
@@ -106,7 +107,7 @@ func TestDefinition_unmarshalObj(t *testing.T) {
 func TestDefinition_unmarshalPaths(t *testing.T) {
 	t.Run("root methods", func(t *testing.T) {
 		m := map[string]any{
-			tagNamePaths: map[string]any{
+			tags.Paths: map[string]any{
 				root: map[string]any{
 					"get":     map[string]any{},
 					"options": map[string]any{},
@@ -124,7 +125,7 @@ func TestDefinition_unmarshalPaths(t *testing.T) {
 	})
 	t.Run("fill in ancestry", func(t *testing.T) {
 		m := map[string]any{
-			tagNamePaths: map[string]any{
+			tags.Paths: map[string]any{
 				"/foo/bar/baz": map[string]any{
 					"get": map[string]any{},
 				},
@@ -144,7 +145,7 @@ func TestDefinition_unmarshalPaths(t *testing.T) {
 	})
 	t.Run("root method not object", func(t *testing.T) {
 		m := map[string]any{
-			tagNamePaths: map[string]any{
+			tags.Paths: map[string]any{
 				root: map[string]any{
 					"get": "not an object",
 				},
@@ -156,7 +157,7 @@ func TestDefinition_unmarshalPaths(t *testing.T) {
 	})
 	t.Run("path method not object", func(t *testing.T) {
 		m := map[string]any{
-			tagNamePaths: map[string]any{
+			tags.Paths: map[string]any{
 				"/foo/bar": map[string]any{
 					"get": "not an object",
 				},
@@ -168,10 +169,10 @@ func TestDefinition_unmarshalPaths(t *testing.T) {
 	})
 	t.Run("path method unmarshal object fails", func(t *testing.T) {
 		m := map[string]any{
-			tagNamePaths: map[string]any{
+			tags.Paths: map[string]any{
 				"/foo/bar": map[string]any{
 					"get": map[string]any{
-						tagNameDescription: false,
+						tags.Description: false,
 					},
 				},
 			},
@@ -182,7 +183,7 @@ func TestDefinition_unmarshalPaths(t *testing.T) {
 	})
 	t.Run("fails to split path", func(t *testing.T) {
 		m := map[string]any{
-			tagNamePaths: map[string]any{
+			tags.Paths: map[string]any{
 				"/api/{unbalanced}}": map[string]any{},
 			},
 		}
@@ -194,19 +195,19 @@ func TestDefinition_unmarshalPaths(t *testing.T) {
 
 func TestMethod_unmarshalObj(t *testing.T) {
 	m := map[string]any{
-		tagNameDescription: "test description",
-		tagNameSummary:     "test summary",
-		tagNameOperationId: "test operation id",
-		tagNameDeprecated:  true,
-		tagNameTags:        []any{"test tag"},
-		tagNameRequestBody: map[string]any{},
-		tagNameParameters: []any{
+		tags.Description: "test description",
+		tags.Summary:     "test summary",
+		tags.OperationId: "test operation id",
+		tags.Deprecated:  true,
+		tags.Tags:        []any{"test tag"},
+		tags.RequestBody: map[string]any{},
+		tags.Parameters: []any{
 			map[string]any{},
 		},
-		tagNameResponses: map[string]any{
+		tags.Responses: map[string]any{
 			"200": map[string]any{},
 		},
-		tagNameSecurity: []any{
+		tags.Security: []any{
 			map[string]any{},
 		},
 		"x-foo": "bar",
@@ -230,7 +231,7 @@ func TestMethod_unmarshalObj(t *testing.T) {
 	})
 	t.Run("success with security", func(t *testing.T) {
 		m2 := maps.Clone(m)
-		m2[tagNameSecurity] = []any{
+		m2[tags.Security] = []any{
 			map[string]any{
 				"foo": nil,
 			},
@@ -243,7 +244,7 @@ func TestMethod_unmarshalObj(t *testing.T) {
 	})
 	t.Run("fails with invalid response code", func(t *testing.T) {
 		m2 := maps.Clone(m)
-		m2[tagNameResponses] = map[string]any{
+		m2[tags.Responses] = map[string]any{
 			"not a number": map[string]any{},
 		}
 		_, err := fromObj[Method](m2)
@@ -264,13 +265,13 @@ func TestMethod_unmarshalObj(t *testing.T) {
 
 func TestInfo_unmarshalObj(t *testing.T) {
 	m := map[string]any{
-		tagNameTitle:          "test title",
-		tagNameDescription:    "test description",
-		tagNameVersion:        "test version",
-		tagNameTermsOfService: "test terms of service",
-		tagNameContact:        map[string]any{},
-		tagNameLicense:        map[string]any{},
-		"x-foo":               "bar",
+		tags.Title:          "test title",
+		tags.Description:    "test description",
+		tags.Version:        "test version",
+		tags.TermsOfService: "test terms of service",
+		tags.Contact:        map[string]any{},
+		tags.License:        map[string]any{},
+		"x-foo":             "bar",
 	}
 	t.Run("success", func(t *testing.T) {
 		r, err := fromObj[Info](m)
@@ -296,10 +297,10 @@ func TestInfo_unmarshalObj(t *testing.T) {
 
 func TestContact_unmarshalObj(t *testing.T) {
 	m := map[string]any{
-		tagNameName:  "test name",
-		tagNameUrl:   "test url",
-		tagNameEmail: "test email",
-		"x-foo":      "bar",
+		tags.Name:  "test name",
+		tags.Url:   "test url",
+		tags.Email: "test email",
+		"x-foo":    "bar",
 	}
 	t.Run("success", func(t *testing.T) {
 		r, err := fromObj[Contact](m)
@@ -324,9 +325,9 @@ func TestContact_unmarshalObj(t *testing.T) {
 
 func TestLicense_unmarshalObj(t *testing.T) {
 	m := map[string]any{
-		tagNameName: "test name",
-		tagNameUrl:  "test url",
-		"x-foo":     "bar",
+		tags.Name: "test name",
+		tags.Url:  "test url",
+		"x-foo":   "bar",
 	}
 	t.Run("success", func(t *testing.T) {
 		r, err := fromObj[License](m)
@@ -350,9 +351,9 @@ func TestLicense_unmarshalObj(t *testing.T) {
 
 func TestExternalDocs_unmarshalObj(t *testing.T) {
 	m := map[string]any{
-		tagNameDescription: "test description",
-		tagNameUrl:         "test url",
-		"x-foo":            "bar",
+		tags.Description: "test description",
+		tags.Url:         "test url",
+		"x-foo":          "bar",
 	}
 	t.Run("success", func(t *testing.T) {
 		r, err := fromObj[ExternalDocs](m)
@@ -376,10 +377,10 @@ func TestExternalDocs_unmarshalObj(t *testing.T) {
 
 func TestTag_unmarshalObj(t *testing.T) {
 	m := map[string]any{
-		tagNameName:         "test name",
-		tagNameDescription:  "test description",
-		tagNameExternalDocs: map[string]any{},
-		"x-foo":             "bar",
+		tags.Name:         "test name",
+		tags.Description:  "test description",
+		tags.ExternalDocs: map[string]any{},
+		"x-foo":           "bar",
 	}
 	t.Run("success", func(t *testing.T) {
 		r, err := fromObj[Tag](m)
@@ -403,8 +404,8 @@ func TestTag_unmarshalObj(t *testing.T) {
 
 func TestServer_unmarshalObj(t *testing.T) {
 	m := map[string]any{
-		tagNameDescription: "test description",
-		"x-foo":            "bar",
+		tags.Description: "test description",
+		"x-foo":          "bar",
 	}
 	t.Run("success", func(t *testing.T) {
 		r, err := fromObj[Server](m)
@@ -427,12 +428,12 @@ func TestServer_unmarshalObj(t *testing.T) {
 
 func TestSecurityScheme_unmarshalObj(t *testing.T) {
 	m := map[string]any{
-		tagNameDescription: "test description",
-		tagNameType:        "test type",
-		tagNameScheme:      "test scheme",
-		tagNameName:        "test name",
-		tagNameIn:          "test in",
-		"x-foo":            "bar",
+		tags.Description: "test description",
+		tags.Type:        "test type",
+		tags.Scheme:      "test scheme",
+		tags.Name:        "test name",
+		tags.In:          "test in",
+		"x-foo":          "bar",
 	}
 	t.Run("success", func(t *testing.T) {
 		r, err := fromObj[SecurityScheme](m)
@@ -459,10 +460,10 @@ func TestSecurityScheme_unmarshalObj(t *testing.T) {
 
 func TestExample_unmarshalObj(t *testing.T) {
 	m := map[string]any{
-		tagNameDescription: "test description",
-		tagNameSummary:     "test summary",
-		tagNameValue:       "test value",
-		"x-foo":            "bar",
+		tags.Description: "test description",
+		tags.Summary:     "test summary",
+		tags.Value:       "test value",
+		"x-foo":          "bar",
 	}
 	t.Run("success", func(t *testing.T) {
 		r, err := fromObj[Example](m)
@@ -475,7 +476,7 @@ func TestExample_unmarshalObj(t *testing.T) {
 	})
 	t.Run("ref", func(t *testing.T) {
 		m2 := maps.Clone(m)
-		m2[tagNameRef] = "test ref"
+		m2[tags.Ref] = "test ref"
 		r, err := fromObj[Example](m2)
 		require.NoError(t, err)
 		assert.Equal(t, "test ref", r.ExampleRef)
@@ -484,14 +485,14 @@ func TestExample_unmarshalObj(t *testing.T) {
 		assert.Empty(t, r.Value)
 		assert.Empty(t, r.Extensions)
 
-		m2[tagNameRef] = struct{}{}
+		m2[tags.Ref] = struct{}{}
 		_, err = fromObj[Example](m2)
 		require.Error(t, err)
 	})
 	t.Run("errors", func(t *testing.T) {
 		type bad struct{}
 		for k := range m {
-			if k != tagNameValue && !strings.HasPrefix(k, "x-") {
+			if k != tags.Value && !strings.HasPrefix(k, "x-") {
 				m2 := maps.Clone(m)
 				m2[k] = bad{}
 				_, err := fromObj[Example](m2)
@@ -503,12 +504,12 @@ func TestExample_unmarshalObj(t *testing.T) {
 
 func TestCommonParameter_unmarshalObj(t *testing.T) {
 	m := map[string]any{
-		tagNameName:        "test name",
-		tagNameDescription: "test description",
-		tagNameRequired:    true,
-		tagNameIn:          "test in",
-		tagNameExample:     "test example",
-		"x-foo":            "bar",
+		tags.Name:        "test name",
+		tags.Description: "test description",
+		tags.Required:    true,
+		tags.In:          "test in",
+		tags.Example:     "test example",
+		"x-foo":          "bar",
 	}
 	t.Run("success", func(t *testing.T) {
 		r, err := fromObj[CommonParameter](m)
@@ -523,7 +524,7 @@ func TestCommonParameter_unmarshalObj(t *testing.T) {
 	t.Run("errors", func(t *testing.T) {
 		type bad struct{}
 		for k := range m {
-			if k != tagNameExample && !strings.HasPrefix(k, "x-") {
+			if k != tags.Example && !strings.HasPrefix(k, "x-") {
 				m2 := maps.Clone(m)
 				m2[k] = bad{}
 				_, err := fromObj[CommonParameter](m2)
@@ -535,12 +536,12 @@ func TestCommonParameter_unmarshalObj(t *testing.T) {
 
 func TestQueryParam_unmarshalObj(t *testing.T) {
 	m := map[string]any{
-		tagNameName:        "test name",
-		tagNameDescription: "test description",
-		tagNameRequired:    true,
-		tagNameIn:          "test in",
-		tagNameExample:     "test example",
-		"x-foo":            "bar",
+		tags.Name:        "test name",
+		tags.Description: "test description",
+		tags.Required:    true,
+		tags.In:          "test in",
+		tags.Example:     "test example",
+		"x-foo":          "bar",
 	}
 	t.Run("success", func(t *testing.T) {
 		r, err := fromObj[QueryParam](m)
@@ -555,7 +556,7 @@ func TestQueryParam_unmarshalObj(t *testing.T) {
 	t.Run("errors", func(t *testing.T) {
 		type bad struct{}
 		for k := range m {
-			if k != tagNameExample && !strings.HasPrefix(k, "x-") {
+			if k != tags.Example && !strings.HasPrefix(k, "x-") {
 				m2 := maps.Clone(m)
 				m2[k] = bad{}
 				_, err := fromObj[QueryParam](m2)
@@ -567,16 +568,16 @@ func TestQueryParam_unmarshalObj(t *testing.T) {
 
 func TestProperty_unmarshalObj(t *testing.T) {
 	m := map[string]any{
-		tagNameName:        "test name",
-		tagNameDescription: "test description",
-		tagNameType:        "test type",
-		tagNameItemType:    "test item type",
-		tagNameRequired:    true,
-		tagNameFormat:      "test format",
-		tagNameDeprecated:  true,
-		tagNameExample:     "test example",
-		tagNameEnum:        []any{nil},
-		tagNameProperties: map[string]any{
+		tags.Name:        "test name",
+		tags.Description: "test description",
+		tags.Type:        "test type",
+		tags.ItemType:    "test item type",
+		tags.Required:    true,
+		tags.Format:      "test format",
+		tags.Deprecated:  true,
+		tags.Example:     "test example",
+		tags.Enum:        []any{nil},
+		tags.Properties: map[string]any{
 			"foo": map[string]any{},
 		},
 		"x-foo": "bar",
@@ -598,7 +599,7 @@ func TestProperty_unmarshalObj(t *testing.T) {
 	})
 	t.Run("success ref", func(t *testing.T) {
 		m2 := maps.Clone(m)
-		m2[tagNameRef] = "test ref"
+		m2[tags.Ref] = "test ref"
 		r, err := fromObj[Property](m2)
 		require.NoError(t, err)
 		assert.Equal(t, "test ref", r.SchemaRef)
@@ -616,7 +617,7 @@ func TestProperty_unmarshalObj(t *testing.T) {
 	t.Run("errors", func(t *testing.T) {
 		type bad struct{}
 		for k := range m {
-			if k != tagNameExample && !strings.HasPrefix(k, "x-") {
+			if k != tags.Example && !strings.HasPrefix(k, "x-") {
 				m2 := maps.Clone(m)
 				m2[k] = bad{}
 				_, err := fromObj[Property](m2)
@@ -628,8 +629,8 @@ func TestProperty_unmarshalObj(t *testing.T) {
 
 func TestDiscriminator_unmarshalObj(t *testing.T) {
 	m := map[string]any{
-		tagNamePropertyName: "test property name",
-		tagNameMapping: map[string]any{
+		tags.PropertyName: "test property name",
+		tags.Mapping: map[string]any{
 			"foo": "bar",
 		},
 		"x-foo": "bar",
@@ -643,7 +644,7 @@ func TestDiscriminator_unmarshalObj(t *testing.T) {
 	})
 	t.Run("bad mapping item", func(t *testing.T) {
 		m2 := maps.Clone(m)
-		m2[tagNameMapping] = map[string]any{
+		m2[tags.Mapping] = map[string]any{
 			"foo": false,
 		}
 		_, err := fromObj[Discriminator](m2)
@@ -664,16 +665,16 @@ func TestDiscriminator_unmarshalObj(t *testing.T) {
 
 func TestRequest_unmarshalObj(t *testing.T) {
 	m := map[string]any{
-		tagNameDescription: "test description",
-		tagNameRequired:    true,
+		tags.Description: "test description",
+		tags.Required:    true,
 		/*
-			tagNameContent: map[string]any{
+			tags.Content: map[string]any{
 				contentTypeJson: map[string]any{
-					tagNameSchema: map[string]any{},
+					tags.Schema: map[string]any{},
 				},
 			},
 		*/
-		tagNameExamples: []any{
+		tags.Examples: []any{
 			map[string]any{},
 		},
 		"x-foo": "bar",
@@ -689,12 +690,12 @@ func TestRequest_unmarshalObj(t *testing.T) {
 	})
 	t.Run("success with content", func(t *testing.T) {
 		m2 := map[string]any{
-			tagNameDescription: "test description",
-			tagNameRequired:    true,
-			tagNameContent: map[string]any{
+			tags.Description: "test description",
+			tags.Required:    true,
+			tags.Content: map[string]any{
 				contentTypeJson: map[string]any{
-					tagNameSchema: map[string]any{},
-					"x-foo":       "bar",
+					tags.Schema: map[string]any{},
+					"x-foo":     "bar",
 				},
 			},
 		}
@@ -709,16 +710,16 @@ func TestRequest_unmarshalObj(t *testing.T) {
 	})
 	t.Run("success with multi content", func(t *testing.T) {
 		m2 := map[string]any{
-			tagNameDescription: "test description",
-			tagNameRequired:    true,
-			tagNameContent: map[string]any{
+			tags.Description: "test description",
+			tags.Required:    true,
+			tags.Content: map[string]any{
 				contentTypeJson: map[string]any{
-					tagNameSchema: map[string]any{},
-					"x-foo":       "bar",
+					tags.Schema: map[string]any{},
+					"x-foo":     "bar",
 				},
 				"text/csv": map[string]any{
-					tagNameSchema: map[string]any{},
-					"x-foo":       "bar",
+					tags.Schema: map[string]any{},
+					"x-foo":     "bar",
 				},
 			},
 		}
@@ -735,7 +736,7 @@ func TestRequest_unmarshalObj(t *testing.T) {
 	})
 	t.Run("success ref", func(t *testing.T) {
 		m2 := maps.Clone(m)
-		m2[tagNameRef] = "test ref"
+		m2[tags.Ref] = "test ref"
 		r, err := fromObj[Request](m2)
 		require.NoError(t, err)
 		assert.Equal(t, "test ref", r.Ref)
@@ -759,8 +760,8 @@ func TestRequest_unmarshalObj(t *testing.T) {
 
 func TestResponse_unmarshalObj(t *testing.T) {
 	m := map[string]any{
-		tagNameDescription: "test description",
-		tagNameExamples: []any{
+		tags.Description: "test description",
+		tags.Examples: []any{
 			map[string]any{},
 		},
 		"x-foo": "bar",
@@ -775,11 +776,11 @@ func TestResponse_unmarshalObj(t *testing.T) {
 	})
 	t.Run("success with content", func(t *testing.T) {
 		m2 := map[string]any{
-			tagNameDescription: "test description",
-			tagNameContent: map[string]any{
+			tags.Description: "test description",
+			tags.Content: map[string]any{
 				contentTypeJson: map[string]any{
-					tagNameSchema: map[string]any{},
-					"x-foo":       "bar",
+					tags.Schema: map[string]any{},
+					"x-foo":     "bar",
 				},
 			},
 		}
@@ -793,15 +794,15 @@ func TestResponse_unmarshalObj(t *testing.T) {
 	})
 	t.Run("success with multi content", func(t *testing.T) {
 		m2 := map[string]any{
-			tagNameDescription: "test description",
-			tagNameContent: map[string]any{
+			tags.Description: "test description",
+			tags.Content: map[string]any{
 				contentTypeJson: map[string]any{
-					tagNameSchema: map[string]any{},
-					"x-foo":       "bar",
+					tags.Schema: map[string]any{},
+					"x-foo":     "bar",
 				},
 				"text/csv": map[string]any{
-					tagNameSchema: map[string]any{},
-					"x-foo":       "bar",
+					tags.Schema: map[string]any{},
+					"x-foo":     "bar",
 				},
 			},
 		}
@@ -817,7 +818,7 @@ func TestResponse_unmarshalObj(t *testing.T) {
 	})
 	t.Run("success ref", func(t *testing.T) {
 		m2 := maps.Clone(m)
-		m2[tagNameRef] = "test ref"
+		m2[tags.Ref] = "test ref"
 		r, err := fromObj[Response](m2)
 		require.NoError(t, err)
 		assert.Equal(t, "test ref", r.Ref)
@@ -840,18 +841,18 @@ func TestResponse_unmarshalObj(t *testing.T) {
 
 func TestSchema_unmarshalObj(t *testing.T) {
 	m := map[string]any{
-		tagNameName:        "test name",
-		tagNameDescription: "test description",
-		tagNameType:        "test type",
-		tagNameFormat:      "test format",
-		tagNameRequired:    []any{"test required"},
-		tagNameProperties: map[string]any{
+		tags.Name:        "test name",
+		tags.Description: "test description",
+		tags.Type:        "test type",
+		tags.Format:      "test format",
+		tags.Required:    []any{"test required"},
+		tags.Properties: map[string]any{
 			"foo": map[string]any{},
 		},
-		tagNameDiscriminator: map[string]any{},
-		tagNameDefault:       "test default",
-		tagNameExample:       "test example",
-		"x-foo":              "bar",
+		tags.Discriminator: map[string]any{},
+		tags.Default:       "test default",
+		tags.Example:       "test example",
+		"x-foo":            "bar",
 	}
 	t.Run("success", func(t *testing.T) {
 		r, err := fromObj[Schema](m)
@@ -870,7 +871,7 @@ func TestSchema_unmarshalObj(t *testing.T) {
 	})
 	t.Run("success ref", func(t *testing.T) {
 		m2 := maps.Clone(m)
-		m2[tagNameRef] = "test ref"
+		m2[tags.Ref] = "test ref"
 		r, err := fromObj[Schema](m2)
 		require.NoError(t, err)
 		assert.Equal(t, "test ref", r.SchemaRef)
@@ -888,7 +889,7 @@ func TestSchema_unmarshalObj(t *testing.T) {
 	t.Run("errors", func(t *testing.T) {
 		type bad struct{}
 		for k := range m {
-			if k != tagNameExample && k != tagNameDefault && !strings.HasPrefix(k, "x-") {
+			if k != tags.Example && k != tags.Default && !strings.HasPrefix(k, "x-") {
 				m2 := maps.Clone(m)
 				m2[k] = bad{}
 				_, err := fromObj[Schema](m2)
@@ -901,9 +902,9 @@ func TestSchema_unmarshalObj(t *testing.T) {
 func TestOfsFrom(t *testing.T) {
 	t.Run("success oneOf ref", func(t *testing.T) {
 		m := map[string]any{
-			tagNameOneOf: []any{
+			tags.OneOf: []any{
 				map[string]any{
-					tagNameRef: "test ref",
+					tags.Ref: "test ref",
 				},
 			},
 		}
@@ -918,9 +919,9 @@ func TestOfsFrom(t *testing.T) {
 	})
 	t.Run("success oneOf schema", func(t *testing.T) {
 		m := map[string]any{
-			tagNameOneOf: []any{
+			tags.OneOf: []any{
 				map[string]any{
-					tagNameDescription: "test description",
+					tags.Description: "test description",
 				},
 			},
 		}
@@ -934,9 +935,9 @@ func TestOfsFrom(t *testing.T) {
 	})
 	t.Run("success anyOf ref", func(t *testing.T) {
 		m := map[string]any{
-			tagNameAnyOf: []any{
+			tags.AnyOf: []any{
 				map[string]any{
-					tagNameRef: "test ref",
+					tags.Ref: "test ref",
 				},
 			},
 		}
@@ -951,9 +952,9 @@ func TestOfsFrom(t *testing.T) {
 	})
 	t.Run("success anyOf schema", func(t *testing.T) {
 		m := map[string]any{
-			tagNameAnyOf: []any{
+			tags.AnyOf: []any{
 				map[string]any{
-					tagNameDescription: "test description",
+					tags.Description: "test description",
 				},
 			},
 		}
@@ -967,9 +968,9 @@ func TestOfsFrom(t *testing.T) {
 	})
 	t.Run("success allOf ref", func(t *testing.T) {
 		m := map[string]any{
-			tagNameAllOf: []any{
+			tags.AllOf: []any{
 				map[string]any{
-					tagNameRef: "test ref",
+					tags.Ref: "test ref",
 				},
 			},
 		}
@@ -984,9 +985,9 @@ func TestOfsFrom(t *testing.T) {
 	})
 	t.Run("success allOf schema", func(t *testing.T) {
 		m := map[string]any{
-			tagNameAllOf: []any{
+			tags.AllOf: []any{
 				map[string]any{
-					tagNameDescription: "test description",
+					tags.Description: "test description",
 				},
 			},
 		}
@@ -1000,9 +1001,9 @@ func TestOfsFrom(t *testing.T) {
 	})
 	t.Run("failure ref", func(t *testing.T) {
 		m := map[string]any{
-			tagNameAllOf: []any{
+			tags.AllOf: []any{
 				map[string]any{
-					tagNameRef: true,
+					tags.Ref: true,
 				},
 			},
 		}
@@ -1011,9 +1012,9 @@ func TestOfsFrom(t *testing.T) {
 	})
 	t.Run("failure schema", func(t *testing.T) {
 		m := map[string]any{
-			tagNameAllOf: []any{
+			tags.AllOf: []any{
 				map[string]any{
-					tagNameDescription: true,
+					tags.Description: true,
 				},
 			},
 		}
@@ -1028,14 +1029,14 @@ func TestOfsFrom(t *testing.T) {
 	})
 	t.Run("not array", func(t *testing.T) {
 		m := map[string]any{
-			tagNameOneOf: "not an array",
+			tags.OneOf: "not an array",
 		}
 		_, err := ofsFrom(m)
 		require.Error(t, err)
 	})
 	t.Run("invalid element", func(t *testing.T) {
 		m := map[string]any{
-			tagNameOneOf: []any{"some ref"},
+			tags.OneOf: []any{"some ref"},
 		}
 		_, err := ofsFrom(m)
 		require.Error(t, err)
@@ -1045,9 +1046,9 @@ func TestOfsFrom(t *testing.T) {
 func TestServersFrom(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		m := map[string]any{
-			tagNameServers: []any{
+			tags.Servers: []any{
 				map[string]any{
-					tagNameUrl: "test url",
+					tags.Url: "test url",
 				},
 			},
 		}
@@ -1065,9 +1066,9 @@ func TestServersFrom(t *testing.T) {
 	})
 	t.Run("invalid url", func(t *testing.T) {
 		m := map[string]any{
-			tagNameServers: []any{
+			tags.Servers: []any{
 				map[string]any{
-					tagNameUrl: false,
+					tags.Url: false,
 				},
 			},
 		}
@@ -1076,10 +1077,10 @@ func TestServersFrom(t *testing.T) {
 	})
 	t.Run("invalid sever", func(t *testing.T) {
 		m := map[string]any{
-			tagNameServers: []any{
+			tags.Servers: []any{
 				map[string]any{
-					tagNameUrl:         "test url",
-					tagNameDescription: false,
+					tags.Url:         "test url",
+					tags.Description: false,
 				},
 			},
 		}
@@ -1088,7 +1089,7 @@ func TestServersFrom(t *testing.T) {
 	})
 	t.Run("invalid element", func(t *testing.T) {
 		m := map[string]any{
-			tagNameServers: []any{
+			tags.Servers: []any{
 				"not an object",
 			},
 		}
@@ -1097,7 +1098,7 @@ func TestServersFrom(t *testing.T) {
 	})
 	t.Run("not an array", func(t *testing.T) {
 		m := map[string]any{
-			tagNameServers: "not an array",
+			tags.Servers: "not an array",
 		}
 		_, err := serversFrom(m)
 		require.Error(t, err)
@@ -1107,7 +1108,7 @@ func TestServersFrom(t *testing.T) {
 func TestSecurityFrom(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		m := map[string]any{
-			tagNameSecurity: []any{
+			tags.Security: []any{
 				map[string]any{
 					"test": []any{"foo", "bar"},
 				},
@@ -1121,7 +1122,7 @@ func TestSecurityFrom(t *testing.T) {
 	})
 	t.Run("non-string scope", func(t *testing.T) {
 		m := map[string]any{
-			tagNameSecurity: []any{
+			tags.Security: []any{
 				map[string]any{
 					"test": []any{false},
 				},
@@ -1132,14 +1133,14 @@ func TestSecurityFrom(t *testing.T) {
 	})
 	t.Run("not array", func(t *testing.T) {
 		m := map[string]any{
-			tagNameSecurity: "not an array",
+			tags.Security: "not an array",
 		}
 		_, err := securityFrom(m)
 		require.Error(t, err)
 	})
 	t.Run("invalid element 1", func(t *testing.T) {
 		m := map[string]any{
-			tagNameSecurity: []any{
+			tags.Security: []any{
 				"not an object",
 			},
 		}
@@ -1148,7 +1149,7 @@ func TestSecurityFrom(t *testing.T) {
 	})
 	t.Run("invalid element 2", func(t *testing.T) {
 		m := map[string]any{
-			tagNameSecurity: []any{
+			tags.Security: []any{
 				map[string]any{
 					"test": nil,
 				},
@@ -1168,23 +1169,23 @@ func TestSecurityFrom(t *testing.T) {
 func TestComponentsFrom(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		m := map[string]any{
-			tagNameComponents: map[string]any{
-				tagNameSchemas: map[string]any{
+			tags.Components: map[string]any{
+				tags.Schemas: map[string]any{
 					"test": map[string]any{},
 				},
-				tagNameSecuritySchemes: map[string]any{
+				tags.SecuritySchemes: map[string]any{
 					"test": map[string]any{},
 				},
-				tagNameExamples: map[string]any{
+				tags.Examples: map[string]any{
 					"test": map[string]any{},
 				},
-				tagNameParameters: map[string]any{
+				tags.Parameters: map[string]any{
 					"test": map[string]any{},
 				},
-				tagNameRequestBodies: map[string]any{
+				tags.RequestBodies: map[string]any{
 					"test": map[string]any{},
 				},
-				tagNameResponses: map[string]any{
+				tags.Responses: map[string]any{
 					"test": map[string]any{},
 				},
 				"x-foo": "bar",
@@ -1203,10 +1204,10 @@ func TestComponentsFrom(t *testing.T) {
 	})
 	t.Run("bad schema", func(t *testing.T) {
 		m := map[string]any{
-			tagNameComponents: map[string]any{
-				tagNameSchemas: map[string]any{
+			tags.Components: map[string]any{
+				tags.Schemas: map[string]any{
 					"test": map[string]any{
-						tagNameDescription: true,
+						tags.Description: true,
 					},
 				},
 			},
@@ -1216,10 +1217,10 @@ func TestComponentsFrom(t *testing.T) {
 	})
 	t.Run("bad security scheme", func(t *testing.T) {
 		m := map[string]any{
-			tagNameComponents: map[string]any{
-				tagNameSecuritySchemes: map[string]any{
+			tags.Components: map[string]any{
+				tags.SecuritySchemes: map[string]any{
 					"test": map[string]any{
-						tagNameDescription: true,
+						tags.Description: true,
 					},
 				},
 			},
@@ -1229,10 +1230,10 @@ func TestComponentsFrom(t *testing.T) {
 	})
 	t.Run("bad example", func(t *testing.T) {
 		m := map[string]any{
-			tagNameComponents: map[string]any{
-				tagNameExamples: map[string]any{
+			tags.Components: map[string]any{
+				tags.Examples: map[string]any{
 					"test": map[string]any{
-						tagNameDescription: true,
+						tags.Description: true,
 					},
 				},
 			},
@@ -1242,10 +1243,10 @@ func TestComponentsFrom(t *testing.T) {
 	})
 	t.Run("bad parameter", func(t *testing.T) {
 		m := map[string]any{
-			tagNameComponents: map[string]any{
-				tagNameParameters: map[string]any{
+			tags.Components: map[string]any{
+				tags.Parameters: map[string]any{
 					"test": map[string]any{
-						tagNameDescription: true,
+						tags.Description: true,
 					},
 				},
 			},
@@ -1255,10 +1256,10 @@ func TestComponentsFrom(t *testing.T) {
 	})
 	t.Run("bad request", func(t *testing.T) {
 		m := map[string]any{
-			tagNameComponents: map[string]any{
-				tagNameRequestBodies: map[string]any{
+			tags.Components: map[string]any{
+				tags.RequestBodies: map[string]any{
 					"test": map[string]any{
-						tagNameDescription: true,
+						tags.Description: true,
 					},
 				},
 			},
@@ -1268,10 +1269,10 @@ func TestComponentsFrom(t *testing.T) {
 	})
 	t.Run("bad response", func(t *testing.T) {
 		m := map[string]any{
-			tagNameComponents: map[string]any{
-				tagNameResponses: map[string]any{
+			tags.Components: map[string]any{
+				tags.Responses: map[string]any{
 					"test": map[string]any{
-						tagNameDescription: true,
+						tags.Description: true,
 					},
 				},
 			},
@@ -1287,7 +1288,7 @@ func TestComponentsFrom(t *testing.T) {
 	})
 	t.Run("not an object", func(t *testing.T) {
 		m := map[string]any{
-			tagNameComponents: false,
+			tags.Components: false,
 		}
 		_, err := componentsFrom(m)
 		require.Error(t, err)
@@ -1297,11 +1298,11 @@ func TestComponentsFrom(t *testing.T) {
 func TestContentType_unmarshalObj(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		m := map[string]any{
-			tagNameSchema: map[string]any{
-				tagNameDescription: "test description",
-				tagNameType:        "object",
+			tags.Schema: map[string]any{
+				tags.Description: "test description",
+				tags.Type:        "object",
 			},
-			tagNameExamples: map[string]any{
+			tags.Examples: map[string]any{
 				"foo": map[string]any{},
 			},
 			"x-foo": "bar",
@@ -1317,8 +1318,8 @@ func TestContentType_unmarshalObj(t *testing.T) {
 	})
 	t.Run("success with ref", func(t *testing.T) {
 		m := map[string]any{
-			tagNameSchema: map[string]any{
-				tagNameRef: "some ref",
+			tags.Schema: map[string]any{
+				tags.Ref: "some ref",
 			},
 		}
 		r, err := fromObj[contentType](m)
@@ -1329,10 +1330,10 @@ func TestContentType_unmarshalObj(t *testing.T) {
 	})
 	t.Run("success with items", func(t *testing.T) {
 		m := map[string]any{
-			tagNameSchema: map[string]any{
-				tagNameType: "array",
-				tagNameItems: map[string]any{
-					tagNameDescription: "test description",
+			tags.Schema: map[string]any{
+				tags.Type: "array",
+				tags.Items: map[string]any{
+					tags.Description: "test description",
 				},
 			},
 		}
@@ -1345,10 +1346,10 @@ func TestContentType_unmarshalObj(t *testing.T) {
 	})
 	t.Run("fails with items not array type", func(t *testing.T) {
 		m := map[string]any{
-			tagNameSchema: map[string]any{
-				tagNameType: "object",
-				tagNameItems: map[string]any{
-					tagNameDescription: "test description",
+			tags.Schema: map[string]any{
+				tags.Type: "object",
+				tags.Items: map[string]any{
+					tags.Description: "test description",
 				},
 			},
 		}
@@ -1357,8 +1358,8 @@ func TestContentType_unmarshalObj(t *testing.T) {
 	})
 	t.Run("fails array type no items", func(t *testing.T) {
 		m := map[string]any{
-			tagNameSchema: map[string]any{
-				tagNameType: "array",
+			tags.Schema: map[string]any{
+				tags.Type: "array",
 			},
 		}
 		_, err := fromObj[contentType](m)
@@ -1366,9 +1367,9 @@ func TestContentType_unmarshalObj(t *testing.T) {
 	})
 	t.Run("fails items not an object", func(t *testing.T) {
 		m := map[string]any{
-			tagNameSchema: map[string]any{
-				tagNameType:  "array",
-				tagNameItems: "not an object",
+			tags.Schema: map[string]any{
+				tags.Type:  "array",
+				tags.Items: "not an object",
 			},
 		}
 		_, err := fromObj[contentType](m)
@@ -1381,15 +1382,15 @@ func TestContentType_unmarshalObj(t *testing.T) {
 	})
 	t.Run("bad schema", func(t *testing.T) {
 		m := map[string]any{
-			tagNameSchema: "not an object",
+			tags.Schema: "not an object",
 		}
 		_, err := fromObj[contentType](m)
 		require.Error(t, err)
 	})
 	t.Run("bad schema type", func(t *testing.T) {
 		m := map[string]any{
-			tagNameSchema: map[string]any{
-				tagNameType: false,
+			tags.Schema: map[string]any{
+				tags.Type: false,
 			},
 		}
 		_, err := fromObj[contentType](m)
@@ -1397,12 +1398,12 @@ func TestContentType_unmarshalObj(t *testing.T) {
 	})
 	t.Run("bad example", func(t *testing.T) {
 		m := map[string]any{
-			tagNameSchema: map[string]any{
-				tagNameDescription: "test description",
+			tags.Schema: map[string]any{
+				tags.Description: "test description",
 			},
-			tagNameExamples: map[string]any{
+			tags.Examples: map[string]any{
 				"foo": map[string]any{
-					tagNameDescription: true,
+					tags.Description: true,
 				},
 			},
 		}
@@ -1414,8 +1415,8 @@ func TestContentType_unmarshalObj(t *testing.T) {
 func Test_schemaFrom(t *testing.T) {
 	t.Run("success ref", func(t *testing.T) {
 		m := map[string]any{
-			tagNameSchema: map[string]any{
-				tagNameRef: "test ref",
+			tags.Schema: map[string]any{
+				tags.Ref: "test ref",
 			},
 		}
 		ref, schema, err := schemaFrom(m)
@@ -1425,7 +1426,7 @@ func Test_schemaFrom(t *testing.T) {
 	})
 	t.Run("success schema", func(t *testing.T) {
 		m := map[string]any{
-			tagNameSchema: map[string]any{},
+			tags.Schema: map[string]any{},
 		}
 		ref, schema, err := schemaFrom(m)
 		require.NoError(t, err)
@@ -1434,15 +1435,15 @@ func Test_schemaFrom(t *testing.T) {
 	})
 	t.Run("failure not object", func(t *testing.T) {
 		m := map[string]any{
-			tagNameSchema: "not an object",
+			tags.Schema: "not an object",
 		}
 		_, _, err := schemaFrom(m)
 		require.Error(t, err)
 	})
 	t.Run("failure ref", func(t *testing.T) {
 		m := map[string]any{
-			tagNameSchema: map[string]any{
-				tagNameRef: struct{}{},
+			tags.Schema: map[string]any{
+				tags.Ref: struct{}{},
 			},
 		}
 		_, _, err := schemaFrom(m)
@@ -1450,8 +1451,8 @@ func Test_schemaFrom(t *testing.T) {
 	})
 	t.Run("failure schema", func(t *testing.T) {
 		m := map[string]any{
-			tagNameSchema: map[string]any{
-				tagNameName: struct{}{},
+			tags.Schema: map[string]any{
+				tags.Name: struct{}{},
 			},
 		}
 		_, _, err := schemaFrom(m)
@@ -1567,7 +1568,7 @@ func TestNamedSliceFromProperty(t *testing.T) {
 
 func TestHasRef(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		ref, ok, err := hasRef(map[string]any{tagNameRef: "some ref"})
+		ref, ok, err := hasRef(map[string]any{tags.Ref: "some ref"})
 		require.NoError(t, err)
 		require.True(t, ok)
 		require.Equal(t, "some ref", ref)
@@ -1578,12 +1579,12 @@ func TestHasRef(t *testing.T) {
 		require.False(t, ok)
 	})
 	t.Run("not string", func(t *testing.T) {
-		_, _, err := hasRef(map[string]any{tagNameRef: true})
+		_, _, err := hasRef(map[string]any{tags.Ref: true})
 		require.Error(t, err)
 	})
 	t.Run("UnmarshalStrictRef", func(t *testing.T) {
 		m := map[string]any{
-			tagNameRef:       "some ref",
+			tags.Ref:         "some ref",
 			"other property": "other value",
 		}
 		_, ok, err := hasRef(m)

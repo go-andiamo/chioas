@@ -353,6 +353,42 @@ func TestMethod_WriteYaml_OptionalSecurity(t *testing.T) {
 	assert.Equal(t, expect, string(data))
 }
 
+func TestMethod_WriteYaml_Security(t *testing.T) {
+	opts := &DocOptions{}
+	m := Method{
+		Description: "test desc",
+		Security: SecuritySchemes{
+			{
+				Name:        "foo",
+				Description: "test description",
+			},
+			{
+				Name:        "bar",
+				Description: "test description",
+			},
+		},
+	}
+	pathTemplate := urit.MustCreateTemplate("/root/foo")
+	w := yaml.NewWriter(nil)
+	m.writeYaml(opts, pathTemplate, nil, nil, "", http.MethodGet, w)
+	data, err := w.Bytes()
+	require.NoError(t, err)
+	const expect = `get:
+  description: "test desc"
+  security:
+    - foo: []
+    - bar: []
+  responses:
+    200:
+      description: OK
+      content:
+        "application/json":
+          schema:
+            type: object
+`
+	assert.Equal(t, expect, string(data))
+}
+
 func TestMethods_Sorted(t *testing.T) {
 	ms := Methods{
 		"MOVE":             {},

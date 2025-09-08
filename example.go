@@ -3,6 +3,7 @@ package chioas
 import (
 	"errors"
 	"fmt"
+	"github.com/go-andiamo/chioas/internal/tags"
 	"github.com/go-andiamo/chioas/yaml"
 )
 
@@ -21,7 +22,7 @@ func (egs Examples) writeYaml(w yaml.Writer) {
 				m[eg.Name] = struct{}{}
 			}
 		}
-		w.WriteTagStart(tagNameExamples)
+		w.WriteTagStart(tags.Examples)
 		for _, eg := range egs {
 			eg.writeYaml(w)
 		}
@@ -64,14 +65,14 @@ func (eg *Example) writeYaml(w yaml.Writer) {
 	w.WriteTagStart(eg.Name).
 		WriteComments(eg.Comment)
 	if eg.ExampleRef != "" {
-		writeRef(tagNameExamples, eg.ExampleRef, w)
+		writeRef(tags.Examples, eg.ExampleRef, w)
 	} else {
-		w.WriteTagValue(tagNameSummary, eg.Summary).
-			WriteTagValue(tagNameDescription, eg.Description)
+		w.WriteTagValue(tags.Summary, eg.Summary).
+			WriteTagValue(tags.Description, eg.Description)
 		if eg.Value != nil {
-			w.WriteTagValue(tagNameValue, eg.Value)
+			w.WriteTagValue(tags.Value, eg.Value)
 		} else {
-			w.WriteTagValue(tagNameValue, yaml.LiteralValue{Value: "null"})
+			w.WriteTagValue(tags.Value, yaml.LiteralValue{Value: "null"})
 		}
 		writeExtensions(eg.Extensions, w)
 		writeAdditional(eg.Additional, eg, w)

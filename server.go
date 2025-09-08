@@ -1,12 +1,15 @@
 package chioas
 
-import "github.com/go-andiamo/chioas/yaml"
+import (
+	"github.com/go-andiamo/chioas/internal/tags"
+	"github.com/go-andiamo/chioas/yaml"
+)
 
 type Servers map[string]Server
 
 func (s Servers) writeYaml(w yaml.Writer) {
 	if len(s) > 0 {
-		w.WriteTagStart(tagNameServers)
+		w.WriteTagStart(tags.Servers)
 		for url, svr := range s {
 			svr.writeYaml(url, w)
 		}
@@ -27,9 +30,9 @@ type Server struct {
 }
 
 func (s Server) writeYaml(url string, w yaml.Writer) {
-	w.WriteItemStart(tagNameUrl, url).
+	w.WriteItemStart(tags.Url, url).
 		WriteComments(s.Comment).
-		WriteTagValue(tagNameDescription, s.Description)
+		WriteTagValue(tags.Description, s.Description)
 	writeExtensions(s.Extensions, w)
 	writeAdditional(s.Additional, s, w)
 	w.WriteTagEnd()

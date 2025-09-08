@@ -3,6 +3,8 @@ package chioas
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/go-andiamo/chioas/internal/tags"
+	"github.com/go-andiamo/chioas/internal/values"
 	"github.com/go-andiamo/chioas/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -104,7 +106,7 @@ func TestSchemaMustFrom_Simple(t *testing.T) {
 	}{})
 	assert.Equal(t, s, s2)
 	assert.Equal(t, 1, len(s.Properties))
-	assert.Equal(t, tagValueTypeString, s.Properties[0].Type)
+	assert.Equal(t, values.TypeString, s.Properties[0].Type)
 	assert.True(t, s.Properties[0].Required)
 	assert.Equal(t, 1, len(s.RequiredProperties))
 	assert.Equal(t, "Foo", s.RequiredProperties[0])
@@ -965,23 +967,23 @@ func TestSchema_From_WithExamples(t *testing.T) {
 	assert.Equal(t, 3, len(s.Properties))
 	pty := s.Properties[0]
 	assert.Equal(t, "Foo", pty.Name)
-	assert.Equal(t, tagValueTypeString, pty.Type)
+	assert.Equal(t, values.TypeString, pty.Type)
 	assert.Equal(t, "", pty.ItemType)
 	assert.Equal(t, "foo example", pty.Example)
 	pty = s.Properties[1]
 	assert.Equal(t, "Bar", pty.Name)
-	assert.Equal(t, tagValueTypeArray, pty.Type)
-	assert.Equal(t, tagValueTypeString, pty.ItemType)
+	assert.Equal(t, values.TypeArray, pty.Type)
+	assert.Equal(t, values.TypeString, pty.ItemType)
 	assert.Equal(t, "bar example", pty.Example)
 	pty = s.Properties[2]
 	assert.Equal(t, "Baz", pty.Name)
-	assert.Equal(t, tagValueTypeObject, pty.Type)
+	assert.Equal(t, values.TypeObject, pty.Type)
 	assert.Equal(t, "", pty.ItemType)
 	assert.Nil(t, pty.Example)
 	assert.Equal(t, 1, len(pty.Properties))
 	pty = pty.Properties[0]
 	assert.Equal(t, "Buzz", pty.Name)
-	assert.Equal(t, tagValueTypeString, pty.Type)
+	assert.Equal(t, values.TypeString, pty.Type)
 	assert.Equal(t, "", pty.ItemType)
 	assert.Equal(t, "buzz example", pty.Example)
 }
@@ -997,136 +999,136 @@ func TestTokenSetters(t *testing.T) {
 		expectError string
 	}{
 		{
-			token: tagNameName,
+			token: tags.Name,
 			value: `foo`,
 			assert: func(t *testing.T, pty *Property) {
 				assert.Equal(t, `foo`, pty.Name)
 			},
 		},
 		{
-			token: tagNameName,
+			token: tags.Name,
 			value: `"foo"`,
 			assert: func(t *testing.T, pty *Property) {
 				assert.Equal(t, `foo`, pty.Name)
 			},
 		},
 		{
-			token: tagNameName,
+			token: tags.Name,
 			value: `'foo'`,
 			assert: func(t *testing.T, pty *Property) {
 				assert.Equal(t, `foo`, pty.Name)
 			},
 		},
 		{
-			token: tagNameDescription,
+			token: tags.Description,
 			value: `foo`,
 			assert: func(t *testing.T, pty *Property) {
 				assert.Equal(t, `foo`, pty.Description)
 			},
 		},
 		{
-			token: tagNameDescription,
+			token: tags.Description,
 			value: `"foo"`,
 			assert: func(t *testing.T, pty *Property) {
 				assert.Equal(t, `foo`, pty.Description)
 			},
 		},
 		{
-			token: tagNameDescription,
+			token: tags.Description,
 			value: `'foo'`,
 			assert: func(t *testing.T, pty *Property) {
 				assert.Equal(t, `foo`, pty.Description)
 			},
 		},
 		{
-			token: tagNameFormat,
+			token: tags.Format,
 			value: `foo`,
 			assert: func(t *testing.T, pty *Property) {
 				assert.Equal(t, `foo`, pty.Format)
 			},
 		},
 		{
-			token: tagNameFormat,
+			token: tags.Format,
 			value: `"foo"`,
 			assert: func(t *testing.T, pty *Property) {
 				assert.Equal(t, `foo`, pty.Format)
 			},
 		},
 		{
-			token: tagNameFormat,
+			token: tags.Format,
 			value: `'foo'`,
 			assert: func(t *testing.T, pty *Property) {
 				assert.Equal(t, `foo`, pty.Format)
 			},
 		},
 		{
-			token: tagNameType,
+			token: tags.Type,
 			value: `string`,
 			assert: func(t *testing.T, pty *Property) {
 				assert.Equal(t, `string`, pty.Type)
 			},
 		},
 		{
-			token: tagNameType,
+			token: tags.Type,
 			value: `"string"`,
 			assert: func(t *testing.T, pty *Property) {
 				assert.Equal(t, `string`, pty.Type)
 			},
 		},
 		{
-			token: tagNameType,
+			token: tags.Type,
 			value: `'string'`,
 			assert: func(t *testing.T, pty *Property) {
 				assert.Equal(t, `string`, pty.Type)
 			},
 		},
 		{
-			token:       tagNameType,
+			token:       tags.Type,
 			value:       `foo`,
 			expectError: `invalid oas token 'type' value 'foo' (must be: ""|"string"|"object"|"array"|"boolean"|"integer"|"number"|"null")`,
 		},
 		{
-			token: tagNameItemType,
+			token: tags.ItemType,
 			value: `string`,
 			assert: func(t *testing.T, pty *Property) {
 				assert.Equal(t, `string`, pty.ItemType)
 			},
 		},
 		{
-			token: tagNameItemType,
+			token: tags.ItemType,
 			value: `"string"`,
 			assert: func(t *testing.T, pty *Property) {
 				assert.Equal(t, `string`, pty.ItemType)
 			},
 		},
 		{
-			token: tagNameItemType,
+			token: tags.ItemType,
 			value: `'string'`,
 			assert: func(t *testing.T, pty *Property) {
 				assert.Equal(t, `string`, pty.ItemType)
 			},
 		},
 		{
-			token:       tagNameItemType,
+			token:       tags.ItemType,
 			value:       `foo`,
 			expectError: `invalid oas token 'itemType' value 'foo' (must be: ""|"string"|"object"|"array"|"boolean"|"integer"|"number"|"null")`,
 		},
 		{
-			token:   tagNameRequired,
+			token:   tags.Required,
 			noValue: true,
 			assert: func(t *testing.T, pty *Property) {
 				assert.True(t, pty.Required)
 			},
 		},
 		{
-			token: tagNameRequired,
+			token: tags.Required,
 			value: "true",
 			assert: func(t *testing.T, pty *Property) {
 				assert.True(t, pty.Required)
 			},
 		},
 		{
-			token: tagNameRequired,
+			token: tags.Required,
 			value: "false",
 			pty:   &Property{Required: true},
 			assert: func(t *testing.T, pty *Property) {
@@ -1134,26 +1136,26 @@ func TestTokenSetters(t *testing.T) {
 			},
 		},
 		{
-			token:       tagNameRequired,
+			token:       tags.Required,
 			value:       "blah",
 			expectError: "invalid oas token 'required' value 'blah'",
 		},
 		{
-			token:   tagNameDeprecated,
+			token:   tags.Deprecated,
 			noValue: true,
 			assert: func(t *testing.T, pty *Property) {
 				assert.True(t, pty.Deprecated)
 			},
 		},
 		{
-			token: tagNameDeprecated,
+			token: tags.Deprecated,
 			value: "true",
 			assert: func(t *testing.T, pty *Property) {
 				assert.True(t, pty.Deprecated)
 			},
 		},
 		{
-			token: tagNameDeprecated,
+			token: tags.Deprecated,
 			value: "false",
 			pty:   &Property{Deprecated: true},
 			assert: func(t *testing.T, pty *Property) {
@@ -1161,92 +1163,92 @@ func TestTokenSetters(t *testing.T) {
 			},
 		},
 		{
-			token:       tagNameDeprecated,
+			token:       tags.Deprecated,
 			value:       "blah",
 			expectError: "invalid oas token 'deprecated' value 'blah'",
 		},
 		{
-			token: tagNameRef,
+			token: tags.Ref,
 			value: `foo`,
 			assert: func(t *testing.T, pty *Property) {
 				assert.Equal(t, `foo`, pty.SchemaRef)
 			},
 		},
 		{
-			token: tagNameRef,
+			token: tags.Ref,
 			value: `"foo"`,
 			assert: func(t *testing.T, pty *Property) {
 				assert.Equal(t, `foo`, pty.SchemaRef)
 			},
 		},
 		{
-			token: tagNameRef,
+			token: tags.Ref,
 			value: `'foo'`,
 			assert: func(t *testing.T, pty *Property) {
 				assert.Equal(t, `foo`, pty.SchemaRef)
 			},
 		},
 		{
-			token: tagNamePattern,
+			token: tags.Pattern,
 			value: `foo`,
 			assert: func(t *testing.T, pty *Property) {
 				assert.Equal(t, `foo`, pty.Constraints.Pattern)
 			},
 		},
 		{
-			token: tagNamePattern,
+			token: tags.Pattern,
 			value: `"foo"`,
 			assert: func(t *testing.T, pty *Property) {
 				assert.Equal(t, `foo`, pty.Constraints.Pattern)
 			},
 		},
 		{
-			token: tagNamePattern,
+			token: tags.Pattern,
 			value: `'foo'`,
 			assert: func(t *testing.T, pty *Property) {
 				assert.Equal(t, `foo`, pty.Constraints.Pattern)
 			},
 		},
 		{
-			token: tagNameMaximum,
+			token: tags.Maximum,
 			value: `1`,
 			assert: func(t *testing.T, pty *Property) {
 				assert.Equal(t, `1`, pty.Constraints.Maximum.String())
 			},
 		},
 		{
-			token:       tagNameMaximum,
+			token:       tags.Maximum,
 			value:       `foo`,
 			expectError: "invalid oas token 'maximum' value 'foo'",
 		},
 		{
-			token: tagNameMinimum,
+			token: tags.Minimum,
 			value: `1`,
 			assert: func(t *testing.T, pty *Property) {
 				assert.Equal(t, `1`, pty.Constraints.Minimum.String())
 			},
 		},
 		{
-			token:       tagNameMinimum,
+			token:       tags.Minimum,
 			value:       `foo`,
 			expectError: "invalid oas token 'minimum' value 'foo'",
 		},
 		{
-			token:   tagNameExclusiveMaximum,
+			token:   tags.ExclusiveMaximum,
 			noValue: true,
 			assert: func(t *testing.T, pty *Property) {
 				assert.True(t, pty.Constraints.ExclusiveMaximum)
 			},
 		},
 		{
-			token: tagNameExclusiveMaximum,
+			token: tags.ExclusiveMaximum,
 			value: "true",
 			assert: func(t *testing.T, pty *Property) {
 				assert.True(t, pty.Constraints.ExclusiveMaximum)
 			},
 		},
 		{
-			token: tagNameExclusiveMaximum,
+			token: tags.ExclusiveMaximum,
 			value: "false",
 			pty:   &Property{Constraints: Constraints{ExclusiveMaximum: true}},
 			assert: func(t *testing.T, pty *Property) {
@@ -1254,26 +1256,26 @@ func TestTokenSetters(t *testing.T) {
 			},
 		},
 		{
-			token:       tagNameExclusiveMaximum,
+			token:       tags.ExclusiveMaximum,
 			value:       "blah",
 			expectError: "invalid oas token 'exclusiveMaximum' value 'blah'",
 		},
 		{
-			token:   tagNameExclusiveMinimum,
+			token:   tags.ExclusiveMinimum,
 			noValue: true,
 			assert: func(t *testing.T, pty *Property) {
 				assert.True(t, pty.Constraints.ExclusiveMinimum)
 			},
 		},
 		{
-			token: tagNameExclusiveMinimum,
+			token: tags.ExclusiveMinimum,
 			value: "true",
 			assert: func(t *testing.T, pty *Property) {
 				assert.True(t, pty.Constraints.ExclusiveMinimum)
 			},
 		},
 		{
-			token: tagNameExclusiveMinimum,
+			token: tags.ExclusiveMinimum,
 			value: "false",
 			pty:   &Property{Constraints: Constraints{ExclusiveMinimum: true}},
 			assert: func(t *testing.T, pty *Property) {
@@ -1281,26 +1283,26 @@ func TestTokenSetters(t *testing.T) {
 			},
 		},
 		{
-			token:       tagNameExclusiveMinimum,
+			token:       tags.ExclusiveMinimum,
 			value:       "blah",
 			expectError: "invalid oas token 'exclusiveMinimum' value 'blah'",
 		},
 		{
-			token:   tagNameNullable,
+			token:   tags.Nullable,
 			noValue: true,
 			assert: func(t *testing.T, pty *Property) {
 				assert.True(t, pty.Constraints.Nullable)
 			},
 		},
 		{
-			token: tagNameNullable,
+			token: tags.Nullable,
 			value: "true",
 			assert: func(t *testing.T, pty *Property) {
 				assert.True(t, pty.Constraints.Nullable)
 			},
 		},
 		{
-			token: tagNameNullable,
+			token: tags.Nullable,
 			value: "false",
 			pty:   &Property{Constraints: Constraints{Nullable: true}},
 			assert: func(t *testing.T, pty *Property) {
@@ -1308,26 +1310,26 @@ func TestTokenSetters(t *testing.T) {
 			},
 		},
 		{
-			token:       tagNameNullable,
+			token:       tags.Nullable,
 			value:       "blah",
 			expectError: "invalid oas token 'nullable' value 'blah'",
 		},
 		{
-			token:   tagNameUniqueItems,
+			token:   tags.UniqueItems,
 			noValue: true,
 			assert: func(t *testing.T, pty *Property) {
 				assert.True(t, pty.Constraints.UniqueItems)
 			},
 		},
 		{
-			token: tagNameUniqueItems,
+			token: tags.UniqueItems,
 			value: "true",
 			assert: func(t *testing.T, pty *Property) {
 				assert.True(t, pty.Constraints.UniqueItems)
 			},
 		},
 		{
-			token: tagNameUniqueItems,
+			token: tags.UniqueItems,
 			value: "false",
 			pty:   &Property{Constraints: Constraints{UniqueItems: true}},
 			assert: func(t *testing.T, pty *Property) {
@@ -1335,96 +1337,96 @@ func TestTokenSetters(t *testing.T) {
 			},
 		},
 		{
-			token:       tagNameUniqueItems,
+			token:       tags.UniqueItems,
 			value:       "blah",
 			expectError: "invalid oas token 'uniqueItems' value 'blah'",
 		},
 		{
-			token: tagNameMaxLength,
+			token: tags.MaxLength,
 			value: "1",
 			assert: func(t *testing.T, pty *Property) {
 				assert.Equal(t, uint(1), pty.Constraints.MaxLength)
 			},
 		},
 		{
-			token:       tagNameMaxLength,
+			token:       tags.MaxLength,
 			value:       "blah",
 			expectError: "invalid oas token 'maxLength' value 'blah'",
 		},
 		{
-			token: tagNameMinLength,
+			token: tags.MinLength,
 			value: "1",
 			assert: func(t *testing.T, pty *Property) {
 				assert.Equal(t, uint(1), pty.Constraints.MinLength)
 			},
 		},
 		{
-			token:       tagNameMinLength,
+			token:       tags.MinLength,
 			value:       "blah",
 			expectError: "invalid oas token 'minLength' value 'blah'",
 		},
 		{
-			token: tagNameMaxItems,
+			token: tags.MaxItems,
 			value: "1",
 			assert: func(t *testing.T, pty *Property) {
 				assert.Equal(t, uint(1), pty.Constraints.MaxItems)
 			},
 		},
 		{
-			token:       tagNameMaxItems,
+			token:       tags.MaxItems,
 			value:       "blah",
 			expectError: "invalid oas token 'maxItems' value 'blah'",
 		},
 		{
-			token: tagNameMinItems,
+			token: tags.MinItems,
 			value: "1",
 			assert: func(t *testing.T, pty *Property) {
 				assert.Equal(t, uint(1), pty.Constraints.MinItems)
 			},
 		},
 		{
-			token:       tagNameMinItems,
+			token:       tags.MinItems,
 			value:       "blah",
 			expectError: "invalid oas token 'minItems' value 'blah'",
 		},
 		{
-			token: tagNameMaxProperties,
+			token: tags.MaxProperties,
 			value: "1",
 			assert: func(t *testing.T, pty *Property) {
 				assert.Equal(t, uint(1), pty.Constraints.MaxProperties)
 			},
 		},
 		{
-			token:       tagNameMaxProperties,
+			token:       tags.MaxProperties,
 			value:       "blah",
 			expectError: "invalid oas token 'maxProperties' value 'blah'",
 		},
 		{
-			token: tagNameMinProperties,
+			token: tags.MinProperties,
 			value: "1",
 			assert: func(t *testing.T, pty *Property) {
 				assert.Equal(t, uint(1), pty.Constraints.MinProperties)
 			},
 		},
 		{
-			token:       tagNameMinProperties,
+			token:       tags.MinProperties,
 			value:       "blah",
 			expectError: "invalid oas token 'minProperties' value 'blah'",
 		},
 		{
-			token: tagNameMultipleOf,
+			token: tags.MultipleOf,
 			value: "1",
 			assert: func(t *testing.T, pty *Property) {
 				assert.Equal(t, uint(1), pty.Constraints.MultipleOf)
 			},
 		},
 		{
-			token:       tagNameMultipleOf,
+			token:       tags.MultipleOf,
 			value:       "blah",
 			expectError: "invalid oas token 'multipleOf' value 'blah'",
 		},
 		{
-			token: tagNameEnum,
+			token: tags.Enum,
 			value: `"foo"`,
 			assert: func(t *testing.T, pty *Property) {
 				assert.Equal(t, 1, len(pty.Enum))
@@ -1433,7 +1435,7 @@ func TestTokenSetters(t *testing.T) {
 			},
 		},
 		{
-			token: tagNameEnum,
+			token: tags.Enum,
 			value: `foo`,
 			assert: func(t *testing.T, pty *Property) {
 				assert.Equal(t, 1, len(pty.Enum))
@@ -1442,7 +1444,7 @@ func TestTokenSetters(t *testing.T) {
 			},
 		},
 		{
-			token: tagNameEnum,
+			token: tags.Enum,
 			value: `[foo,]`,
 			assert: func(t *testing.T, pty *Property) {
 				assert.Equal(t, 1, len(pty.Enum))
@@ -1451,7 +1453,7 @@ func TestTokenSetters(t *testing.T) {
 			},
 		},
 		{
-			token: tagNameEnum,
+			token: tags.Enum,
 			value: `[,foo,,]`,
 			assert: func(t *testing.T, pty *Property) {
 				assert.Equal(t, 1, len(pty.Enum))
@@ -1460,7 +1462,7 @@ func TestTokenSetters(t *testing.T) {
 			},
 		},
 		{
-			token: tagNameEnum,
+			token: tags.Enum,
 			value: `[foo,bar]`,
 			assert: func(t *testing.T, pty *Property) {
 				assert.Equal(t, 2, len(pty.Enum))
@@ -1471,7 +1473,7 @@ func TestTokenSetters(t *testing.T) {
 			},
 		},
 		{
-			token:       tagNameEnum,
+			token:       tags.Enum,
 			value:       `[foo,bar]]`,
 			expectError: `unopened ']' at position 7`,
 		},

@@ -1,6 +1,9 @@
 package chioas
 
-import "github.com/go-andiamo/chioas/yaml"
+import (
+	"github.com/go-andiamo/chioas/internal/tags"
+	"github.com/go-andiamo/chioas/yaml"
+)
 
 // Tags is an ordered collection of Tag
 type Tags []Tag
@@ -22,9 +25,9 @@ type Tag struct {
 }
 
 func (t Tag) writeYaml(w yaml.Writer) {
-	w.WriteItemStart(tagNameName, t.Name).
+	w.WriteItemStart(tags.Name, t.Name).
 		WriteComments(t.Comment).
-		WriteTagValue(tagNameDescription, t.Description)
+		WriteTagValue(tags.Description, t.Description)
 	if t.ExternalDocs != nil {
 		t.ExternalDocs.writeYaml(w)
 	}

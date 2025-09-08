@@ -2,6 +2,8 @@ package chioas
 
 import (
 	"fmt"
+	"github.com/go-andiamo/chioas/internal/refs"
+	"github.com/go-andiamo/chioas/internal/tags"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"net/http"
@@ -377,7 +379,7 @@ func TestPath_checkRefs(t *testing.T) {
 			path: Path{
 				PathParams: PathParams{
 					"foo": {
-						Ref: refComponentsPrefix + tagNameParameters + "/foo",
+						Ref: refs.ComponentsPrefix + tags.Parameters + "/foo",
 					},
 				},
 			},
@@ -387,7 +389,7 @@ func TestPath_checkRefs(t *testing.T) {
 			path: Path{
 				PathParams: PathParams{
 					"foo": {
-						Ref: refComponentsPrefix + tagNameParameters + "/bar",
+						Ref: refs.ComponentsPrefix + tags.Parameters + "/bar",
 					},
 				},
 			},
@@ -398,7 +400,7 @@ func TestPath_checkRefs(t *testing.T) {
 			path: Path{
 				PathParams: PathParams{
 					"foo": {
-						Ref: refComponentsPrefix + tagNameSchemas + "/foo",
+						Ref: refs.ComponentsPrefix + tags.Schemas + "/foo",
 					},
 				},
 			},
@@ -419,7 +421,7 @@ func TestPath_checkRefs(t *testing.T) {
 			path: Path{
 				PathParams: PathParams{
 					"foo": {
-						SchemaRef: refComponentsPrefix + tagNameSchemas + "/foo",
+						SchemaRef: refs.ComponentsPrefix + tags.Schemas + "/foo",
 					},
 				},
 			},
@@ -440,7 +442,7 @@ func TestPath_checkRefs(t *testing.T) {
 			path: Path{
 				PathParams: PathParams{
 					"foo": {
-						SchemaRef: refComponentsPrefix + tagNameSchemas + "/bar",
+						SchemaRef: refs.ComponentsPrefix + tags.Schemas + "/bar",
 					},
 				},
 			},
@@ -451,7 +453,7 @@ func TestPath_checkRefs(t *testing.T) {
 			path: Path{
 				PathParams: PathParams{
 					"foo": {
-						SchemaRef: refComponentsPrefix + tagNameParameters + "/foo",
+						SchemaRef: refs.ComponentsPrefix + tags.Parameters + "/foo",
 					},
 				},
 			},
@@ -463,7 +465,7 @@ func TestPath_checkRefs(t *testing.T) {
 				PathParams: PathParams{
 					"foo": {
 						Schema:    &Schema{},
-						SchemaRef: refComponentsPrefix + tagNameSchemas + "/bar",
+						SchemaRef: refs.ComponentsPrefix + tags.Schemas + "/bar",
 					},
 				},
 			},
@@ -505,7 +507,7 @@ func TestCommonParameter_checkRefs(t *testing.T) {
 		{
 			//full schema ref ok
 			param: CommonParameter{
-				SchemaRef: refComponentsPrefix + tagNameSchemas + "/foo",
+				SchemaRef: refs.ComponentsPrefix + tags.Schemas + "/foo",
 			},
 		},
 		{
@@ -518,14 +520,14 @@ func TestCommonParameter_checkRefs(t *testing.T) {
 		{
 			//full schema ref not found
 			param: CommonParameter{
-				SchemaRef: refComponentsPrefix + tagNameSchemas + "/bar",
+				SchemaRef: refs.ComponentsPrefix + tags.Schemas + "/bar",
 			},
 			expectedErrs: 1,
 		},
 		{
 			//full schema ref incorrect area
 			param: CommonParameter{
-				SchemaRef: refComponentsPrefix + tagNameParameters + "/foo",
+				SchemaRef: refs.ComponentsPrefix + tags.Parameters + "/foo",
 			},
 			expectedErrs: 1,
 		},
@@ -533,7 +535,7 @@ func TestCommonParameter_checkRefs(t *testing.T) {
 			//full schema ref not found + has both schema ref and schema
 			param: CommonParameter{
 				Schema:    &Schema{},
-				SchemaRef: refComponentsPrefix + tagNameSchemas + "/bar",
+				SchemaRef: refs.ComponentsPrefix + tags.Schemas + "/bar",
 			},
 			expectedErrs: 2,
 		},
@@ -588,7 +590,7 @@ func TestQueryParams_checkRefs(t *testing.T) {
 			//full ref ok
 			params: QueryParams{
 				{
-					Ref: refComponentsPrefix + tagNameParameters + "/foo",
+					Ref: refs.ComponentsPrefix + tags.Parameters + "/foo",
 				},
 			},
 		},
@@ -596,7 +598,7 @@ func TestQueryParams_checkRefs(t *testing.T) {
 			//full ref not found
 			params: QueryParams{
 				{
-					Ref: refComponentsPrefix + tagNameParameters + "/bar",
+					Ref: refs.ComponentsPrefix + tags.Parameters + "/bar",
 				},
 			},
 			expectedErrs: 1,
@@ -605,7 +607,7 @@ func TestQueryParams_checkRefs(t *testing.T) {
 			//full ref bad area
 			params: QueryParams{
 				{
-					Ref: refComponentsPrefix + tagNameSchemas + "/foo",
+					Ref: refs.ComponentsPrefix + tags.Schemas + "/foo",
 				},
 			},
 			expectedErrs: 1,
@@ -622,7 +624,7 @@ func TestQueryParams_checkRefs(t *testing.T) {
 			//full schema ref ok
 			params: QueryParams{
 				{
-					SchemaRef: refComponentsPrefix + tagNameSchemas + "/foo",
+					SchemaRef: refs.ComponentsPrefix + tags.Schemas + "/foo",
 				},
 			},
 		},
@@ -639,7 +641,7 @@ func TestQueryParams_checkRefs(t *testing.T) {
 			//full schema ref not found
 			params: QueryParams{
 				{
-					SchemaRef: refComponentsPrefix + tagNameSchemas + "/bar",
+					SchemaRef: refs.ComponentsPrefix + tags.Schemas + "/bar",
 				},
 			},
 			expectedErrs: 1,
@@ -648,7 +650,7 @@ func TestQueryParams_checkRefs(t *testing.T) {
 			//full schema ref incorrect area
 			params: QueryParams{
 				{
-					SchemaRef: refComponentsPrefix + tagNameParameters + "/foo",
+					SchemaRef: refs.ComponentsPrefix + tags.Parameters + "/foo",
 				},
 			},
 			expectedErrs: 1,
@@ -658,7 +660,7 @@ func TestQueryParams_checkRefs(t *testing.T) {
 			params: QueryParams{
 				{
 					Schema:    &Schema{},
-					SchemaRef: refComponentsPrefix + tagNameSchemas + "/bar",
+					SchemaRef: refs.ComponentsPrefix + tags.Schemas + "/bar",
 				},
 			},
 			expectedErrs: 2,
@@ -710,20 +712,20 @@ func TestRequest_checkRefs(t *testing.T) {
 		{
 			// full ref ok
 			request: &Request{
-				Ref: refComponentsPrefix + tagNameRequestBodies + "/foo",
+				Ref: refs.ComponentsPrefix + tags.RequestBodies + "/foo",
 			},
 		},
 		{
 			// full ref not found
 			request: &Request{
-				Ref: refComponentsPrefix + tagNameRequestBodies + "/bar",
+				Ref: refs.ComponentsPrefix + tags.RequestBodies + "/bar",
 			},
 			expectedErrs: 1,
 		},
 		{
 			// full ref invalid area
 			request: &Request{
-				Ref: refComponentsPrefix + tagNameSchemas + "/foo",
+				Ref: refs.ComponentsPrefix + tags.Schemas + "/foo",
 			},
 			expectedErrs: 1,
 		},
@@ -743,27 +745,27 @@ func TestRequest_checkRefs(t *testing.T) {
 		{
 			// full schema ref ok
 			request: &Request{
-				SchemaRef: refComponentsPrefix + tagNameSchemas + "/foo",
+				SchemaRef: refs.ComponentsPrefix + tags.Schemas + "/foo",
 			},
 		},
 		{
 			// full schema ref not found
 			request: &Request{
-				SchemaRef: refComponentsPrefix + tagNameSchemas + "/bar",
+				SchemaRef: refs.ComponentsPrefix + tags.Schemas + "/bar",
 			},
 			expectedErrs: 1,
 		},
 		{
 			// full schema ref invalid area
 			request: &Request{
-				SchemaRef: refComponentsPrefix + tagNameExamples + "/foo",
+				SchemaRef: refs.ComponentsPrefix + tags.Examples + "/foo",
 			},
 			expectedErrs: 1,
 		},
 		{
 			// full schema ref with schema
 			request: &Request{
-				SchemaRef: refComponentsPrefix + tagNameSchemas + "/foo",
+				SchemaRef: refs.ComponentsPrefix + tags.Schemas + "/foo",
 				Schema:    &Schema{},
 			},
 			expectedErrs: 1,
@@ -771,7 +773,7 @@ func TestRequest_checkRefs(t *testing.T) {
 		{
 			// full schema ref with schema
 			request: &Request{
-				SchemaRef: refComponentsPrefix + tagNameSchemas + "/foo",
+				SchemaRef: refs.ComponentsPrefix + tags.Schemas + "/foo",
 				Schema:    Schema{},
 			},
 			expectedErrs: 1,
@@ -865,20 +867,20 @@ func TestResponse_checkRefs(t *testing.T) {
 		{
 			// full ref ok
 			response: Response{
-				Ref: refComponentsPrefix + tagNameResponses + "/foo",
+				Ref: refs.ComponentsPrefix + tags.Responses + "/foo",
 			},
 		},
 		{
 			// full ref not found
 			response: Response{
-				Ref: refComponentsPrefix + tagNameResponses + "/bar",
+				Ref: refs.ComponentsPrefix + tags.Responses + "/bar",
 			},
 			expectedErrs: 1,
 		},
 		{
 			// full ref invalid area
 			response: Response{
-				Ref: refComponentsPrefix + tagNameSchemas + "/foo",
+				Ref: refs.ComponentsPrefix + tags.Schemas + "/foo",
 			},
 			expectedErrs: 1,
 		},
@@ -898,27 +900,27 @@ func TestResponse_checkRefs(t *testing.T) {
 		{
 			// full schema ref ok
 			response: Response{
-				SchemaRef: refComponentsPrefix + tagNameSchemas + "/foo",
+				SchemaRef: refs.ComponentsPrefix + tags.Schemas + "/foo",
 			},
 		},
 		{
 			// full schema ref not found
 			response: Response{
-				SchemaRef: refComponentsPrefix + tagNameSchemas + "/bar",
+				SchemaRef: refs.ComponentsPrefix + tags.Schemas + "/bar",
 			},
 			expectedErrs: 1,
 		},
 		{
 			// full schema ref invalid area
 			response: Response{
-				SchemaRef: refComponentsPrefix + tagNameExamples + "/foo",
+				SchemaRef: refs.ComponentsPrefix + tags.Examples + "/foo",
 			},
 			expectedErrs: 1,
 		},
 		{
 			// full schema ref with schema
 			response: Response{
-				SchemaRef: refComponentsPrefix + tagNameSchemas + "/foo",
+				SchemaRef: refs.ComponentsPrefix + tags.Schemas + "/foo",
 				Schema:    &Schema{},
 			},
 			expectedErrs: 1,
@@ -926,7 +928,7 @@ func TestResponse_checkRefs(t *testing.T) {
 		{
 			// full schema ref with schema
 			response: Response{
-				SchemaRef: refComponentsPrefix + tagNameSchemas + "/foo",
+				SchemaRef: refs.ComponentsPrefix + tags.Schemas + "/foo",
 				Schema:    Schema{},
 			},
 			expectedErrs: 1,
@@ -1021,7 +1023,7 @@ func TestExamples_checkRefs(t *testing.T) {
 			//full ref ok
 			examples: Examples{
 				{
-					ExampleRef: refComponentsPrefix + tagNameExamples + "/foo",
+					ExampleRef: refs.ComponentsPrefix + tags.Examples + "/foo",
 				},
 			},
 		},
@@ -1029,7 +1031,7 @@ func TestExamples_checkRefs(t *testing.T) {
 			//full ref not found
 			examples: Examples{
 				{
-					ExampleRef: refComponentsPrefix + tagNameExamples + "/bar",
+					ExampleRef: refs.ComponentsPrefix + tags.Examples + "/bar",
 				},
 			},
 			expectedErrs: 1,
@@ -1038,7 +1040,7 @@ func TestExamples_checkRefs(t *testing.T) {
 			//full ref bad area
 			examples: Examples{
 				{
-					ExampleRef: refComponentsPrefix + tagNameSchemas + "/foo",
+					ExampleRef: refs.ComponentsPrefix + tags.Schemas + "/foo",
 				},
 			},
 			expectedErrs: 1,
@@ -1096,7 +1098,7 @@ func TestContentTypes_checkRefs(t *testing.T) {
 			// full ref ok
 			contentTypes: ContentTypes{
 				"text/csv": {
-					SchemaRef: refComponentsPrefix + tagNameSchemas + "/foo",
+					SchemaRef: refs.ComponentsPrefix + tags.Schemas + "/foo",
 				},
 			},
 		},
@@ -1104,7 +1106,7 @@ func TestContentTypes_checkRefs(t *testing.T) {
 			// full ref not found
 			contentTypes: ContentTypes{
 				"text/csv": {
-					SchemaRef: refComponentsPrefix + tagNameSchemas + "/bar",
+					SchemaRef: refs.ComponentsPrefix + tags.Schemas + "/bar",
 				},
 			},
 			expectedErrs: 1,
@@ -1113,7 +1115,7 @@ func TestContentTypes_checkRefs(t *testing.T) {
 			// full ref not found and has schema
 			contentTypes: ContentTypes{
 				"text/csv": {
-					SchemaRef: refComponentsPrefix + tagNameSchemas + "/bar",
+					SchemaRef: refs.ComponentsPrefix + tags.Schemas + "/bar",
 					Schema:    &Schema{},
 				},
 			},
@@ -1123,7 +1125,7 @@ func TestContentTypes_checkRefs(t *testing.T) {
 			// full ref not found and has schema
 			contentTypes: ContentTypes{
 				"text/csv": {
-					SchemaRef: refComponentsPrefix + tagNameSchemas + "/bar",
+					SchemaRef: refs.ComponentsPrefix + tags.Schemas + "/bar",
 					Schema:    Schema{},
 				},
 			},
@@ -1194,20 +1196,20 @@ func TestSchema_checkRefs(t *testing.T) {
 		{
 			// full schema ref ok
 			schema: &Schema{
-				SchemaRef: refComponentsPrefix + tagNameSchemas + "/foo",
+				SchemaRef: refs.ComponentsPrefix + tags.Schemas + "/foo",
 			},
 		},
 		{
 			// full schema ref not found
 			schema: &Schema{
-				SchemaRef: refComponentsPrefix + tagNameSchemas + "/bar",
+				SchemaRef: refs.ComponentsPrefix + tags.Schemas + "/bar",
 			},
 			expectedErrs: 1,
 		},
 		{
 			// full schema ref invalid area
 			schema: &Schema{
-				SchemaRef: refComponentsPrefix + tagNameExamples + "/foo",
+				SchemaRef: refs.ComponentsPrefix + tags.Examples + "/foo",
 			},
 			expectedErrs: 1,
 		},
@@ -1217,7 +1219,7 @@ func TestSchema_checkRefs(t *testing.T) {
 				SchemaRef: "foo",
 			},
 			seen: map[string]bool{
-				refComponentsPrefix + tagNameSchemas + "/foo": true,
+				refs.ComponentsPrefix + tags.Schemas + "/foo": true,
 			},
 			expectedErrs: 1,
 		},
@@ -1252,7 +1254,7 @@ func TestSchema_checkRefs(t *testing.T) {
 				},
 			},
 			seen: map[string]bool{
-				refComponentsPrefix + tagNameSchemas + "/foo": true,
+				refs.ComponentsPrefix + tags.Schemas + "/foo": true,
 			},
 			expectedErrs: 1,
 		},
@@ -1346,20 +1348,20 @@ func TestProperty_checkRefs(t *testing.T) {
 		{
 			// full schema ref ok
 			property: Property{
-				SchemaRef: refComponentsPrefix + tagNameSchemas + "/foo",
+				SchemaRef: refs.ComponentsPrefix + tags.Schemas + "/foo",
 			},
 		},
 		{
 			// full schema ref not found
 			property: Property{
-				SchemaRef: refComponentsPrefix + tagNameSchemas + "/bar",
+				SchemaRef: refs.ComponentsPrefix + tags.Schemas + "/bar",
 			},
 			expectedErrs: 1,
 		},
 		{
 			// full schema ref invalid area
 			property: Property{
-				SchemaRef: refComponentsPrefix + tagNameExamples + "/foo",
+				SchemaRef: refs.ComponentsPrefix + tags.Examples + "/foo",
 			},
 			expectedErrs: 1,
 		},
@@ -1394,7 +1396,7 @@ func TestProperty_checkRefs(t *testing.T) {
 				},
 			},
 			seen: map[string]bool{
-				refComponentsPrefix + tagNameSchemas + "/foo": true,
+				refs.ComponentsPrefix + tags.Schemas + "/foo": true,
 			},
 			expectedErrs: 1,
 		},
@@ -1450,7 +1452,7 @@ func TestDiscriminator_checkRefs(t *testing.T) {
 			// full ref ok
 			discriminator: &Discriminator{
 				Mapping: map[string]string{
-					"pty": refComponentsPrefix + tagNameSchemas + "/foo",
+					"pty": refs.ComponentsPrefix + tags.Schemas + "/foo",
 				},
 			},
 		},
@@ -1458,7 +1460,7 @@ func TestDiscriminator_checkRefs(t *testing.T) {
 			// full ref not found
 			discriminator: &Discriminator{
 				Mapping: map[string]string{
-					"pty": refComponentsPrefix + tagNameSchemas + "/bar",
+					"pty": refs.ComponentsPrefix + tags.Schemas + "/bar",
 				},
 			},
 			expectedErrs: 1,
@@ -1467,7 +1469,7 @@ func TestDiscriminator_checkRefs(t *testing.T) {
 			// full ref invalid area
 			discriminator: &Discriminator{
 				Mapping: map[string]string{
-					"pty": refComponentsPrefix + tagNameExamples + "/foo",
+					"pty": refs.ComponentsPrefix + tags.Examples + "/foo",
 				},
 			},
 			expectedErrs: 1,
@@ -1525,7 +1527,7 @@ func TestOfs_checkRefs(t *testing.T) {
 			ofs: &Ofs{
 				Of: []OfSchema{
 					&Of{
-						SchemaRef: refComponentsPrefix + tagNameSchemas + "/foo",
+						SchemaRef: refs.ComponentsPrefix + tags.Schemas + "/foo",
 					},
 				},
 			},
@@ -1535,7 +1537,7 @@ func TestOfs_checkRefs(t *testing.T) {
 			ofs: &Ofs{
 				Of: []OfSchema{
 					&Of{
-						SchemaRef: refComponentsPrefix + tagNameSchemas + "/bar",
+						SchemaRef: refs.ComponentsPrefix + tags.Schemas + "/bar",
 					},
 				},
 			},
@@ -1546,7 +1548,7 @@ func TestOfs_checkRefs(t *testing.T) {
 			ofs: &Ofs{
 				Of: []OfSchema{
 					&Of{
-						SchemaRef: refComponentsPrefix + tagNameExamples + "/foo",
+						SchemaRef: refs.ComponentsPrefix + tags.Examples + "/foo",
 					},
 				},
 			},
@@ -1607,19 +1609,19 @@ func Test_isInternalRef(t *testing.T) {
 			expectRef: "foo",
 		},
 		{
-			ref:       refComponentsPrefix + "foo",
+			ref:       refs.ComponentsPrefix + "foo",
 			expectErr: true,
 		},
 		{
-			ref:        refComponentsPrefix + tagNameSchemas + "/foo",
-			defArea:    tagNameSchemas,
+			ref:        refs.ComponentsPrefix + tags.Schemas + "/foo",
+			defArea:    tags.Schemas,
 			expectOk:   true,
 			expectRef:  "foo",
-			expectArea: tagNameSchemas,
+			expectArea: tags.Schemas,
 		},
 		{
-			ref:       refComponentsPrefix + tagNameSchemas + "/foo",
-			defArea:   tagNameParameters,
+			ref:       refs.ComponentsPrefix + tags.Schemas + "/foo",
+			defArea:   tags.Parameters,
 			expectErr: true,
 		},
 	}

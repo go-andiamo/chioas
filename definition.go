@@ -2,6 +2,8 @@ package chioas
 
 import (
 	"bufio"
+	"github.com/go-andiamo/chioas/internal/tags"
+	"github.com/go-andiamo/chioas/internal/values"
 	"github.com/go-andiamo/chioas/yaml"
 	"github.com/go-chi/chi/v5"
 	"io"
@@ -149,7 +151,7 @@ func (d *Definition) optionsHandler(methods Methods, path string, pathDef *Path)
 	}
 	allow := strings.Join(methods.sorted(add...), ", ")
 	return func(writer http.ResponseWriter, request *http.Request) {
-		writer.Header().Set(hdrAllow, allow)
+		writer.Header().Set(values.HdrAllow, allow)
 		payloadData := make([]byte, 0)
 		if d.OptionsMethodPayloadBuilder != nil {
 			var addHdrs map[string]string
@@ -173,7 +175,7 @@ func (d *Definition) methodNotAllowedHandler(methods Methods) http.HandlerFunc {
 	}
 	allow := strings.Join(methods.sorted(add...), ", ")
 	return func(writer http.ResponseWriter, request *http.Request) {
-		writer.Header().Set(hdrAllow, allow)
+		writer.Header().Set(values.HdrAllow, allow)
 		writer.WriteHeader(http.StatusMethodNotAllowed)
 	}
 }
@@ -227,19 +229,19 @@ func (d *Definition) writeYaml(w yaml.Writer) error {
 		w.RefChecker(d)
 	}
 	w.WriteComments(d.Comment)
-	w.WriteTagValue(tagNameOpenApi, OasVersion)
+	w.WriteTagValue(tags.OpenApi, OasVersion)
 	d.Info.writeYaml(w)
 	if d.Servers != nil {
 		d.Servers.writeYaml(w)
 	}
 	if d.Tags != nil && len(d.Tags) > 0 {
-		w.WriteTagStart(tagNameTags)
+		w.WriteTagStart(tags.Tags)
 		for _, t := range d.Tags {
 			t.writeYaml(w)
 		}
 		w.WriteTagEnd()
 	}
-	w.WriteTagStart(tagNamePaths)
+	w.WriteTagStart(tags.Paths)
 	if d.Methods != nil && len(d.Methods) > 0 {
 		w.WritePathStart(d.DocOptions.Context, root)
 		d.Methods.writeYaml(&d.DocOptions, d.AutoHeadMethods, d.AutoOptionsMethods, nil, nil, "", w)
@@ -253,7 +255,7 @@ func (d *Definition) writeYaml(w yaml.Writer) error {
 		d.Components.writeYaml(w)
 	}
 	if len(d.Security) > 0 {
-		w.WriteTagStart(tagNameSecurity)
+		w.WriteTagStart(tags.Security)
 		d.Security.writeYaml(w, true)
 		w.WriteTagEnd()
 	}
