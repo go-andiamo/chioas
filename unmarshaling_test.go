@@ -1900,8 +1900,12 @@ func TestDefinition_UnmarshalJSON_PetstoreYaml(t *testing.T) {
 	_, ok = p.Methods["GET"]
 	require.True(t, ok)
 	require.Len(t, p.Paths, 1)
-	_, ok = p.Paths["/{id}"]
+	p, ok = p.Paths["/{id}"]
 	require.True(t, ok)
+	require.Len(t, p.PathParams, 1)
+	m, ok := p.Methods["GET"]
+	require.True(t, ok)
+	require.Len(t, m.QueryParams, 0)
 }
 
 func fullDefJson() ([]byte, error) {
@@ -2400,7 +2404,10 @@ paths:
       tags:
         - Categories
       parameters:
+        - $ref: "#/components/parameters/id"
+      WAS-parameters:
         - name: id
+          description: "id path param"
           in: path
           required: true
           schema:
@@ -2574,6 +2581,7 @@ paths:
         - Pets
       parameters:
         - name: id
+          description: "id path param"
           in: path
           required: true
           schema:
@@ -2622,6 +2630,7 @@ paths:
         - Pets
       parameters:
         - name: id
+          description: "id path param"
           in: path
           required: true
           schema:
@@ -2699,6 +2708,7 @@ paths:
         - Pets
       parameters:
         - name: id
+          description: "id path param"
           in: path
           required: true
           schema:
@@ -2710,4 +2720,12 @@ paths:
             "application/json":
               schema:
                 type: object
+components:
+  parameters:
+    id:
+      name: id
+      description: common id param
+      in: path
+      required: true
+      example: example
 `
