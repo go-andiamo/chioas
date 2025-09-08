@@ -3,9 +3,11 @@ package chioas
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/go-andiamo/chioas/internal/refs"
 	"github.com/go-andiamo/chioas/internal/tags"
 	"github.com/go-andiamo/chioas/internal/values"
 	"github.com/go-andiamo/splitter"
+	"golang.org/x/exp/maps"
 	"gopkg.in/yaml.v3"
 	"math"
 	"net/http"
@@ -59,7 +61,85 @@ func (d *Definition) unmarshalObj(m map[string]any) (err error) {
 			}
 		}
 	}
+	if err == nil {
+		err = d.correctPathParams()
+	}
 	return err
+}
+
+func (d *Definition) correctPathParams() (err error) {
+	// look at all paths - and extract any method query params that are 'In' path and move them up to the path
+	err = d.WalkPaths(func(path string, pathDef *Path) (cont bool, err error) {
+		pathDef.PathParams = pathDef.extractPathParams(d)
+		return true, nil
+	})
+	return err
+}
+
+func (p *Path) extractPathParams(def *Definition) (result PathParams) {
+	keys := maps.Keys(p.Methods)
+	for _, k := range keys {
+		m := p.Methods[k]
+		method := &m
+		if pps, removed := method.extractPathParams(def); removed {
+			p.Methods[k] = *method
+			if result == nil {
+				result = pps
+			} else {
+				for pk, pp := range pps {
+					result[pk] = pp
+				}
+			}
+		}
+	}
+	return result
+}
+
+func (m *Method) extractPathParams(def *Definition) (PathParams, bool) {
+	if len(m.QueryParams) > 0 {
+		result := make(PathParams, len(m.QueryParams))
+		removed := false
+		rl := 0
+		for i := 0; i < len(m.QueryParams); i++ {
+			if name, pp, ok := isPathParam(m.QueryParams[i], def); ok {
+				removed = true
+				result[name] = *pp
+			} else {
+				m.QueryParams[rl] = m.QueryParams[i]
+				rl++
+			}
+		}
+		if removed {
+			m.QueryParams = m.QueryParams[:rl]
+			return result, true
+		}
+	}
+	return nil, false
+}
+
+func isPathParam(qp QueryParam, def *Definition) (string, *PathParam, bool) {
+	if qp.Ref != "" {
+		if def.Components != nil {
+			if cp, ok := def.Components.Parameters[refs.Normalize(tags.Parameters, qp.Ref)]; ok && cp.In == values.Path {
+				return cp.Name, &PathParam{
+					Ref: qp.Ref,
+				}, true
+			}
+		}
+	} else if qp.In == values.Path {
+		name := qp.Name
+		return name, &PathParam{
+			Description: qp.Description,
+			Example:     qp.Example,
+			Extensions:  qp.Extensions,
+			Additional:  qp.Additional,
+			Comment:     qp.Comment,
+			Schema:      qp.Schema,
+			SchemaRef:   qp.SchemaRef,
+			Ref:         qp.Ref,
+		}, true
+	}
+	return "", nil, false
 }
 
 func (d *Definition) unmarshalPaths(m map[string]any) (err error) {
@@ -765,13 +845,19 @@ func (p *CommonParameter) unmarshalObj(m map[string]any) (err error) {
 }
 
 func (p *QueryParam) unmarshalObj(m map[string]any) (err error) {
-	p.Extensions = extensionsFrom(m)
-	if p.Name, err = stringFromProperty(m, tags.Name); err == nil {
-		if p.Description, err = stringFromProperty(m, tags.Description); err == nil {
-			if p.Required, err = booleanFromProperty(m, tags.Required); err == nil {
-				if p.In, err = stringFromProperty(m, tags.In); err == nil {
-					p.Example = m[tags.Example]
-					p.SchemaRef, p.Schema, err = schemaFrom(m)
+	var ref string
+	var ok bool
+	if ref, ok, err = hasRef(m); ok {
+		p.Ref = ref
+	} else if err == nil {
+		p.Extensions = extensionsFrom(m)
+		if p.Name, err = stringFromProperty(m, tags.Name); err == nil {
+			if p.Description, err = stringFromProperty(m, tags.Description); err == nil {
+				if p.Required, err = booleanFromProperty(m, tags.Required); err == nil {
+					if p.In, err = stringFromProperty(m, tags.In); err == nil {
+						p.Example = m[tags.Example]
+						p.SchemaRef, p.Schema, err = schemaFrom(m)
+					}
 				}
 			}
 		}
