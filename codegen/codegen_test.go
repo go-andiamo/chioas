@@ -799,8 +799,8 @@ func Test_generateComponentsVars(t *testing.T) {
 		const expect = `var (
 	Components = &chioas.Components{
 		Requests: chioas.CommonRequests{
-			RequestTestA,
-			RequestTestB,
+			"testA": RequestTestA,
+			"testB": RequestTestB,
 		},
 	}
 	RequestTestA = chioas.Request{
@@ -830,8 +830,8 @@ func Test_generateComponentsVars(t *testing.T) {
 		const expect = `var (
 	Components = &chioas.Components{
 		Responses: chioas.CommonResponses{
-			ResponseTestA,
-			ResponseTestB,
+			"testA": ResponseTestA,
+			"testB": ResponseTestB,
 		},
 	}
 	ResponseTestA = chioas.Response{
@@ -898,8 +898,8 @@ func Test_generateComponentsVars(t *testing.T) {
 		const expect = `var (
 	Components = &chioas.Components{
 		Parameters: chioas.CommonParameters{
-			ParameterTestA,
-			ParameterTestB,
+			"testA": ParameterTestA,
+			"testB": ParameterTestB,
 		},
 	}
 	ParameterTestA = chioas.CommonParameter{

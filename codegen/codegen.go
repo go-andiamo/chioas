@@ -42,43 +42,37 @@ type ItemType interface {
 //   - Returns the first write error encountered. It does not close w.
 func GenerateCode[T ItemType](item T, w io.Writer, opts Options) error {
 	writer := newCodeWriter(w, opts)
+	writer.writePrologue()
 	switch it := any(item).(type) {
 	case chioas.Definition:
 		generateDefinition(it, false, writer)
 	case *chioas.Definition:
 		generateDefinition(*it, true, writer)
 	case chioas.Path:
-		writer.writePrologue()
 		writer.writeVarStart(writer.opts.topVarName(), typePath, false)
 		generatePath(0, it, writer)
 		writer.writeLine(0, "}", true)
 	case *chioas.Path:
-		writer.writePrologue()
 		writer.writeVarStart(writer.opts.topVarName(), typePath, true)
 		generatePath(0, *it, writer)
 		writer.writeLine(0, "}", true)
 	case chioas.Method:
-		writer.writePrologue()
 		writer.writeVarStart(writer.opts.topVarName(), typeMethod, false)
 		generateMethodInner(0, it, writer)
 		writer.writeLine(0, "}", true)
 	case *chioas.Method:
-		writer.writePrologue()
 		writer.writeVarStart(writer.opts.topVarName(), typeMethod, true)
 		generateMethodInner(0, *it, writer)
 		writer.writeLine(0, "}", true)
 	case chioas.Schema:
-		writer.writePrologue()
 		writer.writeVarStart(writer.opts.topVarName(), typeSchema, false)
 		generateSchema(0, &it, writer)
 		writer.writeLine(0, "}", true)
 	case *chioas.Schema:
-		writer.writePrologue()
 		writer.writeVarStart(writer.opts.topVarName(), typeSchema, true)
 		generateSchema(0, it, writer)
 		writer.writeLine(0, "}", true)
 	case chioas.Components:
-		writer.writePrologue()
 		if !opts.HoistComponents {
 			writer.writeVarStart(writer.opts.topVarName(), typeComponents, false)
 			generateComponentsInner(0, &it, writer)
@@ -87,7 +81,6 @@ func GenerateCode[T ItemType](item T, w io.Writer, opts Options) error {
 			generateComponentsVars(&it, writer, true, false)
 		}
 	case *chioas.Components:
-		writer.writePrologue()
 		if !opts.HoistComponents {
 			writer.writeVarStart(writer.opts.topVarName(), typeComponents, true)
 			generateComponentsInner(0, it, writer)
@@ -100,7 +93,6 @@ func GenerateCode[T ItemType](item T, w io.Writer, opts Options) error {
 }
 
 func generateDefinition(def chioas.Definition, ptr bool, w *codeWriter) {
-	w.writePrologue()
 	w.writeVarStart(w.opts.topVarName(), typeDefinition, ptr)
 	generateInfo(1, def.Info, w)
 	if len(def.Servers) > 0 {
@@ -237,7 +229,7 @@ func generateComponentsVars(def *chioas.Components, w *codeWriter, topVar bool, 
 		requests = maps.Keys(def.Requests)
 		sort.Strings(requests)
 		for _, k := range requests {
-			w.writeLine(3, deDupe(varRequest, k)+",", false)
+			w.writeLine(3, strconv.Quote(k)+": "+deDupe(varRequest, k)+",", false)
 		}
 		w.writeEnd(2, "},")
 	}
@@ -247,7 +239,7 @@ func generateComponentsVars(def *chioas.Components, w *codeWriter, topVar bool, 
 		responses = maps.Keys(def.Responses)
 		sort.Strings(responses)
 		for _, k := range responses {
-			w.writeLine(3, deDupe(varResponse, k)+",", false)
+			w.writeLine(3, strconv.Quote(k)+": "+deDupe(varResponse, k)+",", false)
 		}
 		w.writeEnd(2, "},")
 	}
@@ -269,7 +261,7 @@ func generateComponentsVars(def *chioas.Components, w *codeWriter, topVar bool, 
 		params = maps.Keys(def.Parameters)
 		sort.Strings(params)
 		for _, k := range params {
-			w.writeLine(3, deDupe(varParameter, k)+",", false)
+			w.writeLine(3, strconv.Quote(k)+": "+deDupe(varParameter, k)+",", false)
 		}
 		w.writeEnd(2, "},")
 	}

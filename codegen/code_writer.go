@@ -144,7 +144,7 @@ func (w *codeWriter) writeIndent(indent int) bool {
 
 func (w *codeWriter) writeLf(extra bool) {
 	if w.err == nil {
-		if w.useCRLF {
+		if w.useCRLF && !w.formatted {
 			if _, w.err = w.w.Write(crlf); w.err == nil && extra {
 				_, w.err = w.w.Write(crlf)
 			}
