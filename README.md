@@ -53,15 +53,21 @@ Chioas comes with many bonus features that help in building complete APIs and sp
 * Optional automatically added `OPTIONS` methods - with `Allow` header populated with actual allowed methods _(see `Definition.AutoOptionsMethods` and `Path.AutoOptionsMethod`)_
 * Optional automatically added Chi `MethodNotAllowed` handler to each path  - with `Allow` header populated with actual allowed methods _(see `Definition.AutoMethodNotAllowed`)_
 * Ref checking (useful for checking existing oas yaml/json)
+* Code generation utilities (definitions & http handler stub funcs)
+* CLI for code generation
 
 ## Installation
-To install chioas, use go get:
+Use get:
 
     go get github.com/go-andiamo/chioas
 
-To update chioas to the latest version, run:
+Get to update to the latest version:
 
     go get -u github.com/go-andiamo/chioas
+
+Install for CLI:
+
+    go install github.com/go-andiamo/chioas/cmd/chioas@latest
 
 ## Basic Example
 ```go
