@@ -71,70 +71,71 @@ func GenerateHandlerStubs[T StubItemType](item T, w io.Writer, opts HandlerStubO
 	if opts.StubNaming == nil {
 		opts.StubNaming = &stubNaming{}
 	}
-	writer := newStubsWriter(w, opts)
-	writer.writePrologue()
+	sw := newStubsWriter(w, opts)
+	sw.writePrologue()
 	switch it := any(item).(type) {
 	case chioas.Definition:
-		generateDefinitionStubs(it, writer)
+		generateDefinitionStubs(it, sw)
 	case *chioas.Definition:
-		generateDefinitionStubs(*it, writer)
+		generateDefinitionStubs(*it, sw)
 	case chioas.Paths:
-		generatePathsStubs("", it, writer)
+		generatePathsStubs("", it, sw)
 	case chioas.Path:
-		generatePathStubs("", it, writer)
+		generatePathStubs("", it, sw)
 	case *chioas.Path:
-		generatePathStubs("", *it, writer)
+		generatePathStubs("", *it, sw)
 	case chioas.Method:
-		generateMethodStub("", "", it, writer)
+		generateMethodStub("", "", it, sw)
 	case *chioas.Method:
-		generateMethodStub("", "", *it, writer)
+		generateMethodStub("", "", *it, sw)
 	}
-	return writer.format()
+	return sw.format()
 }
 
-func generateDefinitionStubs(def chioas.Definition, w *stubsWriter) {
-	generateMethodsStub("Root", def.Methods, w)
-	generatePathsStubs("", def.Paths, w)
+func generateDefinitionStubs(def chioas.Definition, sw *stubsWriter) {
+	generateMethodsStub("Root", def.Methods, sw)
+	generatePathsStubs("", def.Paths, sw)
 }
 
-func generatePathStubs(path string, def chioas.Path, w *stubsWriter) {
-	generateMethodsStub(path, def.Methods, w)
-	generatePathsStubs(path, def.Paths, w)
+func generatePathStubs(path string, def chioas.Path, sw *stubsWriter) {
+	generateMethodsStub(path, def.Methods, sw)
+	generatePathsStubs(path, def.Paths, sw)
 }
 
-func generatePathsStubs(path string, def chioas.Paths, w *stubsWriter) {
+func generatePathsStubs(path string, def chioas.Paths, sw *stubsWriter) {
 	ks := maps.Keys(def)
 	sort.Strings(ks)
 	for _, k := range ks {
-		generatePathStubs(path+k, def[k], w)
+		generatePathStubs(path+k, def[k], sw)
 	}
 }
 
-func generateMethodsStub(path string, def chioas.Methods, w *stubsWriter) {
+func generateMethodsStub(path string, def chioas.Methods, sw *stubsWriter) {
 	sms := maps.Keys(def)
 	sort.Slice(sms, func(i, j int) bool {
 		return compareMethods(sms[i], sms[j])
 	})
 	for _, m := range sms {
-		generateMethodStub(path, m, def[m], w)
+		generateMethodStub(path, m, def[m], sw)
 	}
 }
 
 var pathSplitter = splitter.MustCreateSplitter('/', splitter.CurlyBrackets).
 	AddDefaultOptions(splitter.IgnoreEmptyFirst, splitter.IgnoreEmptyLast)
 
-func generateMethodStub(path string, method string, def chioas.Method, w *stubsWriter) {
+func generateMethodStub(path string, method string, def chioas.Method, sw *stubsWriter) {
 	var name string
 	if path == "" && method == "" {
 		name = "handler"
 	} else {
-		name = w.opts.StubNaming.Name(path, method, def)
+		name = sw.opts.StubNaming.Name(path, method, def)
 		if name == "" {
 			name = defaultStubNaming.Name(path, method, def)
 		}
 	}
-	w.writeFuncStart(name, method, path)
-	if w.opts.PathParams {
+	name = toPascal(name)
+	sw.writeFuncStart(name, method, path)
+	if sw.opts.PathParams {
 		if parts, err := pathSplitter.Split(path); err == nil {
 			vNames := make([]string, 0)
 			uScores := make([]string, 0)
@@ -146,15 +147,85 @@ func generateMethodStub(path string, method string, def chioas.Method, w *stubsW
 					}
 					vNames = append(vNames, name)
 					uScores = append(uScores, "_")
-					w.writeLine(1, name+` := chi.URLParam(r, "`+name+`")`, false)
+					sw.writeLine(1, name+` := chi.URLParam(r, "`+name+`")`, false)
 				}
 			}
 			if len(vNames) > 0 {
-				w.writeLine(1, strings.Join(uScores, ", ")+" = "+strings.Join(vNames, ", "), false)
+				sw.writeLine(1, strings.Join(uScores, ", ")+" = "+strings.Join(vNames, ", "), false)
 			}
 		}
 	}
-	w.writeLine(1, `// TODO implement me`, false)
-	w.writeLine(1, `panic("implement me!")`, false)
-	w.writeLine(0, "}", true)
+	sw.writeLine(1, `// TODO implement me`, false)
+	sw.writeLine(1, `panic("implement me!")`, false)
+	sw.writeLine(0, "}", true)
+}
+
+func newStubsWriter(w io.Writer, opts HandlerStubOptions) *stubsWriter {
+	return &stubsWriter{
+		writer:  newWriter(w, opts.Format, opts.UseCRLF),
+		opts:    opts,
+		deduper: newNameDeDuper(),
+	}
+}
+
+type stubsWriter struct {
+	*writer
+	opts    HandlerStubOptions
+	deduper *nameDeDuper
+}
+
+func (w *stubsWriter) writePrologue() {
+	const chiPkg = `"github.com/go-chi/chi/v5"`
+	if w.err == nil && !w.opts.SkipPrologue {
+		pkg := w.opts.Package
+		if pkg == "" {
+			pkg = defaultPackage
+		}
+		w.writeLine(0, "package "+pkg, true)
+		w.writeLine(0, "import (", false)
+		w.writeLine(1, `"net/http"`, false)
+		if w.opts.PathParams {
+			w.writeLf(false)
+			w.writeLine(1, chiPkg, false)
+		}
+		w.writeLine(0, ")", true)
+	}
+}
+
+var (
+	handlerSignature = []byte("(w http.ResponseWriter, r *http.Request) {")
+	handlerFunc      = []byte("func ")
+)
+
+func (w *stubsWriter) writeFuncGoDoc(name, method, path string) bool {
+	if w.err == nil && w.opts.GoDoc {
+		_, w.err = w.w.Write([]byte("// " + name + " " + method + " " + path))
+		w.writeLf(false)
+	}
+	return w.err == nil
+}
+
+func (w *stubsWriter) writeFuncStart(name, method, path string) {
+	if w.err == nil {
+		if w.opts.PublicFuncs {
+			name = strings.ToUpper(name[:1]) + name[1:]
+		} else {
+			name = strings.ToLower(name[:1]) + name[1:]
+		}
+		name = w.deduper.take(name)
+		if w.writeFuncGoDoc(name, method, path) {
+			if _, w.err = w.w.Write(handlerFunc); w.err == nil {
+				if w.opts.Receiver != "" {
+					_, w.err = w.w.Write([]byte(w.opts.Receiver + " "))
+				}
+				if w.err == nil {
+					if _, w.err = w.w.Write([]byte(name)); w.err == nil {
+						if _, w.err = w.w.Write(handlerSignature); w.err == nil {
+							w.writeLf(false)
+						}
+					}
+				}
+			}
+		}
+	}
 }

@@ -15,6 +15,7 @@ import (
 type ItemType interface {
 	chioas.Definition | *chioas.Definition |
 		chioas.Path | *chioas.Path |
+		chioas.Paths |
 		chioas.Method | *chioas.Method |
 		chioas.Schema | *chioas.Schema |
 		chioas.Components | *chioas.Components
@@ -34,107 +35,110 @@ type ItemType interface {
 //     or refs in other areas are left as-is. No dereferencing is performed.
 //   - This is a bootstrap tool, not production codegen: intended as a starting point,
 //     not for CI/CD code generation.
-//   - GenerateCode does not run go/format. Callers should format the result themselves
 //   - If Options.SkipPrologue is false, a package clause and a single chioas import (optionally
 //     aliased) are emitted. When true, the caller is responsible for imports.
 //
 // Errors:
 //   - Returns the first write error encountered. It does not close w.
 func GenerateCode[T ItemType](item T, w io.Writer, opts Options) error {
-	writer := newCodeWriter(w, opts)
-	writer.writePrologue()
+	cw := newCodeWriter(w, opts)
+	cw.writePrologue()
 	switch it := any(item).(type) {
 	case chioas.Definition:
-		generateDefinition(it, false, writer)
+		generateDefinition(it, false, cw)
 	case *chioas.Definition:
-		generateDefinition(*it, true, writer)
+		generateDefinition(*it, true, cw)
 	case chioas.Path:
-		writer.writeVarStart(writer.opts.topVarName(), typePath, false)
-		generatePath(0, it, writer)
-		writer.writeLine(0, "}", true)
+		cw.writeVarStart(cw.opts.topVarName(), typePath, false)
+		generatePath(0, it, cw)
+		cw.writeLine(0, "}", true)
 	case *chioas.Path:
-		writer.writeVarStart(writer.opts.topVarName(), typePath, true)
-		generatePath(0, *it, writer)
-		writer.writeLine(0, "}", true)
+		cw.writeVarStart(cw.opts.topVarName(), typePath, true)
+		generatePath(0, *it, cw)
+		cw.writeLine(0, "}", true)
+	case chioas.Paths:
+		cw.writeVarStart(cw.opts.topVarName(), typePaths, false)
+		generatePathsInner(0, it, cw)
+		cw.writeLine(0, "}", true)
 	case chioas.Method:
-		writer.writeVarStart(writer.opts.topVarName(), typeMethod, false)
-		generateMethodInner(0, it, writer)
-		writer.writeLine(0, "}", true)
+		cw.writeVarStart(cw.opts.topVarName(), typeMethod, false)
+		generateMethodInner(0, it, cw)
+		cw.writeLine(0, "}", true)
 	case *chioas.Method:
-		writer.writeVarStart(writer.opts.topVarName(), typeMethod, true)
-		generateMethodInner(0, *it, writer)
-		writer.writeLine(0, "}", true)
+		cw.writeVarStart(cw.opts.topVarName(), typeMethod, true)
+		generateMethodInner(0, *it, cw)
+		cw.writeLine(0, "}", true)
 	case chioas.Schema:
-		writer.writeVarStart(writer.opts.topVarName(), typeSchema, false)
-		generateSchema(0, &it, writer)
-		writer.writeLine(0, "}", true)
+		cw.writeVarStart(cw.opts.topVarName(), typeSchema, false)
+		generateSchema(0, &it, cw)
+		cw.writeLine(0, "}", true)
 	case *chioas.Schema:
-		writer.writeVarStart(writer.opts.topVarName(), typeSchema, true)
-		generateSchema(0, it, writer)
-		writer.writeLine(0, "}", true)
+		cw.writeVarStart(cw.opts.topVarName(), typeSchema, true)
+		generateSchema(0, it, cw)
+		cw.writeLine(0, "}", true)
 	case chioas.Components:
 		if !opts.HoistComponents {
-			writer.writeVarStart(writer.opts.topVarName(), typeComponents, false)
-			generateComponentsInner(0, &it, writer)
-			writer.writeLine(0, "}", true)
+			cw.writeVarStart(cw.opts.topVarName(), typeComponents, false)
+			generateComponentsInner(0, &it, cw)
+			cw.writeLine(0, "}", true)
 		} else {
-			generateComponentsVars(&it, writer, true, false)
+			generateComponentsVars(&it, cw, true, false)
 		}
 	case *chioas.Components:
 		if !opts.HoistComponents {
-			writer.writeVarStart(writer.opts.topVarName(), typeComponents, true)
-			generateComponentsInner(0, it, writer)
-			writer.writeLine(0, "}", true)
+			cw.writeVarStart(cw.opts.topVarName(), typeComponents, true)
+			generateComponentsInner(0, it, cw)
+			cw.writeLine(0, "}", true)
 		} else {
-			generateComponentsVars(it, writer, true, true)
+			generateComponentsVars(it, cw, true, true)
 		}
 	}
-	return writer.format()
+	return cw.format()
 }
 
-func generateDefinition(def chioas.Definition, ptr bool, w *codeWriter) {
-	w.writeVarStart(w.opts.topVarName(), typeDefinition, ptr)
-	generateInfo(1, def.Info, w)
+func generateDefinition(def chioas.Definition, ptr bool, cw *codeWriter) {
+	cw.writeVarStart(cw.opts.topVarName(), typeDefinition, ptr)
+	generateInfo(1, def.Info, cw)
 	if len(def.Servers) > 0 {
-		w.writeLine(1, "Servers: "+w.opts.alias()+typeServers+"{", false)
+		cw.writeLine(1, "Servers: "+cw.opts.alias()+typeServers+"{", false)
 		ks := maps.Keys(def.Servers)
 		sort.Strings(ks)
 		for _, k := range ks {
-			w.writeKey(2, k)
+			cw.writeKey(2, k)
 			s := def.Servers[k]
-			writeZeroField(w, 3, "Description", s.Description)
-			w.writeExtensions(3, s.Extensions)
-			writeZeroField(w, 3, "Comment", s.Comment)
-			w.writeEnd(2, "},")
+			writeZeroField(cw, 3, "Description", s.Description)
+			cw.writeExtensions(3, s.Extensions)
+			writeZeroField(cw, 3, "Comment", s.Comment)
+			cw.writeEnd(2, "},")
 		}
-		w.writeEnd(1, "},")
+		cw.writeEnd(1, "},")
 	}
 	if len(def.Tags) > 0 {
-		w.writeLine(1, "Tags: "+w.opts.alias()+typeTags+"{", false)
+		cw.writeLine(1, "Tags: "+cw.opts.alias()+typeTags+"{", false)
 		for _, tg := range def.Tags {
-			w.writeLine(2, "{", false)
-			writeZeroField(w, 3, "Name", tg.Name)
-			writeZeroField(w, 3, "Description", tg.Description)
+			cw.writeLine(2, "{", false)
+			writeZeroField(cw, 3, "Name", tg.Name)
+			writeZeroField(cw, 3, "Description", tg.Description)
 			if tg.ExternalDocs != nil {
-				w.writeLine(3, "ExternalDocs: &"+w.opts.alias()+typeExternalDocs+"{", false)
-				writeZeroField(w, 4, "Description", tg.ExternalDocs.Description)
-				writeZeroField(w, 4, "Url", tg.ExternalDocs.Url)
-				w.writeExtensions(4, tg.ExternalDocs.Extensions)
-				writeZeroField(w, 4, "Comment", tg.ExternalDocs.Comment)
-				w.writeEnd(3, "},")
+				cw.writeLine(3, "ExternalDocs: &"+cw.opts.alias()+typeExternalDocs+"{", false)
+				writeZeroField(cw, 4, "Description", tg.ExternalDocs.Description)
+				writeZeroField(cw, 4, "Url", tg.ExternalDocs.Url)
+				cw.writeExtensions(4, tg.ExternalDocs.Extensions)
+				writeZeroField(cw, 4, "Comment", tg.ExternalDocs.Comment)
+				cw.writeEnd(3, "},")
 			}
-			w.writeExtensions(3, tg.Extensions)
-			writeZeroField(w, 3, "Comment", tg.Comment)
-			w.writeEnd(2, "},")
+			cw.writeExtensions(3, tg.Extensions)
+			writeZeroField(cw, 3, "Comment", tg.Comment)
+			cw.writeEnd(2, "},")
 		}
-		w.writeEnd(1, "},")
+		cw.writeEnd(1, "},")
 	}
-	generateMethods(1, def.Methods, w)
+	generateMethods(1, def.Methods, cw)
 	var paths []string
-	if !w.opts.HoistPaths {
-		generatePaths(1, def.Paths, w)
+	if !cw.opts.HoistPaths {
+		generatePaths(1, def.Paths, cw)
 	} else {
-		w.writeCollectionFieldStart(1, typePaths, typePaths)
+		cw.writeCollectionFieldStart(1, typePaths, typePaths)
 		paths = maps.Keys(def.Paths)
 		sort.Strings(paths)
 		deduper := newNameDeDuper()
@@ -143,31 +147,31 @@ func generateDefinition(def chioas.Definition, ptr bool, w *codeWriter) {
 			if useName == "" || useName == "/" {
 				useName = "Root"
 			}
-			w.writeLine(2, strconv.Quote(k)+": "+deduper.take(w.opts.varName("Path", useName))+",", false)
+			cw.writeLine(2, strconv.Quote(k)+": "+deduper.take(cw.opts.varName("Path", useName))+",", false)
 		}
-		w.writeLine(1, "},", false)
+		cw.writeLine(1, "},", false)
 	}
 	if len(def.Security) > 0 {
-		w.writeLine(1, "Security: "+w.opts.alias()+typeSecuritySchemes+"{", false)
+		cw.writeLine(1, "Security: "+cw.opts.alias()+typeSecuritySchemes+"{", false)
 		for _, ss := range def.Security {
-			w.writeLine(2, "{", false)
-			generateSecurityScheme(2, ss, w)
-			w.writeEnd(2, "},")
+			cw.writeLine(2, "{", false)
+			generateSecurityScheme(2, ss, cw)
+			cw.writeEnd(2, "},")
 		}
-		w.writeEnd(1, "},")
+		cw.writeEnd(1, "},")
 	}
 	if def.Components != nil {
-		generateComponents(1, def.Components, w)
+		generateComponents(1, def.Components, cw)
 	}
-	w.writeExtensions(1, def.Extensions)
-	writeZeroField(w, 1, "Comment", def.Comment)
-	writeZeroField(w, 1, "AutoHeadMethods", def.AutoHeadMethods)
-	writeZeroField(w, 1, "AutoOptionsMethods", def.AutoOptionsMethods)
-	writeZeroField(w, 1, "RootAutoOptionsMethod", def.RootAutoOptionsMethod)
-	writeZeroField(w, 1, "AutoMethodNotAllowed", def.AutoMethodNotAllowed)
-	w.writeLine(0, "}", true)
-	if w.opts.HoistPaths {
-		w.writeLine(0, "var (", false)
+	cw.writeExtensions(1, def.Extensions)
+	writeZeroField(cw, 1, "Comment", def.Comment)
+	writeZeroField(cw, 1, "AutoHeadMethods", def.AutoHeadMethods)
+	writeZeroField(cw, 1, "AutoOptionsMethods", def.AutoOptionsMethods)
+	writeZeroField(cw, 1, "RootAutoOptionsMethod", def.RootAutoOptionsMethod)
+	writeZeroField(cw, 1, "AutoMethodNotAllowed", def.AutoMethodNotAllowed)
+	cw.writeLine(0, "}", true)
+	if cw.opts.HoistPaths {
+		cw.writeLine(0, "var (", false)
 		// write out the actual path vars...
 		deduper := newNameDeDuper()
 		for _, k := range paths {
@@ -175,21 +179,21 @@ func generateDefinition(def chioas.Definition, ptr bool, w *codeWriter) {
 			if useName == "" || useName == "/" {
 				useName = "Root"
 			}
-			w.writeLine(1, deduper.take(w.opts.varName("Path", useName))+" = "+w.opts.alias()+typePath+"{", false)
-			generatePath(1, def.Paths[k], w)
-			w.writeLine(1, "}", false)
+			cw.writeLine(1, deduper.take(cw.opts.varName("Path", useName))+" = "+cw.opts.alias()+typePath+"{", false)
+			generatePath(1, def.Paths[k], cw)
+			cw.writeLine(1, "}", false)
 		}
-		w.writeLine(0, ")", true)
+		cw.writeLine(0, ")", true)
 	}
-	if w.opts.HoistComponents && def.Components != nil {
-		generateComponentsVars(def.Components, w, false, false)
+	if cw.opts.HoistComponents && def.Components != nil {
+		generateComponentsVars(def.Components, cw, false, false)
 	}
 }
 
-func generateComponentsVars(def *chioas.Components, w *codeWriter, topVar bool, topPtr bool) {
+func generateComponentsVars(def *chioas.Components, cw *codeWriter, topVar bool, topPtr bool) {
 	deduper := newNameDeDuper()
 	deDupe := func(kind, name string) string {
-		return deduper.take(w.opts.varName(kind, name))
+		return deduper.take(cw.opts.varName(kind, name))
 	}
 	const (
 		varSchema         = "Schema"
@@ -200,712 +204,718 @@ func generateComponentsVars(def *chioas.Components, w *codeWriter, topVar bool, 
 		varSecurityScheme = "SecurityScheme"
 	)
 	// start vars...
-	w.writeLine(0, "var (", false)
+	cw.writeLine(0, "var (", false)
 	// write components var...
 	if topVar {
 		amp := ""
 		if topPtr {
 			amp = "&"
 		}
-		w.writeLine(1, w.opts.topVarName()+" = "+amp+w.opts.alias()+typeComponents+"{", false)
+		cw.writeLine(1, cw.opts.topVarName()+" = "+amp+cw.opts.alias()+typeComponents+"{", false)
 	} else {
-		w.writeLine(1, w.opts.varName("", "components")+" = &"+w.opts.alias()+typeComponents+"{", false)
+		cw.writeLine(1, cw.opts.varName("", "components")+" = &"+cw.opts.alias()+typeComponents+"{", false)
 	}
 	var schemas chioas.Schemas
 	if len(def.Schemas) > 0 {
-		w.writeCollectionFieldStart(2, typeSchemas, typeSchemas)
+		cw.writeCollectionFieldStart(2, typeSchemas, typeSchemas)
 		schemas = append(schemas, def.Schemas...)
 		slices.SortStableFunc(schemas, func(a, b chioas.Schema) bool {
 			return a.Name < b.Name
 		})
 		for _, s := range schemas {
-			w.writeLine(3, deDupe(varSchema, s.Name)+",", false)
+			cw.writeLine(3, deDupe(varSchema, s.Name)+",", false)
 		}
-		w.writeEnd(2, "},")
+		cw.writeEnd(2, "},")
 	}
 	var requests []string
 	if len(def.Requests) > 0 {
-		w.writeCollectionFieldStart(2, "Requests", typeCommonRequests)
+		cw.writeCollectionFieldStart(2, "Requests", typeCommonRequests)
 		requests = maps.Keys(def.Requests)
 		sort.Strings(requests)
 		for _, k := range requests {
-			w.writeLine(3, strconv.Quote(k)+": "+deDupe(varRequest, k)+",", false)
+			cw.writeLine(3, strconv.Quote(k)+": "+deDupe(varRequest, k)+",", false)
 		}
-		w.writeEnd(2, "},")
+		cw.writeEnd(2, "},")
 	}
 	var responses []string
 	if len(def.Responses) > 0 {
-		w.writeCollectionFieldStart(2, "Responses", typeCommonResponses)
+		cw.writeCollectionFieldStart(2, "Responses", typeCommonResponses)
 		responses = maps.Keys(def.Responses)
 		sort.Strings(responses)
 		for _, k := range responses {
-			w.writeLine(3, strconv.Quote(k)+": "+deDupe(varResponse, k)+",", false)
+			cw.writeLine(3, strconv.Quote(k)+": "+deDupe(varResponse, k)+",", false)
 		}
-		w.writeEnd(2, "},")
+		cw.writeEnd(2, "},")
 	}
 	var examples chioas.Examples
 	if len(def.Examples) > 0 {
-		w.writeCollectionFieldStart(2, typeExamples, typeExamples)
+		cw.writeCollectionFieldStart(2, typeExamples, typeExamples)
 		examples = append(examples, def.Examples...)
 		slices.SortStableFunc(examples, func(a, b chioas.Example) bool {
 			return a.Name < b.Name
 		})
 		for _, eg := range examples {
-			w.writeLine(3, deDupe(varExample, eg.Name)+",", false)
+			cw.writeLine(3, deDupe(varExample, eg.Name)+",", false)
 		}
-		w.writeEnd(2, "},")
+		cw.writeEnd(2, "},")
 	}
 	var params []string
 	if len(def.Parameters) > 0 {
-		w.writeCollectionFieldStart(2, "Parameters", typeCommonParameters)
+		cw.writeCollectionFieldStart(2, "Parameters", typeCommonParameters)
 		params = maps.Keys(def.Parameters)
 		sort.Strings(params)
 		for _, k := range params {
-			w.writeLine(3, strconv.Quote(k)+": "+deDupe(varParameter, k)+",", false)
+			cw.writeLine(3, strconv.Quote(k)+": "+deDupe(varParameter, k)+",", false)
 		}
-		w.writeEnd(2, "},")
+		cw.writeEnd(2, "},")
 	}
 	var secSchemes chioas.SecuritySchemes
 	if len(def.SecuritySchemes) > 0 {
-		w.writeCollectionFieldStart(2, typeSecuritySchemes, typeSecuritySchemes)
+		cw.writeCollectionFieldStart(2, typeSecuritySchemes, typeSecuritySchemes)
 		secSchemes = append(secSchemes, def.SecuritySchemes...)
 		slices.SortStableFunc(secSchemes, func(a, b chioas.SecurityScheme) bool {
 			return a.Name < b.Name
 		})
 		for _, s := range secSchemes {
-			w.writeLine(3, deDupe(varSecurityScheme, s.Name)+",", false)
+			cw.writeLine(3, deDupe(varSecurityScheme, s.Name)+",", false)
 		}
-		w.writeEnd(2, "},")
+		cw.writeEnd(2, "},")
 	}
-	w.writeExtensions(2, def.Extensions)
-	writeZeroField(w, 2, "Comment", def.Comment)
-	w.writeEnd(1, "}")
+	cw.writeExtensions(2, def.Extensions)
+	writeZeroField(cw, 2, "Comment", def.Comment)
+	cw.writeEnd(1, "}")
 	// write components parts vars...
 	deduper.clear()
 	// schemas...
 	for _, s := range schemas {
-		w.writeLine(1, deDupe(varSchema, s.Name)+" = "+w.opts.alias()+typeSchema+"{", false)
-		generateSchema(1, &s, w)
-		w.writeEnd(1, "}")
+		cw.writeLine(1, deDupe(varSchema, s.Name)+" = "+cw.opts.alias()+typeSchema+"{", false)
+		generateSchema(1, &s, cw)
+		cw.writeEnd(1, "}")
 	}
 	// requests...
 	for _, k := range requests {
-		w.writeLine(1, deDupe(varRequest, k)+" = "+w.opts.alias()+typeRequest+"{", false)
+		cw.writeLine(1, deDupe(varRequest, k)+" = "+cw.opts.alias()+typeRequest+"{", false)
 		r := def.Requests[k]
-		generateRequest(1, &r, w)
-		w.writeEnd(1, "}")
+		generateRequest(1, &r, cw)
+		cw.writeEnd(1, "}")
 	}
 	// responses...
 	for _, k := range responses {
-		w.writeLine(1, deDupe(varResponse, k)+" = "+w.opts.alias()+typeResponse+"{", false)
-		generateResponse(1, def.Responses[k], w)
-		w.writeEnd(1, "}")
+		cw.writeLine(1, deDupe(varResponse, k)+" = "+cw.opts.alias()+typeResponse+"{", false)
+		generateResponse(1, def.Responses[k], cw)
+		cw.writeEnd(1, "}")
 	}
 	// examples...
 	for _, eg := range examples {
-		w.writeLine(1, deDupe(varExample, eg.Name)+" = "+w.opts.alias()+typeExample+"{", false)
-		generateExample(1, eg, w)
-		w.writeEnd(1, "}")
+		cw.writeLine(1, deDupe(varExample, eg.Name)+" = "+cw.opts.alias()+typeExample+"{", false)
+		generateExample(1, eg, cw)
+		cw.writeEnd(1, "}")
 	}
 	// parameters...
 	for _, k := range params {
-		w.writeLine(1, deDupe(varParameter, k)+" = "+w.opts.alias()+typeCommonParameter+"{", false)
-		generateCommonParam(1, def.Parameters[k], w)
-		w.writeEnd(1, "}")
+		cw.writeLine(1, deDupe(varParameter, k)+" = "+cw.opts.alias()+typeCommonParameter+"{", false)
+		generateCommonParam(1, def.Parameters[k], cw)
+		cw.writeEnd(1, "}")
 	}
 	// security schemes...
 	for _, s := range secSchemes {
-		w.writeLine(1, deDupe(varSecurityScheme, s.Name)+" = "+w.opts.alias()+typeSecurityScheme+"{", false)
-		generateSecurityScheme(1, s, w)
-		w.writeEnd(1, "}")
+		cw.writeLine(1, deDupe(varSecurityScheme, s.Name)+" = "+cw.opts.alias()+typeSecurityScheme+"{", false)
+		generateSecurityScheme(1, s, cw)
+		cw.writeEnd(1, "}")
 	}
 	// end vars...
-	w.writeLine(0, ")", true)
+	cw.writeLine(0, ")", true)
 }
 
-func generateComponents(indent int, def *chioas.Components, w *codeWriter) {
-	if w.opts.HoistComponents {
-		w.writeLine(indent, "Components: "+w.opts.varName("", "Components")+",", false)
+func generateComponents(indent int, def *chioas.Components, cw *codeWriter) {
+	if cw.opts.HoistComponents {
+		cw.writeLine(indent, "Components: "+cw.opts.varName("", "Components")+",", false)
 		return
 	}
-	w.writeLine(indent, "Components: &"+w.opts.alias()+typeComponents+"{", false)
-	generateComponentsInner(indent, def, w)
-	w.writeEnd(indent, "},")
+	cw.writeLine(indent, "Components: &"+cw.opts.alias()+typeComponents+"{", false)
+	generateComponentsInner(indent, def, cw)
+	cw.writeEnd(indent, "},")
 }
 
-func generateComponentsInner(indent int, def *chioas.Components, w *codeWriter) {
+func generateComponentsInner(indent int, def *chioas.Components, cw *codeWriter) {
 	if len(def.Schemas) > 0 {
-		w.writeCollectionFieldStart(indent+1, typeSchemas, typeSchemas)
+		cw.writeCollectionFieldStart(indent+1, typeSchemas, typeSchemas)
 		ss := append(chioas.Schemas{}, def.Schemas...)
 		slices.SortStableFunc(ss, func(a, b chioas.Schema) bool {
 			return a.Name < b.Name
 		})
 		for _, s := range ss {
-			w.writeLine(indent+2, "{", false)
-			generateSchema(indent+2, &s, w)
-			w.writeEnd(indent+2, "},")
+			cw.writeLine(indent+2, "{", false)
+			generateSchema(indent+2, &s, cw)
+			cw.writeEnd(indent+2, "},")
 		}
-		w.writeEnd(indent+1, "},")
+		cw.writeEnd(indent+1, "},")
 	}
 	if len(def.Requests) > 0 {
-		w.writeCollectionFieldStart(indent+1, "Requests", typeCommonRequests)
+		cw.writeCollectionFieldStart(indent+1, "Requests", typeCommonRequests)
 		ks := maps.Keys(def.Requests)
 		sort.Strings(ks)
 		for _, k := range ks {
-			w.writeKey(indent+2, k)
+			cw.writeKey(indent+2, k)
 			r := def.Requests[k]
-			generateRequest(indent+2, &r, w)
-			w.writeEnd(indent+2, "},")
+			generateRequest(indent+2, &r, cw)
+			cw.writeEnd(indent+2, "},")
 		}
-		w.writeEnd(indent+1, "},")
+		cw.writeEnd(indent+1, "},")
 	}
 	if len(def.Responses) > 0 {
-		w.writeCollectionFieldStart(indent+1, "Responses", typeCommonResponses)
+		cw.writeCollectionFieldStart(indent+1, "Responses", typeCommonResponses)
 		ks := maps.Keys(def.Responses)
 		sort.Strings(ks)
 		for _, k := range ks {
-			w.writeKey(indent+2, k)
-			generateResponse(indent+2, def.Responses[k], w)
-			w.writeEnd(indent+2, "},")
+			cw.writeKey(indent+2, k)
+			generateResponse(indent+2, def.Responses[k], cw)
+			cw.writeEnd(indent+2, "},")
 		}
-		w.writeEnd(indent+1, "},")
+		cw.writeEnd(indent+1, "},")
 	}
 	if len(def.Examples) > 0 {
-		w.writeCollectionFieldStart(indent+1, typeExamples, typeExamples)
+		cw.writeCollectionFieldStart(indent+1, typeExamples, typeExamples)
 		egs := append(chioas.Examples{}, def.Examples...)
 		slices.SortStableFunc(egs, func(a, b chioas.Example) bool {
 			return a.Name < b.Name
 		})
 		for _, eg := range egs {
-			w.writeLine(indent+2, "{", false)
-			generateExample(indent+2, eg, w)
-			w.writeEnd(indent+2, "},")
+			cw.writeLine(indent+2, "{", false)
+			generateExample(indent+2, eg, cw)
+			cw.writeEnd(indent+2, "},")
 		}
-		w.writeEnd(indent+1, "},")
+		cw.writeEnd(indent+1, "},")
 	}
 	if len(def.Parameters) > 0 {
-		w.writeCollectionFieldStart(indent+1, "Parameters", typeCommonParameters)
+		cw.writeCollectionFieldStart(indent+1, "Parameters", typeCommonParameters)
 		ks := maps.Keys(def.Parameters)
 		sort.Strings(ks)
 		for _, k := range ks {
-			w.writeKey(indent+2, k)
-			generateCommonParam(indent+2, def.Parameters[k], w)
-			w.writeEnd(indent+2, "},")
+			cw.writeKey(indent+2, k)
+			generateCommonParam(indent+2, def.Parameters[k], cw)
+			cw.writeEnd(indent+2, "},")
 		}
-		w.writeEnd(indent+1, "},")
+		cw.writeEnd(indent+1, "},")
 	}
 	if len(def.SecuritySchemes) > 0 {
-		w.writeCollectionFieldStart(indent+1, typeSecuritySchemes, typeSecuritySchemes)
+		cw.writeCollectionFieldStart(indent+1, typeSecuritySchemes, typeSecuritySchemes)
 		ss := append(chioas.SecuritySchemes{}, def.SecuritySchemes...)
 		slices.SortStableFunc(ss, func(a, b chioas.SecurityScheme) bool {
 			return a.Name < b.Name
 		})
 		for _, s := range ss {
-			w.writeLine(indent+2, "{", false)
-			generateSecurityScheme(indent+3, s, w)
-			w.writeEnd(indent+2, "},")
+			cw.writeLine(indent+2, "{", false)
+			generateSecurityScheme(indent+3, s, cw)
+			cw.writeEnd(indent+2, "},")
 		}
-		w.writeEnd(indent+1, "},")
+		cw.writeEnd(indent+1, "},")
 	}
-	w.writeExtensions(indent+2, def.Extensions)
-	writeZeroField(w, indent+2, "Comment", def.Comment)
+	cw.writeExtensions(indent+2, def.Extensions)
+	writeZeroField(cw, indent+2, "Comment", def.Comment)
 }
 
-func generateInfo(indent int, def chioas.Info, w *codeWriter) {
+func generateInfo(indent int, def chioas.Info, cw *codeWriter) {
 	if hasNonZeroValues(def.Title, def.Description, def.Version, def.TermsOfService, def.Comment,
 		def.Contact, def.License, def.Extensions, def.ExternalDocs) {
-		w.writeLine(indent+1, "Info: "+w.opts.alias()+typeInfo+"{", false)
-		writeZeroField(w, indent+2, "Title", def.Title)
-		writeZeroField(w, indent+2, "Description", def.Description)
-		writeZeroField(w, indent+2, "Version", def.Version)
-		writeZeroField(w, indent+2, "TermsOfService", def.TermsOfService)
+		cw.writeLine(indent+1, "Info: "+cw.opts.alias()+typeInfo+"{", false)
+		writeZeroField(cw, indent+2, "Title", def.Title)
+		writeZeroField(cw, indent+2, "Description", def.Description)
+		writeZeroField(cw, indent+2, "Version", def.Version)
+		writeZeroField(cw, indent+2, "TermsOfService", def.TermsOfService)
 		if def.Contact != nil {
-			w.writeLine(indent+2, "Contact: &"+w.opts.alias()+typeContact+"{", false)
-			writeZeroField(w, indent+3, "Name", def.Contact.Name)
-			writeZeroField(w, indent+3, "Url", def.Contact.Url)
-			writeZeroField(w, indent+3, "Email", def.Contact.Email)
-			w.writeExtensions(indent+3, def.Contact.Extensions)
-			writeZeroField(w, indent+3, "Comment", def.Contact.Comment)
-			w.writeEnd(indent+2, "},")
+			cw.writeLine(indent+2, "Contact: &"+cw.opts.alias()+typeContact+"{", false)
+			writeZeroField(cw, indent+3, "Name", def.Contact.Name)
+			writeZeroField(cw, indent+3, "Url", def.Contact.Url)
+			writeZeroField(cw, indent+3, "Email", def.Contact.Email)
+			cw.writeExtensions(indent+3, def.Contact.Extensions)
+			writeZeroField(cw, indent+3, "Comment", def.Contact.Comment)
+			cw.writeEnd(indent+2, "},")
 		}
 		if def.License != nil {
-			w.writeLine(indent+2, "License: &"+w.opts.alias()+typeLicense+"{", false)
-			writeZeroField(w, indent+3, "Name", def.License.Name)
-			writeZeroField(w, indent+3, "Url", def.License.Url)
-			w.writeExtensions(indent+3, def.License.Extensions)
-			writeZeroField(w, indent+3, "Comment", def.License.Comment)
-			w.writeEnd(indent+2, "},")
+			cw.writeLine(indent+2, "License: &"+cw.opts.alias()+typeLicense+"{", false)
+			writeZeroField(cw, indent+3, "Name", def.License.Name)
+			writeZeroField(cw, indent+3, "Url", def.License.Url)
+			cw.writeExtensions(indent+3, def.License.Extensions)
+			writeZeroField(cw, indent+3, "Comment", def.License.Comment)
+			cw.writeEnd(indent+2, "},")
 		}
-		w.writeExtensions(indent+2, def.Extensions)
+		cw.writeExtensions(indent+2, def.Extensions)
 		if def.ExternalDocs != nil {
-			w.writeLine(indent+2, "ExternalDocs: &"+w.opts.alias()+typeExternalDocs+"{", false)
-			writeZeroField(w, indent+3, "Description", def.ExternalDocs.Description)
-			writeZeroField(w, indent+3, "Url", def.ExternalDocs.Url)
-			w.writeExtensions(indent+3, def.ExternalDocs.Extensions)
-			writeZeroField(w, indent+3, "Comment", def.ExternalDocs.Comment)
-			w.writeEnd(indent+2, "},")
+			cw.writeLine(indent+2, "ExternalDocs: &"+cw.opts.alias()+typeExternalDocs+"{", false)
+			writeZeroField(cw, indent+3, "Description", def.ExternalDocs.Description)
+			writeZeroField(cw, indent+3, "Url", def.ExternalDocs.Url)
+			cw.writeExtensions(indent+3, def.ExternalDocs.Extensions)
+			writeZeroField(cw, indent+3, "Comment", def.ExternalDocs.Comment)
+			cw.writeEnd(indent+2, "},")
 		}
-		writeZeroField(w, indent+2, "Comment", def.Comment)
-		w.writeEnd(indent+1, "},")
+		writeZeroField(cw, indent+2, "Comment", def.Comment)
+		cw.writeEnd(indent+1, "},")
 	}
 }
 
-func generatePath(indent int, def chioas.Path, w *codeWriter) {
-	generateMethods(indent+1, def.Methods, w)
-	generatePaths(indent+1, def.Paths, w)
-	writeZeroField(w, indent+1, "Tag", def.Tag)
+func generatePath(indent int, def chioas.Path, cw *codeWriter) {
+	generateMethods(indent+1, def.Methods, cw)
+	generatePaths(indent+1, def.Paths, cw)
+	writeZeroField(cw, indent+1, "Tag", def.Tag)
 	if len(def.PathParams) > 0 {
-		w.writeLine(indent+1, "PathParams: "+w.opts.alias()+typePathParams+"{", false)
+		cw.writeLine(indent+1, "PathParams: "+cw.opts.alias()+typePathParams+"{", false)
 		ks := maps.Keys(def.PathParams)
 		sort.Strings(ks)
 		for _, k := range ks {
-			w.writeKey(indent+2, k)
-			generatePathParam(indent+2, def.PathParams[k], w)
-			w.writeLine(indent+2, "},", false)
+			cw.writeKey(indent+2, k)
+			generatePathParam(indent+2, def.PathParams[k], cw)
+			cw.writeLine(indent+2, "},", false)
 		}
-		w.writeEnd(indent+1, "},")
+		cw.writeEnd(indent+1, "},")
 	}
-	writeZeroField(w, indent+1, "HideDocs", def.HideDocs)
-	w.writeExtensions(indent+1, def.Extensions)
-	writeZeroField(w, indent+1, "Comment", def.Comment)
-	writeZeroField(w, indent+1, "AutoOptionsMethod", def.AutoOptionsMethod)
+	writeZeroField(cw, indent+1, "HideDocs", def.HideDocs)
+	cw.writeExtensions(indent+1, def.Extensions)
+	writeZeroField(cw, indent+1, "Comment", def.Comment)
+	writeZeroField(cw, indent+1, "AutoOptionsMethod", def.AutoOptionsMethod)
 }
 
-func generatePaths(indent int, paths chioas.Paths, w *codeWriter) {
+func generatePaths(indent int, paths chioas.Paths, cw *codeWriter) {
 	if len(paths) > 0 {
-		w.writeCollectionFieldStart(indent, typePaths, typePaths)
-		ks := maps.Keys(paths)
-		sort.Strings(ks)
-		for _, k := range ks {
-			w.writeKey(indent+1, k)
-			generatePath(indent+1, paths[k], w)
-			w.writeLine(indent+1, "},", false)
-		}
-		w.writeLine(indent, "},", false)
+		cw.writeCollectionFieldStart(indent, typePaths, typePaths)
+		generatePathsInner(indent, paths, cw)
+		cw.writeLine(indent, "},", false)
 	}
 }
 
-func generateMethods(indent int, methods chioas.Methods, w *codeWriter) {
+func generatePathsInner(indent int, paths chioas.Paths, cw *codeWriter) {
+	ks := maps.Keys(paths)
+	sort.Strings(ks)
+	for _, k := range ks {
+		cw.writeKey(indent+1, k)
+		generatePath(indent+1, paths[k], cw)
+		cw.writeLine(indent+1, "},", false)
+	}
+}
+
+func generateMethods(indent int, methods chioas.Methods, cw *codeWriter) {
 	if len(methods) > 0 {
-		w.writeCollectionFieldStart(indent, typeMethods, typeMethods)
+		cw.writeCollectionFieldStart(indent, typeMethods, typeMethods)
 		sms := maps.Keys(methods)
 		sort.Slice(sms, func(i, j int) bool {
 			return compareMethods(sms[i], sms[j])
 		})
 		for _, m := range sms {
-			generateMethod(indent+1, m, methods[m], w)
+			generateMethod(indent+1, m, methods[m], cw)
 		}
-		w.writeLine(indent, "},", false)
+		cw.writeLine(indent, "},", false)
 	}
 }
 
-func generateMethod(indent int, method string, def chioas.Method, w *codeWriter) {
-	w.writeLine(indent, w.opts.translateMethod(method)+": {", false)
-	generateMethodInner(indent, def, w)
-	w.writeLine(indent, "},", false)
+func generateMethod(indent int, method string, def chioas.Method, cw *codeWriter) {
+	cw.writeLine(indent, cw.opts.translateMethod(method)+": {", false)
+	generateMethodInner(indent, def, cw)
+	cw.writeLine(indent, "},", false)
 }
 
-func generateMethodInner(indent int, def chioas.Method, w *codeWriter) {
-	writeZeroField(w, indent+1, "Description", def.Description)
-	writeZeroField(w, indent+1, "Summary", def.Summary)
+func generateMethodInner(indent int, def chioas.Method, cw *codeWriter) {
+	writeZeroField(cw, indent+1, "Description", def.Description)
+	writeZeroField(cw, indent+1, "Summary", def.Summary)
 	if hs, ok := def.Handler.(string); ok {
 		// only output handler if a string
-		writeZeroField(w, indent+1, "Handler", hs)
+		writeZeroField(cw, indent+1, "Handler", hs)
 	}
-	writeZeroField(w, indent+1, "OperationId", def.OperationId)
-	writeZeroField(w, indent+1, "Tag", def.Tag)
+	writeZeroField(cw, indent+1, "OperationId", def.OperationId)
+	writeZeroField(cw, indent+1, "Tag", def.Tag)
 	if len(def.QueryParams) > 0 {
-		w.writeLine(indent+1, "QueryParams: "+w.opts.alias()+typeQueryParams+"{", false)
+		cw.writeLine(indent+1, "QueryParams: "+cw.opts.alias()+typeQueryParams+"{", false)
 		for _, qp := range def.QueryParams {
-			w.writeLine(indent+2, "{", false)
-			generateQueryParam(indent+2, qp, w)
-			w.writeLine(indent+2, "},", false)
+			cw.writeLine(indent+2, "{", false)
+			generateQueryParam(indent+2, qp, cw)
+			cw.writeLine(indent+2, "},", false)
 		}
-		w.writeEnd(indent+1, "},")
+		cw.writeEnd(indent+1, "},")
 	}
 	if def.Request != nil {
-		w.writeLine(indent+1, "Request: &"+w.opts.alias()+typeRequest+"{", false)
-		generateRequest(indent+1, def.Request, w)
-		w.writeEnd(indent+1, "},")
+		cw.writeLine(indent+1, "Request: &"+cw.opts.alias()+typeRequest+"{", false)
+		generateRequest(indent+1, def.Request, cw)
+		cw.writeEnd(indent+1, "},")
 	}
 	if len(def.Responses) > 0 {
-		w.writeLine(indent+1, "Responses: "+w.opts.alias()+typeResponses+"{", false)
+		cw.writeLine(indent+1, "Responses: "+cw.opts.alias()+typeResponses+"{", false)
 		ks := maps.Keys(def.Responses)
 		slices.Sort(ks)
 		for _, k := range ks {
-			w.writeLine(indent+2, w.opts.translateStatus(k)+": {", false)
-			generateResponse(indent+2, def.Responses[k], w)
-			w.writeEnd(indent+2, "},")
+			cw.writeLine(indent+2, cw.opts.translateStatus(k)+": {", false)
+			generateResponse(indent+2, def.Responses[k], cw)
+			cw.writeEnd(indent+2, "},")
 		}
-		w.writeEnd(indent+1, "},")
+		cw.writeEnd(indent+1, "},")
 	}
-	writeZeroField(w, indent+1, "Deprecated", def.Deprecated)
+	writeZeroField(cw, indent+1, "Deprecated", def.Deprecated)
 	if len(def.Security) > 0 {
-		w.writeLine(indent+1, "Security: "+w.opts.alias()+typeSecuritySchemes+"{", false)
+		cw.writeLine(indent+1, "Security: "+cw.opts.alias()+typeSecuritySchemes+"{", false)
 		for _, s := range def.Security {
-			w.writeLine(indent+2, "{", false)
-			w.writeLine(indent+3, "Name: "+strconv.Quote(s.Name)+",", false)
-			w.writeLine(indent+2, "},", false)
+			cw.writeLine(indent+2, "{", false)
+			cw.writeLine(indent+3, "Name: "+strconv.Quote(s.Name)+",", false)
+			cw.writeLine(indent+2, "},", false)
 		}
-		w.writeEnd(indent+1, "},")
+		cw.writeEnd(indent+1, "},")
 	}
-	writeZeroField(w, indent+1, "OptionalSecurity", def.OptionalSecurity)
-	w.writeExtensions(indent+1, def.Extensions)
-	writeZeroField(w, indent+1, "Comment", def.Comment)
-	writeZeroField(w, indent+1, "HideDocs", def.HideDocs)
+	writeZeroField(cw, indent+1, "OptionalSecurity", def.OptionalSecurity)
+	cw.writeExtensions(indent+1, def.Extensions)
+	writeZeroField(cw, indent+1, "Comment", def.Comment)
+	writeZeroField(cw, indent+1, "HideDocs", def.HideDocs)
 }
 
-func generateRequest(indent int, def *chioas.Request, w *codeWriter) {
+func generateRequest(indent int, def *chioas.Request, cw *codeWriter) {
 	if def.Ref != "" {
-		w.writeLine(indent+1, "Ref: "+strconv.Quote(refs.Normalize(tags.RequestBodies, def.Ref))+",", false)
+		cw.writeLine(indent+1, "Ref: "+strconv.Quote(refs.Normalize(tags.RequestBodies, def.Ref))+",", false)
 	} else {
-		writeZeroField(w, indent+1, "Description", def.Description)
-		writeZeroField(w, indent+1, "Required", def.Required)
-		writeZeroField(w, indent+1, "ContentType", def.ContentType)
-		generateAlternativeContentTypes(indent, def.AlternativeContentTypes, w)
+		writeZeroField(cw, indent+1, "Description", def.Description)
+		writeZeroField(cw, indent+1, "Required", def.Required)
+		writeZeroField(cw, indent+1, "ContentType", def.ContentType)
+		generateAlternativeContentTypes(indent, def.AlternativeContentTypes, cw)
 		if s := def.Schema; s != nil {
-			generateVaryingSchema(indent, def.Schema, w)
+			generateVaryingSchema(indent, def.Schema, cw)
 		} else if def.SchemaRef != "" {
-			w.writeSchemaRef(indent+1, def.SchemaRef)
+			cw.writeSchemaRef(indent+1, def.SchemaRef)
 		}
-		writeZeroField(w, indent+1, "IsArray", def.IsArray)
-		generateExamples(indent, def.Examples, w)
-		w.writeExtensions(indent+1, def.Extensions)
-		writeZeroField(w, indent+1, "Comment", def.Comment)
+		writeZeroField(cw, indent+1, "IsArray", def.IsArray)
+		generateExamples(indent, def.Examples, cw)
+		cw.writeExtensions(indent+1, def.Extensions)
+		writeZeroField(cw, indent+1, "Comment", def.Comment)
 	}
 }
 
-func generateResponse(indent int, def chioas.Response, w *codeWriter) {
+func generateResponse(indent int, def chioas.Response, cw *codeWriter) {
 	if def.Ref != "" {
-		w.writeLine(indent+1, "Ref: "+strconv.Quote(refs.Normalize(tags.Responses, def.Ref))+",", false)
+		cw.writeLine(indent+1, "Ref: "+strconv.Quote(refs.Normalize(tags.Responses, def.Ref))+",", false)
 	} else {
-		writeZeroField(w, indent+1, "Description", def.Description)
-		writeZeroField(w, indent+1, "NoContent", def.NoContent)
-		writeZeroField(w, indent+1, "ContentType", def.ContentType)
-		generateAlternativeContentTypes(indent, def.AlternativeContentTypes, w)
+		writeZeroField(cw, indent+1, "Description", def.Description)
+		writeZeroField(cw, indent+1, "NoContent", def.NoContent)
+		writeZeroField(cw, indent+1, "ContentType", def.ContentType)
+		generateAlternativeContentTypes(indent, def.AlternativeContentTypes, cw)
 		if s := def.Schema; s != nil {
-			generateVaryingSchema(indent, def.Schema, w)
+			generateVaryingSchema(indent, def.Schema, cw)
 		} else if def.SchemaRef != "" {
-			w.writeSchemaRef(indent+1, def.SchemaRef)
+			cw.writeSchemaRef(indent+1, def.SchemaRef)
 		}
-		writeZeroField(w, indent+1, "IsArray", def.IsArray)
-		generateExamples(indent, def.Examples, w)
-		w.writeExtensions(indent+1, def.Extensions)
-		writeZeroField(w, indent+1, "Comment", def.Comment)
+		writeZeroField(cw, indent+1, "IsArray", def.IsArray)
+		generateExamples(indent, def.Examples, cw)
+		cw.writeExtensions(indent+1, def.Extensions)
+		writeZeroField(cw, indent+1, "Comment", def.Comment)
 	}
 }
 
-func generateAlternativeContentTypes(indent int, cts chioas.ContentTypes, w *codeWriter) {
+func generateAlternativeContentTypes(indent int, cts chioas.ContentTypes, cw *codeWriter) {
 	if len(cts) > 0 {
-		w.writeLine(indent+1, "AlternativeContentTypes: "+w.opts.alias()+typeContentTypes+"{", false)
+		cw.writeLine(indent+1, "AlternativeContentTypes: "+cw.opts.alias()+typeContentTypes+"{", false)
 		ks := maps.Keys(cts)
 		sort.Strings(ks)
 		for _, k := range ks {
-			w.writeKey(indent+2, k)
-			generateContentType(indent+2, cts[k], w)
-			w.writeLine(indent+2, "},", false)
+			cw.writeKey(indent+2, k)
+			generateContentType(indent+2, cts[k], cw)
+			cw.writeLine(indent+2, "},", false)
 		}
-		w.writeEnd(indent+1, "},")
+		cw.writeEnd(indent+1, "},")
 	}
 }
 
-func generateContentType(indent int, def chioas.ContentType, w *codeWriter) {
+func generateContentType(indent int, def chioas.ContentType, cw *codeWriter) {
 	if s := def.Schema; s != nil {
-		generateVaryingSchema(indent, def.Schema, w)
+		generateVaryingSchema(indent, def.Schema, cw)
 	} else if def.SchemaRef != "" {
-		w.writeSchemaRef(indent+1, def.SchemaRef)
+		cw.writeSchemaRef(indent+1, def.SchemaRef)
 	}
-	writeZeroField(w, indent+1, "IsArray", def.IsArray)
-	generateExamples(indent, def.Examples, w)
-	w.writeExtensions(indent+1, def.Extensions)
-	writeZeroField(w, indent+1, "Comment", def.Comment)
+	writeZeroField(cw, indent+1, "IsArray", def.IsArray)
+	generateExamples(indent, def.Examples, cw)
+	cw.writeExtensions(indent+1, def.Extensions)
+	writeZeroField(cw, indent+1, "Comment", def.Comment)
 }
 
-func generateVaryingSchema(indent int, s any, w *codeWriter) {
+func generateVaryingSchema(indent int, s any, cw *codeWriter) {
 	switch schema := s.(type) {
 	case chioas.Schema:
-		w.writeLine(indent+1, "Schema: "+w.opts.alias()+typeSchema+"{", false)
-		generateSchema(indent+1, &schema, w)
-		w.writeLine(indent+1, "},", false)
+		cw.writeLine(indent+1, "Schema: "+cw.opts.alias()+typeSchema+"{", false)
+		generateSchema(indent+1, &schema, cw)
+		cw.writeLine(indent+1, "},", false)
 	case *chioas.Schema:
-		w.writeLine(indent+1, "Schema: &"+w.opts.alias()+typeSchema+"{", false)
-		generateSchema(indent+1, schema, w)
-		w.writeLine(indent+1, "},", false)
+		if schema != nil {
+			cw.writeLine(indent+1, "Schema: &"+cw.opts.alias()+typeSchema+"{", false)
+			generateSchema(indent+1, schema, cw)
+			cw.writeLine(indent+1, "},", false)
+		}
 	case chioas.SchemaConverter:
-		w.writeLine(indent+1, "Schema: &"+w.opts.alias()+typeSchema+"{", false)
+		cw.writeLine(indent+1, "Schema: &"+cw.opts.alias()+typeSchema+"{", false)
 		ts := schema.ToSchema()
 		if ts != nil {
-			generateSchema(indent+1, ts, w)
+			generateSchema(indent+1, ts, cw)
 		}
-		w.writeLine(indent+1, "},", false)
+		cw.writeLine(indent+1, "},", false)
 	default:
 		if fs, err := chioas.SchemaFrom(s); err == nil {
-			w.writeLine(indent+1, "Schema: &"+w.opts.alias()+typeSchema+"{", false)
-			generateSchema(indent+1, fs, w)
-			w.writeLine(indent+1, "},", false)
+			cw.writeLine(indent+1, "Schema: &"+cw.opts.alias()+typeSchema+"{", false)
+			generateSchema(indent+1, fs, cw)
+			cw.writeLine(indent+1, "},", false)
 		} else {
 			// note: this will produce bad code - but indicates needs manual attention
-			w.writeLine(indent+1, fmt.Sprintf("Schema: %T,", s), false)
+			cw.writeLine(indent+1, fmt.Sprintf("Schema: %T,", s), false)
 		}
 	}
 }
 
-func generateExamples(indent int, egs chioas.Examples, w *codeWriter) {
+func generateExamples(indent int, egs chioas.Examples, cw *codeWriter) {
 	if len(egs) > 0 {
-		w.writeLine(indent+1, "Examples: "+w.opts.alias()+typeExamples+"{", false)
+		cw.writeLine(indent+1, "Examples: "+cw.opts.alias()+typeExamples+"{", false)
 		for _, eg := range egs {
-			w.writeLine(indent+2, "{", false)
-			generateExample(indent+2, eg, w)
-			w.writeLine(indent+2, "},", false)
+			cw.writeLine(indent+2, "{", false)
+			generateExample(indent+2, eg, cw)
+			cw.writeLine(indent+2, "},", false)
 		}
-		w.writeEnd(indent+1, "},")
+		cw.writeEnd(indent+1, "},")
 	}
 }
 
-func generateExample(indent int, def chioas.Example, w *codeWriter) {
+func generateExample(indent int, def chioas.Example, cw *codeWriter) {
 	if def.ExampleRef != "" {
-		w.writeLine(indent+1, "ExampleRef: "+strconv.Quote(refs.Normalize(tags.Examples, def.ExampleRef))+",", false)
+		cw.writeLine(indent+1, "ExampleRef: "+strconv.Quote(refs.Normalize(tags.Examples, def.ExampleRef))+",", false)
 	} else {
-		writeZeroField(w, indent+1, "Name", def.Name)
-		writeZeroField(w, indent+1, "Summary", def.Summary)
-		writeZeroField(w, indent+1, "Description", def.Description)
+		writeZeroField(cw, indent+1, "Name", def.Name)
+		writeZeroField(cw, indent+1, "Summary", def.Summary)
+		writeZeroField(cw, indent+1, "Description", def.Description)
 		if def.Value != nil {
-			w.writeStart(indent+1, "Value: ")
-			w.writeValue(indent+1, def.Value)
+			cw.writeStart(indent+1, "Value: ")
+			cw.writeValue(indent+1, def.Value)
 		}
-		w.writeExtensions(indent+1, def.Extensions)
-		writeZeroField(w, indent+1, "Comment", def.Comment)
+		cw.writeExtensions(indent+1, def.Extensions)
+		writeZeroField(cw, indent+1, "Comment", def.Comment)
 	}
 }
 
-func generatePathParam(indent int, def chioas.PathParam, w *codeWriter) {
+func generatePathParam(indent int, def chioas.PathParam, cw *codeWriter) {
 	if def.Ref != "" {
-		w.writeLine(indent+1, "Ref: "+strconv.Quote(refs.Normalize(tags.Parameters, def.Ref))+",", false)
+		cw.writeLine(indent+1, "Ref: "+strconv.Quote(refs.Normalize(tags.Parameters, def.Ref))+",", false)
 	} else {
-		writeZeroField(w, indent+1, "Description", def.Description)
+		writeZeroField(cw, indent+1, "Description", def.Description)
 		if def.Example != nil {
-			w.writeStart(indent+1, "Example: ")
-			w.writeValue(indent+1, def.Example)
+			cw.writeStart(indent+1, "Example: ")
+			cw.writeValue(indent+1, def.Example)
 		}
 		if def.Schema != nil {
-			w.writeLine(indent+1, "Schema: &"+w.opts.alias()+typeSchema+"{", false)
-			generateSchema(indent+1, def.Schema, w)
-			w.writeEnd(indent+1, "},")
+			cw.writeLine(indent+1, "Schema: &"+cw.opts.alias()+typeSchema+"{", false)
+			generateSchema(indent+1, def.Schema, cw)
+			cw.writeEnd(indent+1, "},")
 		} else if def.SchemaRef != "" {
-			w.writeSchemaRef(indent+1, def.SchemaRef)
+			cw.writeSchemaRef(indent+1, def.SchemaRef)
 		}
-		w.writeExtensions(indent+1, def.Extensions)
-		writeZeroField(w, indent+1, "Comment", def.Comment)
+		cw.writeExtensions(indent+1, def.Extensions)
+		writeZeroField(cw, indent+1, "Comment", def.Comment)
 	}
 }
 
-func generateQueryParam(indent int, def chioas.QueryParam, w *codeWriter) {
+func generateQueryParam(indent int, def chioas.QueryParam, cw *codeWriter) {
 	if def.Ref != "" {
-		w.writeLine(indent+1, "Ref: "+strconv.Quote(refs.Normalize(tags.Parameters, def.Ref))+",", false)
+		cw.writeLine(indent+1, "Ref: "+strconv.Quote(refs.Normalize(tags.Parameters, def.Ref))+",", false)
 	} else {
-		writeZeroField(w, indent+1, "Name", def.Name)
-		writeZeroField(w, indent+1, "Description", def.Description)
-		writeZeroField(w, indent+1, "Required", def.Required)
-		writeZeroField(w, indent+1, "In", def.In)
+		writeZeroField(cw, indent+1, "Name", def.Name)
+		writeZeroField(cw, indent+1, "Description", def.Description)
+		writeZeroField(cw, indent+1, "Required", def.Required)
+		writeZeroField(cw, indent+1, "In", def.In)
 		if def.Example != nil {
-			w.writeStart(indent+1, "Example: ")
-			w.writeValue(indent+1, def.Example)
+			cw.writeStart(indent+1, "Example: ")
+			cw.writeValue(indent+1, def.Example)
 		}
 		if def.Schema != nil {
-			w.writeLine(indent+1, "Schema: &"+w.opts.alias()+typeSchema+"{", false)
-			generateSchema(indent+1, def.Schema, w)
-			w.writeEnd(indent+1, "},")
+			cw.writeLine(indent+1, "Schema: &"+cw.opts.alias()+typeSchema+"{", false)
+			generateSchema(indent+1, def.Schema, cw)
+			cw.writeEnd(indent+1, "},")
 		} else if def.SchemaRef != "" {
-			w.writeSchemaRef(indent+1, def.SchemaRef)
+			cw.writeSchemaRef(indent+1, def.SchemaRef)
 		}
-		w.writeExtensions(indent+1, def.Extensions)
-		writeZeroField(w, indent+1, "Comment", def.Comment)
+		cw.writeExtensions(indent+1, def.Extensions)
+		writeZeroField(cw, indent+1, "Comment", def.Comment)
 	}
 }
 
-func generateCommonParam(indent int, def chioas.CommonParameter, w *codeWriter) {
-	writeZeroField(w, indent+1, "Name", def.Name)
-	writeZeroField(w, indent+1, "Description", def.Description)
-	writeZeroField(w, indent+1, "Required", def.Required)
-	writeZeroField(w, indent+1, "In", def.In)
+func generateCommonParam(indent int, def chioas.CommonParameter, cw *codeWriter) {
+	writeZeroField(cw, indent+1, "Name", def.Name)
+	writeZeroField(cw, indent+1, "Description", def.Description)
+	writeZeroField(cw, indent+1, "Required", def.Required)
+	writeZeroField(cw, indent+1, "In", def.In)
 	if def.Example != nil {
-		w.writeStart(indent+1, "Example: ")
-		w.writeValue(indent+1, def.Example)
+		cw.writeStart(indent+1, "Example: ")
+		cw.writeValue(indent+1, def.Example)
 	}
 	if def.Schema != nil {
-		w.writeLine(indent+1, "Schema: &"+w.opts.alias()+typeSchema+"{", false)
-		generateSchema(indent+1, def.Schema, w)
-		w.writeEnd(indent+1, "},")
+		cw.writeLine(indent+1, "Schema: &"+cw.opts.alias()+typeSchema+"{", false)
+		generateSchema(indent+1, def.Schema, cw)
+		cw.writeEnd(indent+1, "},")
 	} else if def.SchemaRef != "" {
-		w.writeSchemaRef(indent+1, def.SchemaRef)
+		cw.writeSchemaRef(indent+1, def.SchemaRef)
 	}
-	w.writeExtensions(indent+1, def.Extensions)
-	writeZeroField(w, indent+1, "Comment", def.Comment)
+	cw.writeExtensions(indent+1, def.Extensions)
+	writeZeroField(cw, indent+1, "Comment", def.Comment)
 }
 
-func generateSchema(indent int, def *chioas.Schema, w *codeWriter) {
+func generateSchema(indent int, def *chioas.Schema, cw *codeWriter) {
 	if def.SchemaRef != "" {
-		w.writeSchemaRef(indent+1, def.SchemaRef)
+		cw.writeSchemaRef(indent+1, def.SchemaRef)
 	} else {
-		writeZeroField(w, indent+1, "Name", def.Name)
-		writeZeroField(w, indent+1, "Description", def.Description)
-		writeZeroField(w, indent+1, "Type", def.Type)
-		writeZeroField(w, indent+1, "Format", def.Format)
+		writeZeroField(cw, indent+1, "Name", def.Name)
+		writeZeroField(cw, indent+1, "Description", def.Description)
+		writeZeroField(cw, indent+1, "Type", def.Type)
+		writeZeroField(cw, indent+1, "Format", def.Format)
 		if len(def.RequiredProperties) > 0 {
-			w.writeStart(indent+1, "RequiredProperties: ")
-			w.writeValue(indent+1, def.RequiredProperties)
+			cw.writeStart(indent+1, "RequiredProperties: ")
+			cw.writeValue(indent+1, def.RequiredProperties)
 		}
 		if len(def.Properties) > 0 {
-			w.writeLine(indent+1, "Properties: "+w.opts.alias()+typeProperties+"{", false)
+			cw.writeLine(indent+1, "Properties: "+cw.opts.alias()+typeProperties+"{", false)
 			for _, p := range def.Properties {
-				w.writeLine(indent+2, "{", false)
-				generateProperty(indent+2, p, w)
-				w.writeLine(indent+2, "},", false)
+				cw.writeLine(indent+2, "{", false)
+				generateProperty(indent+2, p, cw)
+				cw.writeLine(indent+2, "},", false)
 			}
-			w.writeEnd(indent+1, "},")
+			cw.writeEnd(indent+1, "},")
 		}
 		if def.Default != nil {
-			w.writeStart(indent+1, "Default: ")
-			w.writeValue(indent+1, def.Default)
+			cw.writeStart(indent+1, "Default: ")
+			cw.writeValue(indent+1, def.Default)
 		}
 		if def.Example != nil {
-			w.writeStart(indent+1, "Example: ")
-			w.writeValue(indent+1, def.Example)
+			cw.writeStart(indent+1, "Example: ")
+			cw.writeValue(indent+1, def.Example)
 		}
 		if len(def.Enum) > 0 {
-			w.writeStart(indent+1, "Enum: ")
-			w.writeValue(indent+1, def.Enum)
+			cw.writeStart(indent+1, "Enum: ")
+			cw.writeValue(indent+1, def.Enum)
 		}
 		if def.Discriminator != nil {
-			w.writeLine(indent+1, "Discriminator: &"+w.opts.alias()+typeDiscriminator+"{", false)
-			generateDiscriminator(indent+1, def.Discriminator, w)
-			w.writeEnd(indent+1, "},")
+			cw.writeLine(indent+1, "Discriminator: &"+cw.opts.alias()+typeDiscriminator+"{", false)
+			generateDiscriminator(indent+1, def.Discriminator, cw)
+			cw.writeEnd(indent+1, "},")
 		}
 		if def.Ofs != nil {
-			w.writeLine(indent+1, "Ofs: &"+w.opts.alias()+typeOfs+"{", false)
-			generateOfs(indent+1, def.Ofs, w)
-			w.writeEnd(indent+1, "},")
+			cw.writeLine(indent+1, "Ofs: &"+cw.opts.alias()+typeOfs+"{", false)
+			generateOfs(indent+1, def.Ofs, cw)
+			cw.writeEnd(indent+1, "},")
 		}
-		w.writeExtensions(indent+1, def.Extensions)
-		writeZeroField(w, indent+1, "Comment", def.Comment)
+		cw.writeExtensions(indent+1, def.Extensions)
+		writeZeroField(cw, indent+1, "Comment", def.Comment)
 	}
 }
 
-func generateDiscriminator(indent int, def *chioas.Discriminator, w *codeWriter) {
-	writeZeroField(w, indent+1, "PropertyName", def.PropertyName)
-	w.writeLine(indent+1, "Mapping: map[string]string{", false)
+func generateDiscriminator(indent int, def *chioas.Discriminator, cw *codeWriter) {
+	writeZeroField(cw, indent+1, "PropertyName", def.PropertyName)
+	cw.writeLine(indent+1, "Mapping: map[string]string{", false)
 	ks := maps.Keys(def.Mapping)
 	sort.Strings(ks)
 	for _, k := range ks {
-		w.writeLine(indent+2, strconv.Quote(k)+": "+strconv.Quote(refs.Normalize(tags.Schemas, def.Mapping[k]))+",", false)
+		cw.writeLine(indent+2, strconv.Quote(k)+": "+strconv.Quote(refs.Normalize(tags.Schemas, def.Mapping[k]))+",", false)
 	}
-	w.writeEnd(indent+1, "},")
-	w.writeExtensions(indent+1, def.Extensions)
-	writeZeroField(w, indent+1, "Comment", def.Comment)
+	cw.writeEnd(indent+1, "},")
+	cw.writeExtensions(indent+1, def.Extensions)
+	writeZeroField(cw, indent+1, "Comment", def.Comment)
 }
 
-func generateOfs(indent int, def *chioas.Ofs, w *codeWriter) {
+func generateOfs(indent int, def *chioas.Ofs, cw *codeWriter) {
 	switch def.OfType {
 	case chioas.AllOf:
-		w.writeLine(indent+1, "OfType: "+w.opts.alias()+"AllOf,", false)
+		cw.writeLine(indent+1, "OfType: "+cw.opts.alias()+"AllOf,", false)
 	case chioas.AnyOf:
-		w.writeLine(indent+1, "OfType: "+w.opts.alias()+"AnyOf,", false)
+		cw.writeLine(indent+1, "OfType: "+cw.opts.alias()+"AnyOf,", false)
 	case chioas.OneOf:
-		w.writeLine(indent+1, "OfType: "+w.opts.alias()+"OneOf,", false)
+		cw.writeLine(indent+1, "OfType: "+cw.opts.alias()+"OneOf,", false)
 	default:
-		w.writeLine(indent+1, "OfType: "+strconv.Itoa(int(def.OfType))+",", false)
+		cw.writeLine(indent+1, "OfType: "+strconv.Itoa(int(def.OfType))+",", false)
 	}
-	w.writeLine(indent+1, "Of: []"+w.opts.alias()+typeOfSchema+"{", false)
+	cw.writeLine(indent+1, "Of: []"+cw.opts.alias()+typeOfSchema+"{", false)
 	for _, ofs := range def.Of {
-		w.writeLine(indent+2, "&"+w.opts.alias()+typeOf+"{", false)
+		cw.writeLine(indent+2, "&"+cw.opts.alias()+typeOf+"{", false)
 		if ofs.IsRef() {
-			w.writeSchemaRef(indent+3, ofs.Ref())
+			cw.writeSchemaRef(indent+3, ofs.Ref())
 		} else {
 			s := ofs.Schema()
 			if s == nil {
 				s = &chioas.Schema{}
 			}
-			w.writeLine(indent+3, "SchemaDef: &"+w.opts.alias()+typeSchema+"{", false)
-			generateSchema(indent+3, s, w)
-			w.writeEnd(indent+3, "},")
+			cw.writeLine(indent+3, "SchemaDef: &"+cw.opts.alias()+typeSchema+"{", false)
+			generateSchema(indent+3, s, cw)
+			cw.writeEnd(indent+3, "},")
 		}
-		w.writeEnd(indent+2, "},")
+		cw.writeEnd(indent+2, "},")
 	}
-	w.writeEnd(indent+1, "},")
+	cw.writeEnd(indent+1, "},")
 }
 
-func generateProperty(indent int, def chioas.Property, w *codeWriter) {
+func generateProperty(indent int, def chioas.Property, cw *codeWriter) {
 	if def.SchemaRef != "" {
-		w.writeSchemaRef(indent+1, def.SchemaRef)
+		cw.writeSchemaRef(indent+1, def.SchemaRef)
 	} else {
-		writeZeroField(w, indent+1, "Name", def.Name)
-		writeZeroField(w, indent+1, "Description", def.Description)
-		writeZeroField(w, indent+1, "Type", def.Type)
-		writeZeroField(w, indent+1, "ItemType", def.ItemType)
+		writeZeroField(cw, indent+1, "Name", def.Name)
+		writeZeroField(cw, indent+1, "Description", def.Description)
+		writeZeroField(cw, indent+1, "Type", def.Type)
+		writeZeroField(cw, indent+1, "ItemType", def.ItemType)
 		if len(def.Properties) > 0 {
-			w.writeLine(indent+1, "Properties: "+w.opts.alias()+typeProperties+"{", false)
+			cw.writeLine(indent+1, "Properties: "+cw.opts.alias()+typeProperties+"{", false)
 			for _, p := range def.Properties {
-				w.writeLine(indent+2, "{", false)
-				generateProperty(indent+2, p, w)
-				w.writeLine(indent+2, "},", false)
+				cw.writeLine(indent+2, "{", false)
+				generateProperty(indent+2, p, cw)
+				cw.writeLine(indent+2, "},", false)
 			}
-			w.writeEnd(indent+1, "},")
+			cw.writeEnd(indent+1, "},")
 		}
-		writeZeroField(w, indent+1, "Required", def.Required)
-		writeZeroField(w, indent+1, "Format", def.Format)
+		writeZeroField(cw, indent+1, "Required", def.Required)
+		writeZeroField(cw, indent+1, "Format", def.Format)
 		if def.Example != nil {
-			w.writeStart(indent+1, "Example: ")
-			w.writeValue(indent+1, def.Example)
+			cw.writeStart(indent+1, "Example: ")
+			cw.writeValue(indent+1, def.Example)
 		}
 		if len(def.Enum) > 0 {
-			w.writeStart(indent+1, "Enum: ")
-			w.writeValue(indent+1, def.Enum)
+			cw.writeStart(indent+1, "Enum: ")
+			cw.writeValue(indent+1, def.Enum)
 		}
-		writeZeroField(w, indent+1, "Deprecated", def.Deprecated)
+		writeZeroField(cw, indent+1, "Deprecated", def.Deprecated)
 		if hasNonZeroValues(def.Constraints.Pattern, def.Constraints.Maximum, def.Constraints.Minimum,
 			def.Constraints.ExclusiveMaximum, def.Constraints.ExclusiveMinimum, def.Constraints.Nullable,
 			def.Constraints.MultipleOf, def.Constraints.MaxLength, def.Constraints.MinLength,
 			def.Constraints.MaxItems, def.Constraints.MinItems, def.Constraints.UniqueItems,
 			def.Constraints.MaxProperties, def.Constraints.MinProperties) || len(def.Constraints.Additional) > 0 {
-			w.writeLine(indent+1, "Constraints: "+w.opts.alias()+typeConstraints+"{", false)
-			writeZeroField(w, indent+2, "Pattern", def.Constraints.Pattern)
-			writeZeroField(w, indent+2, "Maximum", def.Constraints.Maximum)
-			writeZeroField(w, indent+2, "Minimum", def.Constraints.Minimum)
-			writeZeroField(w, indent+2, "ExclusiveMaximum", def.Constraints.ExclusiveMaximum)
-			writeZeroField(w, indent+2, "ExclusiveMinimum", def.Constraints.ExclusiveMinimum)
-			writeZeroField(w, indent+2, "Nullable", def.Constraints.Nullable)
-			writeZeroField(w, indent+2, "MultipleOf", def.Constraints.MultipleOf)
-			writeZeroField(w, indent+2, "MaxLength", def.Constraints.MaxLength)
-			writeZeroField(w, indent+2, "MinLength", def.Constraints.MinLength)
-			writeZeroField(w, indent+2, "MaxItems", def.Constraints.MaxItems)
-			writeZeroField(w, indent+2, "MinItems", def.Constraints.MinItems)
-			writeZeroField(w, indent+2, "UniqueItems", def.Constraints.UniqueItems)
-			writeZeroField(w, indent+2, "MaxProperties", def.Constraints.MaxProperties)
-			writeZeroField(w, indent+2, "MinProperties", def.Constraints.MinProperties)
+			cw.writeLine(indent+1, "Constraints: "+cw.opts.alias()+typeConstraints+"{", false)
+			writeZeroField(cw, indent+2, "Pattern", def.Constraints.Pattern)
+			writeZeroField(cw, indent+2, "Maximum", def.Constraints.Maximum)
+			writeZeroField(cw, indent+2, "Minimum", def.Constraints.Minimum)
+			writeZeroField(cw, indent+2, "ExclusiveMaximum", def.Constraints.ExclusiveMaximum)
+			writeZeroField(cw, indent+2, "ExclusiveMinimum", def.Constraints.ExclusiveMinimum)
+			writeZeroField(cw, indent+2, "Nullable", def.Constraints.Nullable)
+			writeZeroField(cw, indent+2, "MultipleOf", def.Constraints.MultipleOf)
+			writeZeroField(cw, indent+2, "MaxLength", def.Constraints.MaxLength)
+			writeZeroField(cw, indent+2, "MinLength", def.Constraints.MinLength)
+			writeZeroField(cw, indent+2, "MaxItems", def.Constraints.MaxItems)
+			writeZeroField(cw, indent+2, "MinItems", def.Constraints.MinItems)
+			writeZeroField(cw, indent+2, "UniqueItems", def.Constraints.UniqueItems)
+			writeZeroField(cw, indent+2, "MaxProperties", def.Constraints.MaxProperties)
+			writeZeroField(cw, indent+2, "MinProperties", def.Constraints.MinProperties)
 			if len(def.Constraints.Additional) > 0 {
-				w.writeStart(indent+2, "Additional: ")
-				w.writeValue(indent+2, def.Constraints.Additional)
+				cw.writeStart(indent+2, "Additional: ")
+				cw.writeValue(indent+2, def.Constraints.Additional)
 			}
-			w.writeEnd(indent+1, "},")
+			cw.writeEnd(indent+1, "},")
 		}
-		w.writeExtensions(indent+1, def.Extensions)
-		writeZeroField(w, indent+1, "Comment", def.Comment)
+		cw.writeExtensions(indent+1, def.Extensions)
+		writeZeroField(cw, indent+1, "Comment", def.Comment)
 	}
 }
 
-func generateSecurityScheme(indent int, def chioas.SecurityScheme, w *codeWriter) {
-	writeZeroField(w, indent+1, "Name", def.Name)
-	writeZeroField(w, indent+1, "Description", def.Description)
-	writeZeroField(w, indent+1, "Type", def.Type)
-	writeZeroField(w, indent+1, "Scheme", def.Scheme)
-	writeZeroField(w, indent+1, "ParamName", def.ParamName)
-	writeZeroField(w, indent+1, "In", def.In)
+func generateSecurityScheme(indent int, def chioas.SecurityScheme, cw *codeWriter) {
+	writeZeroField(cw, indent+1, "Name", def.Name)
+	writeZeroField(cw, indent+1, "Description", def.Description)
+	writeZeroField(cw, indent+1, "Type", def.Type)
+	writeZeroField(cw, indent+1, "Scheme", def.Scheme)
+	writeZeroField(cw, indent+1, "ParamName", def.ParamName)
+	writeZeroField(cw, indent+1, "In", def.In)
 	if len(def.Scopes) > 0 {
-		w.writeStart(indent+1, "Scopes: ")
-		w.writeValue(indent+1, def.Scopes)
+		cw.writeStart(indent+1, "Scopes: ")
+		cw.writeValue(indent+1, def.Scopes)
 	}
-	w.writeExtensions(indent+1, def.Extensions)
-	writeZeroField(w, indent+1, "Comment", def.Comment)
+	cw.writeExtensions(indent+1, def.Extensions)
+	writeZeroField(cw, indent+1, "Comment", def.Comment)
 }
 
 func compareMethods(ma, mb string) bool {

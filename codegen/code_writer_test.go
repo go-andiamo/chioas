@@ -11,9 +11,7 @@ import (
 func TestCodeWriter_writePrologue(t *testing.T) {
 	t.Run("no alias", func(t *testing.T) {
 		var buf bytes.Buffer
-		w := &codeWriter{
-			w: &buf,
-		}
+		w := newCodeWriter(&buf, Options{})
 		w.writePrologue()
 		require.NoError(t, w.err)
 		require.Equal(t, `package api
@@ -26,10 +24,7 @@ import (
 	})
 	t.Run("no alias - specified package", func(t *testing.T) {
 		var buf bytes.Buffer
-		w := &codeWriter{
-			opts: Options{Package: "my_pkg"},
-			w:    &buf,
-		}
+		w := newCodeWriter(&buf, Options{Package: "my_pkg"})
 		w.writePrologue()
 		require.NoError(t, w.err)
 		require.Equal(t, `package my_pkg
@@ -42,10 +37,7 @@ import (
 	})
 	t.Run("aliased", func(t *testing.T) {
 		var buf bytes.Buffer
-		w := &codeWriter{
-			opts: Options{ImportAlias: "alias"},
-			w:    &buf,
-		}
+		w := newCodeWriter(&buf, Options{ImportAlias: "alias"})
 		w.writePrologue()
 		require.NoError(t, w.err)
 		require.Equal(t, `package api
@@ -58,10 +50,7 @@ import (
 	})
 	t.Run("UseHttpConsts", func(t *testing.T) {
 		var buf bytes.Buffer
-		w := &codeWriter{
-			opts: Options{UseHttpConsts: true},
-			w:    &buf,
-		}
+		w := newCodeWriter(&buf, Options{UseHttpConsts: true})
 		w.writePrologue()
 		require.NoError(t, w.err)
 		require.Equal(t, `package api
@@ -79,9 +68,7 @@ import (
 func TestCodeWriter_writeVarStart(t *testing.T) {
 	t.Run("no alias", func(t *testing.T) {
 		var buf bytes.Buffer
-		w := &codeWriter{
-			w: &buf,
-		}
+		w := newCodeWriter(&buf, Options{})
 		w.writeVarStart("foo", typeDefinition, false)
 		require.NoError(t, w.err)
 		require.Equal(t, `var foo = chioas.Definition{
@@ -89,9 +76,7 @@ func TestCodeWriter_writeVarStart(t *testing.T) {
 	})
 	t.Run("ptr no alias", func(t *testing.T) {
 		var buf bytes.Buffer
-		w := &codeWriter{
-			w: &buf,
-		}
+		w := newCodeWriter(&buf, Options{})
 		w.writeVarStart("foo", typeDefinition, true)
 		require.NoError(t, w.err)
 		require.Equal(t, `var foo = &chioas.Definition{
@@ -99,10 +84,7 @@ func TestCodeWriter_writeVarStart(t *testing.T) {
 	})
 	t.Run("aliased", func(t *testing.T) {
 		var buf bytes.Buffer
-		w := &codeWriter{
-			opts: Options{ImportAlias: "alias"},
-			w:    &buf,
-		}
+		w := newCodeWriter(&buf, Options{ImportAlias: "alias"})
 		w.writeVarStart("foo", typeDefinition, false)
 		require.NoError(t, w.err)
 		require.Equal(t, `var foo = alias.Definition{
@@ -110,115 +92,11 @@ func TestCodeWriter_writeVarStart(t *testing.T) {
 	})
 	t.Run("dot alias", func(t *testing.T) {
 		var buf bytes.Buffer
-		w := &codeWriter{
-			opts: Options{ImportAlias: "."},
-			w:    &buf,
-		}
+		w := newCodeWriter(&buf, Options{ImportAlias: "."})
 		w.writeVarStart("foo", typeDefinition, false)
 		require.NoError(t, w.err)
 		require.Equal(t, `var foo = Definition{
 `, buf.String())
-	})
-}
-
-func TestCodeWriter_writeIndent(t *testing.T) {
-	t.Run("max tabs ok", func(t *testing.T) {
-		require.True(t, maxT > 1)
-	})
-	t.Run("none", func(t *testing.T) {
-		var buf bytes.Buffer
-		w := &codeWriter{
-			w: &buf,
-		}
-		require.True(t, w.writeIndent(0))
-		require.NoError(t, w.err)
-		require.Equal(t, "", buf.String())
-	})
-	t.Run("one", func(t *testing.T) {
-		var buf bytes.Buffer
-		w := &codeWriter{
-			w: &buf,
-		}
-		require.True(t, w.writeIndent(1))
-		require.NoError(t, w.err)
-		require.Equal(t, "\t", buf.String())
-	})
-	t.Run("two", func(t *testing.T) {
-		var buf bytes.Buffer
-		w := &codeWriter{
-			w: &buf,
-		}
-		require.True(t, w.writeIndent(2))
-		require.NoError(t, w.err)
-		require.Equal(t, "\t\t", buf.String())
-	})
-	t.Run("eleven", func(t *testing.T) {
-		var buf bytes.Buffer
-		w := &codeWriter{
-			w: &buf,
-		}
-		require.True(t, w.writeIndent(11))
-		require.NoError(t, w.err)
-		require.Equal(t, "\t\t\t\t\t\t\t\t\t\t\t", buf.String())
-	})
-	t.Run("boundary", func(t *testing.T) {
-		var buf bytes.Buffer
-		w := &codeWriter{
-			w: &buf,
-		}
-		require.True(t, w.writeIndent(maxT))
-		require.NoError(t, w.err)
-		require.Len(t, buf.Bytes(), maxT)
-	})
-	t.Run("forty two", func(t *testing.T) {
-		var buf bytes.Buffer
-		w := &codeWriter{
-			w: &buf,
-		}
-		require.True(t, w.writeIndent(42))
-		require.NoError(t, w.err)
-		require.Len(t, buf.Bytes(), 42)
-	})
-}
-
-func TestCodeWriter_writeLf(t *testing.T) {
-	t.Run("default", func(t *testing.T) {
-		var buf bytes.Buffer
-		w := &codeWriter{
-			w: &buf,
-		}
-		w.writeLf(false)
-		require.NoError(t, w.err)
-		require.Equal(t, "\n", buf.String())
-	})
-	t.Run("double", func(t *testing.T) {
-		var buf bytes.Buffer
-		w := &codeWriter{
-			w: &buf,
-		}
-		w.writeLf(true)
-		require.NoError(t, w.err)
-		require.Equal(t, "\n\n", buf.String())
-	})
-	t.Run("crlf", func(t *testing.T) {
-		var buf bytes.Buffer
-		w := &codeWriter{
-			w:       &buf,
-			useCRLF: true,
-		}
-		w.writeLf(false)
-		require.NoError(t, w.err)
-		require.Equal(t, "\r\n", buf.String())
-	})
-	t.Run("double crlf", func(t *testing.T) {
-		var buf bytes.Buffer
-		w := &codeWriter{
-			w:       &buf,
-			useCRLF: true,
-		}
-		w.writeLf(true)
-		require.NoError(t, w.err)
-		require.Equal(t, "\r\n\r\n", buf.String())
 	})
 }
 
@@ -307,9 +185,7 @@ func TestCodeWriter_writeValue(t *testing.T) {
 	for i, tc := range testCases {
 		t.Run(fmt.Sprintf("[%d]", i+1), func(t *testing.T) {
 			var buf bytes.Buffer
-			w := &codeWriter{
-				w: &buf,
-			}
+			w := newCodeWriter(&buf, Options{})
 			w.writeValue(0, tc.value)
 			require.NoError(t, w.err)
 			require.Equal(t, tc.expect, buf.String())
@@ -492,10 +368,7 @@ func TestCodeWriter_writeExtensions(t *testing.T) {
 	for i, tc := range testCases {
 		t.Run(fmt.Sprintf("[%d]", i+1), func(t *testing.T) {
 			var buf bytes.Buffer
-			w := &codeWriter{
-				opts: tc.options,
-				w:    &buf,
-			}
+			w := newCodeWriter(&buf, tc.options)
 			w.writeExtensions(tc.indent, tc.extensions)
 			require.NoError(t, w.err)
 			require.Equal(t, tc.expect, buf.String())
@@ -565,10 +438,7 @@ func Test_writeZeroField(t *testing.T) {
 	for i, tc := range testCases {
 		t.Run(fmt.Sprintf("[%d]", i+1), func(t *testing.T) {
 			var buf bytes.Buffer
-			w := &codeWriter{
-				opts: tc.options,
-				w:    &buf,
-			}
+			w := newCodeWriter(&buf, tc.options)
 			writeZeroField(w, tc.indent, tc.name, tc.value)
 			require.NoError(t, w.err)
 			require.Equal(t, tc.expect, buf.String())

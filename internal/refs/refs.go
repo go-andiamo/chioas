@@ -10,8 +10,7 @@ const (
 )
 
 func Normalize(area string, ref string) string {
-	prefix := ComponentsPrefix + area + "/"
-	if tail, ok := strings.CutPrefix(ref, prefix); ok {
+	if tail, ok := strings.CutPrefix(ref, ComponentsPrefix+area+"/"); ok {
 		// strip internal prefix and unescape JSON Pointer: ~1 => /, ~0 => ~
 		return strings.ReplaceAll(strings.ReplaceAll(tail, "~1", "/"), "~0", "~")
 	}

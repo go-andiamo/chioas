@@ -705,10 +705,7 @@ func Test_generateComponentsVars(t *testing.T) {
 	t.Run("empty", func(t *testing.T) {
 		def := &chioas.Components{}
 		var buf bytes.Buffer
-		w := &codeWriter{
-			opts: Options{OmitZeroValues: true},
-			w:    &buf,
-		}
+		w := newCodeWriter(&buf, Options{OmitZeroValues: true})
 		generateComponentsVars(def, w, false, false)
 		require.NoError(t, w.err)
 		const expect = `var (
@@ -726,10 +723,7 @@ func Test_generateComponentsVars(t *testing.T) {
 			Comment:    "comment",
 		}
 		var buf bytes.Buffer
-		w := &codeWriter{
-			opts: Options{PublicVars: true, OmitZeroValues: true},
-			w:    &buf,
-		}
+		w := newCodeWriter(&buf, Options{PublicVars: true, OmitZeroValues: true})
 		generateComponentsVars(def, w, false, false)
 		require.NoError(t, w.err)
 		const expect = `var (
@@ -757,10 +751,7 @@ func Test_generateComponentsVars(t *testing.T) {
 			},
 		}
 		var buf bytes.Buffer
-		w := &codeWriter{
-			opts: Options{PublicVars: true, OmitZeroValues: true},
-			w:    &buf,
-		}
+		w := newCodeWriter(&buf, Options{PublicVars: true, OmitZeroValues: true})
 		generateComponentsVars(def, w, false, false)
 		require.NoError(t, w.err)
 		const expect = `var (
@@ -790,10 +781,7 @@ func Test_generateComponentsVars(t *testing.T) {
 			},
 		}
 		var buf bytes.Buffer
-		w := &codeWriter{
-			opts: Options{PublicVars: true, OmitZeroValues: true},
-			w:    &buf,
-		}
+		w := newCodeWriter(&buf, Options{PublicVars: true, OmitZeroValues: true})
 		generateComponentsVars(def, w, false, false)
 		require.NoError(t, w.err)
 		const expect = `var (
@@ -821,10 +809,7 @@ func Test_generateComponentsVars(t *testing.T) {
 			},
 		}
 		var buf bytes.Buffer
-		w := &codeWriter{
-			opts: Options{PublicVars: true, OmitZeroValues: true},
-			w:    &buf,
-		}
+		w := newCodeWriter(&buf, Options{PublicVars: true, OmitZeroValues: true})
 		generateComponentsVars(def, w, false, false)
 		require.NoError(t, w.err)
 		const expect = `var (
@@ -856,10 +841,7 @@ func Test_generateComponentsVars(t *testing.T) {
 			},
 		}
 		var buf bytes.Buffer
-		w := &codeWriter{
-			opts: Options{PublicVars: true, OmitZeroValues: true},
-			w:    &buf,
-		}
+		w := newCodeWriter(&buf, Options{PublicVars: true, OmitZeroValues: true})
 		generateComponentsVars(def, w, false, false)
 		require.NoError(t, w.err)
 		const expect = `var (
@@ -889,10 +871,7 @@ func Test_generateComponentsVars(t *testing.T) {
 			},
 		}
 		var buf bytes.Buffer
-		w := &codeWriter{
-			opts: Options{PublicVars: true, OmitZeroValues: true},
-			w:    &buf,
-		}
+		w := newCodeWriter(&buf, Options{PublicVars: true, OmitZeroValues: true})
 		generateComponentsVars(def, w, false, false)
 		require.NoError(t, w.err)
 		const expect = `var (
@@ -924,10 +903,7 @@ func Test_generateComponentsVars(t *testing.T) {
 			},
 		}
 		var buf bytes.Buffer
-		w := &codeWriter{
-			opts: Options{PublicVars: true, OmitZeroValues: true},
-			w:    &buf,
-		}
+		w := newCodeWriter(&buf, Options{PublicVars: true, OmitZeroValues: true})
 		generateComponentsVars(def, w, false, false)
 		require.NoError(t, w.err)
 		const expect = `var (
@@ -967,10 +943,7 @@ func Test_generateComponentsVars(t *testing.T) {
 			},
 		}
 		var buf bytes.Buffer
-		w := &codeWriter{
-			opts: Options{PublicVars: true, OmitZeroValues: true},
-			w:    &buf,
-		}
+		w := newCodeWriter(&buf, Options{PublicVars: true, OmitZeroValues: true})
 		generateComponentsVars(def, w, false, false)
 		require.NoError(t, w.err)
 		const expect = `var (
@@ -1276,6 +1249,69 @@ var (
 		require.Equal(t, expect, buf.String())
 		goFmtTest(t, buf.Bytes())
 	})
+	t.Run("paths", func(t *testing.T) {
+		def := chioas.Paths{
+			"/api": {
+				Methods: chioas.Methods{
+					http.MethodGet: chioas.Method{},
+				},
+				Paths: chioas.Paths{
+					"/foos": {
+						Methods: chioas.Methods{
+							http.MethodGet: chioas.Method{},
+						},
+					},
+				},
+			},
+		}
+		var buf bytes.Buffer
+		err := GenerateCode(def, &buf, Options{OmitZeroValues: true})
+		require.NoError(t, err)
+		const expect = `package api
+
+import (
+	"github.com/go-andiamo/chioas"
+)
+
+var definition = chioas.Paths{
+	"/api": {
+		Methods: chioas.Methods{
+			"GET": {
+			},
+		},
+		Paths: chioas.Paths{
+			"/foos": {
+				Methods: chioas.Methods{
+					"GET": {
+					},
+				},
+			},
+		},
+	},
+}
+
+`
+		require.Equal(t, expect, buf.String())
+		goFmtTest(t, buf.Bytes())
+	})
+	t.Run("paths empty", func(t *testing.T) {
+		def := chioas.Paths{}
+		var buf bytes.Buffer
+		err := GenerateCode(def, &buf, Options{OmitZeroValues: true})
+		require.NoError(t, err)
+		const expect = `package api
+
+import (
+	"github.com/go-andiamo/chioas"
+)
+
+var definition = chioas.Paths{
+}
+
+`
+		require.Equal(t, expect, buf.String())
+		goFmtTest(t, buf.Bytes())
+	})
 }
 
 func TestGenerateCode_Formatted(t *testing.T) {
@@ -1315,7 +1351,6 @@ var (
 	}
 )
 `
-		fmt.Println(buf.String())
 		require.Equal(t, expect, buf.String())
 	})
 	t.Run("components formatted CRLF", func(t *testing.T) {
@@ -1362,10 +1397,7 @@ func Test_generatePath(t *testing.T) {
 	t.Run("empty", func(t *testing.T) {
 		path := chioas.Path{}
 		var buf bytes.Buffer
-		w := &codeWriter{
-			opts: Options{},
-			w:    &buf,
-		}
+		w := newCodeWriter(&buf, Options{})
 		generatePath(0, path, w)
 		require.NoError(t, w.err)
 		const expect = `	Tag: "",
@@ -1378,10 +1410,7 @@ func Test_generatePath(t *testing.T) {
 	t.Run("empty omit zero values", func(t *testing.T) {
 		path := chioas.Path{}
 		var buf bytes.Buffer
-		w := &codeWriter{
-			opts: Options{OmitZeroValues: true},
-			w:    &buf,
-		}
+		w := newCodeWriter(&buf, Options{OmitZeroValues: true})
 		generatePath(0, path, w)
 		require.NoError(t, w.err)
 		const expect = ``
@@ -1395,10 +1424,7 @@ func Test_generatePath(t *testing.T) {
 			},
 		}
 		var buf bytes.Buffer
-		w := &codeWriter{
-			opts: Options{OmitZeroValues: true, UseHttpConsts: true},
-			w:    &buf,
-		}
+		w := newCodeWriter(&buf, Options{OmitZeroValues: true, UseHttpConsts: true})
 		generatePath(0, path, w)
 		require.NoError(t, w.err)
 		const expect = `	Methods: chioas.Methods{
@@ -1425,10 +1451,7 @@ func Test_generatePath(t *testing.T) {
 			},
 		}
 		var buf bytes.Buffer
-		w := &codeWriter{
-			opts: Options{OmitZeroValues: true, UseHttpConsts: true},
-			w:    &buf,
-		}
+		w := newCodeWriter(&buf, Options{OmitZeroValues: true, UseHttpConsts: true})
 		generatePath(0, path, w)
 		require.NoError(t, w.err)
 		const expect = `	Paths: chioas.Paths{
@@ -1467,10 +1490,7 @@ func Test_generatePath(t *testing.T) {
 			},
 		}
 		var buf bytes.Buffer
-		w := &codeWriter{
-			opts: Options{OmitZeroValues: true},
-			w:    &buf,
-		}
+		w := newCodeWriter(&buf, Options{OmitZeroValues: true})
 		generatePath(0, path, w)
 		require.NoError(t, w.err)
 		const expect = `	PathParams: chioas.PathParams{
@@ -1502,10 +1522,7 @@ func Test_generateMethods(t *testing.T) {
 			"foo": {},
 		}
 		var buf bytes.Buffer
-		w := &codeWriter{
-			opts: Options{OmitZeroValues: true},
-			w:    &buf,
-		}
+		w := newCodeWriter(&buf, Options{OmitZeroValues: true})
 		generateMethods(1, methods, w)
 		require.NoError(t, w.err)
 		const expect = `	Methods: chioas.Methods{
@@ -1526,10 +1543,7 @@ func Test_generateMethods(t *testing.T) {
 			"foo": {},
 		}
 		var buf bytes.Buffer
-		w := &codeWriter{
-			opts: Options{UseHttpConsts: true, OmitZeroValues: true},
-			w:    &buf,
-		}
+		w := newCodeWriter(&buf, Options{UseHttpConsts: true, OmitZeroValues: true})
 		generateMethods(1, methods, w)
 		require.NoError(t, w.err)
 		const expect = `	Methods: chioas.Methods{
@@ -1698,10 +1712,7 @@ func Test_generateMethod(t *testing.T) {
 	for i, tc := range testCases {
 		t.Run(fmt.Sprintf("[%d]", i+1), func(t *testing.T) {
 			var buf bytes.Buffer
-			w := &codeWriter{
-				opts: tc.options,
-				w:    &buf,
-			}
+			w := newCodeWriter(&buf, tc.options)
 			generateMethod(tc.indent, tc.method, tc.def, w)
 			require.NoError(t, w.err)
 			require.Equal(t, tc.expect, buf.String())
@@ -1937,10 +1948,7 @@ func Test_generateRequest(t *testing.T) {
 	for i, tc := range testCases {
 		t.Run(fmt.Sprintf("[%d]", i+1), func(t *testing.T) {
 			var buf bytes.Buffer
-			w := &codeWriter{
-				opts: tc.options,
-				w:    &buf,
-			}
+			w := newCodeWriter(&buf, tc.options)
 			generateRequest(tc.indent, tc.def, w)
 			require.NoError(t, w.err)
 			require.Equal(t, tc.expect, buf.String())
@@ -2053,10 +2061,7 @@ func Test_generateResponse(t *testing.T) {
 	for i, tc := range testCases {
 		t.Run(fmt.Sprintf("[%d]", i+1), func(t *testing.T) {
 			var buf bytes.Buffer
-			w := &codeWriter{
-				opts: tc.options,
-				w:    &buf,
-			}
+			w := newCodeWriter(&buf, tc.options)
 			generateResponse(tc.indent, tc.def, w)
 			require.NoError(t, w.err)
 			require.Equal(t, tc.expect, buf.String())
@@ -2142,10 +2147,7 @@ func Test_generateQueryParam(t *testing.T) {
 	for i, tc := range testCases {
 		t.Run(fmt.Sprintf("[%d]", i+1), func(t *testing.T) {
 			var buf bytes.Buffer
-			w := &codeWriter{
-				opts: tc.options,
-				w:    &buf,
-			}
+			w := newCodeWriter(&buf, tc.options)
 			generateQueryParam(tc.indent, tc.def, w)
 			require.NoError(t, w.err)
 			require.Equal(t, tc.expect, buf.String())
@@ -2381,10 +2383,7 @@ func Test_generateSchema(t *testing.T) {
 	for i, tc := range testCases {
 		t.Run(fmt.Sprintf("[%d]", i+1), func(t *testing.T) {
 			var buf bytes.Buffer
-			w := &codeWriter{
-				opts: tc.options,
-				w:    &buf,
-			}
+			w := newCodeWriter(&buf, tc.options)
 			generateSchema(tc.indent, tc.def, w)
 			require.NoError(t, w.err)
 			require.Equal(t, tc.expect, buf.String())
@@ -2527,10 +2526,7 @@ func Test_generateProperty(t *testing.T) {
 	for i, tc := range testCases {
 		t.Run(fmt.Sprintf("[%d]", i+1), func(t *testing.T) {
 			var buf bytes.Buffer
-			w := &codeWriter{
-				opts: tc.options,
-				w:    &buf,
-			}
+			w := newCodeWriter(&buf, tc.options)
 			generateProperty(tc.indent, tc.def, w)
 			require.NoError(t, w.err)
 			require.Equal(t, tc.expect, buf.String())

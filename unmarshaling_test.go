@@ -571,7 +571,6 @@ func TestProperty_unmarshalObj(t *testing.T) {
 		tags.Name:        "test name",
 		tags.Description: "test description",
 		tags.Type:        "test type",
-		tags.ItemType:    "test item type",
 		tags.Required:    true,
 		tags.Format:      "test format",
 		tags.Deprecated:  true,
@@ -588,7 +587,7 @@ func TestProperty_unmarshalObj(t *testing.T) {
 		assert.Equal(t, "test name", r.Name)
 		assert.Equal(t, "test description", r.Description)
 		assert.Equal(t, "test type", r.Type)
-		assert.Equal(t, "test item type", r.ItemType)
+		assert.Equal(t, "", r.ItemType)
 		assert.True(t, r.Required)
 		assert.Equal(t, "test format", r.Format)
 		assert.True(t, r.Deprecated)
@@ -607,6 +606,53 @@ func TestProperty_unmarshalObj(t *testing.T) {
 		assert.Empty(t, r.Description)
 		assert.Empty(t, r.Type)
 		assert.Empty(t, r.ItemType)
+		assert.False(t, r.Required)
+		assert.Empty(t, r.Format)
+		assert.False(t, r.Deprecated)
+		assert.Empty(t, r.Example)
+		assert.Empty(t, r.Enum)
+		assert.Empty(t, r.Extensions)
+	})
+	t.Run("success items", func(t *testing.T) {
+		m2 := maps.Clone(m)
+		m2[tags.Type] = "object"
+		m2[tags.Items] = map[string]any{
+			tags.Type: "object",
+			tags.Properties: map[string]any{
+				"foo": map[string]any{
+					tags.Type:     "string",
+					tags.Required: true,
+				},
+			},
+		}
+		r, err := fromObj[Property](m2)
+		require.NoError(t, err)
+		assert.Len(t, r.Properties, 1)
+		assert.Equal(t, "", r.Name)
+		assert.Equal(t, "", r.Description)
+		assert.Equal(t, "object", r.Type)
+		assert.Equal(t, "object", r.ItemType)
+		assert.False(t, r.Required)
+		assert.Equal(t, "", r.Format)
+		assert.False(t, r.Deprecated)
+		assert.Nil(t, r.Example)
+		assert.Empty(t, r.Enum)
+		assert.Empty(t, r.Extensions)
+		assert.Empty(t, r.SchemaRef)
+	})
+	t.Run("success items ref", func(t *testing.T) {
+		m2 := maps.Clone(m)
+		m2[tags.Type] = "object"
+		m2[tags.Items] = map[string]any{
+			tags.Ref: "test ref",
+		}
+		r, err := fromObj[Property](m2)
+		require.NoError(t, err)
+		assert.Equal(t, "test ref", r.SchemaRef)
+		assert.Empty(t, r.Name)
+		assert.Empty(t, r.Description)
+		assert.Equal(t, "object", r.Type)
+		assert.Equal(t, "object", r.ItemType)
 		assert.False(t, r.Required)
 		assert.Empty(t, r.Format)
 		assert.False(t, r.Deprecated)

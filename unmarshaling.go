@@ -930,11 +930,11 @@ func (p *Property) unmarshalObj(m map[string]any) (err error) {
 	if ref, ok, err = hasRef(m); ok {
 		p.SchemaRef = ref
 	} else if err == nil {
-		p.Extensions = extensionsFrom(m)
-		if p.Name, err = stringFromProperty(m, tags.Name); err == nil {
-			if p.Description, err = stringFromProperty(m, tags.Description); err == nil {
-				if p.Type, err = stringFromProperty(m, tags.Type); err == nil {
-					if p.ItemType, err = stringFromProperty(m, tags.ItemType); err == nil {
+		if p.Type, err = stringFromProperty(m, tags.Type); err == nil {
+			if ok, err = p.unmarshalItems(m); !ok && err == nil {
+				p.Extensions = extensionsFrom(m)
+				if p.Name, err = stringFromProperty(m, tags.Name); err == nil {
+					if p.Description, err = stringFromProperty(m, tags.Description); err == nil {
 						if p.Required, err = booleanFromProperty(m, tags.Required); err == nil {
 							if p.Format, err = stringFromProperty(m, tags.Format); err == nil {
 								if p.Deprecated, err = booleanFromProperty(m, tags.Deprecated); err == nil {
@@ -948,12 +948,33 @@ func (p *Property) unmarshalObj(m map[string]any) (err error) {
 							}
 						}
 					}
-
 				}
 			}
 		}
 	}
 	return err
+}
+
+func (p *Property) unmarshalItems(m map[string]any) (isItems bool, err error) {
+	if p.Type == values.TypeObject || p.Type == values.TypeArray {
+		if v, ok := m[tags.Items]; ok {
+			if vm, ok := v.(map[string]any); ok {
+				var ref string
+				if ref, ok, err = hasRef(vm); ok {
+					p.ItemType = values.TypeObject
+					p.SchemaRef = ref
+					isItems = true
+				} else if err == nil {
+					if p.ItemType, err = stringFromProperty(vm, tags.Type); err == nil {
+						if p.Properties, err = unmarshalProperties(vm); err == nil {
+							isItems = true
+						}
+					}
+				}
+			}
+		}
+	}
+	return isItems, err
 }
 
 func (p *Property) unmarshalConstraints(m map[string]any) (err error) {

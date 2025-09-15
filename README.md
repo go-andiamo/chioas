@@ -69,6 +69,8 @@ Install for CLI:
 
     go install github.com/go-andiamo/chioas/cmd/chioas@latest
 
+see [CLI docs](https://github.com/go-andiamo/chioas/blob/main/cmd/chioas/README.md)
+
 ## Basic Example
 ```go
 package main
