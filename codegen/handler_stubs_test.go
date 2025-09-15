@@ -275,7 +275,6 @@ func (a *MyApi) getRoot(w http.ResponseWriter, r *http.Request) {
 			var buf bytes.Buffer
 			err := GenerateHandlerStubs(tc.def, &buf, tc.options)
 			require.NoError(t, err)
-			fmt.Println(string(buf.Bytes()))
 			if tc.options.UseCRLF {
 				require.Equal(t, strings.ReplaceAll(tc.expect, "\n", "\r\n"), buf.String())
 			} else {

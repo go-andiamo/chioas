@@ -7,8 +7,6 @@ import (
 	"github.com/go-andiamo/chioas/codegen"
 	"github.com/go-andiamo/splitter"
 	"io"
-	"os"
-	"strings"
 )
 
 const (
@@ -30,10 +28,11 @@ func generateCode(args []string) {
 	publicVars := fs.Bool("public-vars", false, `export top-level vars (optional, default: false)`)
 	useHTTPConsts := fs.Bool("http-consts", false, `use http.MethodGet, http.Status (optional, default: false)`)
 	path := fs.String("path", "", `api path to generate code for (optional) - e.g. "/api/pets"`)
+	noFmt := fs.Bool("no-fmt", false, `suppress go formatting of generated code (optional, default: false)`)
 	overwrite := fs.Bool("overwrite", false, `allow overwriting existing file (optional, default: false)`)
 	help := fs.Bool("help", false, `show help`)
 	egs := []string{
-		"-in <spec.{yaml|json}>",
+		"-in <filename>",
 		"-outdir <dir>",
 		"[-outf <filename>]",
 		"[-pkg <name>]",
@@ -45,6 +44,7 @@ func generateCode(args []string) {
 		"[-public-vars]",
 		"[-http-consts]",
 		"[-path </api/foo>]",
+		"[-no-fmt]",
 		"[-overwrite]",
 	}
 	fs.SetOutput(io.Discard)
@@ -53,10 +53,10 @@ func generateCode(args []string) {
 		fail(2, err)
 	}
 	if *help {
-		usageGenCode("", fs, egs)
+		usageGenDetailed("", fs, egs, subCmdCode, subCmdCodeDesc)
 	}
 	if *in == "" {
-		usageGenCode("missing -in", fs, egs)
+		usageGenDetailed("missing -in", fs, egs, subCmdCode, subCmdCodeDesc)
 	}
 	def, err := readDefinition(*in)
 	if err != nil {
@@ -71,7 +71,7 @@ func generateCode(args []string) {
 		HoistComponents: *hoistComponents,
 		PublicVars:      *publicVars,
 		UseHttpConsts:   *useHTTPConsts,
-		Format:          true,
+		Format:          !*noFmt,
 	}
 	if *path != "" {
 		s, _ := splitter.NewSplitter('/', splitter.CurlyBrackets)
@@ -123,24 +123,4 @@ func generatePathCode(def *chioas.Path, options codegen.Options, outDir string, 
 		err = codegen.GenerateCode(def, f, options)
 	}
 	return err
-}
-
-func usageGenCode(msg string, fs *flag.FlagSet, egs []string) {
-	out := os.Stdout
-	if msg != "" {
-		out = os.Stderr
-		_, _ = fmt.Fprintf(out, "error: %s\n\n", msg)
-	}
-	_, _ = fmt.Fprintln(out, "Description: "+subCmdCodeDesc)
-	_, _ = fmt.Fprintf(out, "Usage:\n  %s %s %s %s\n\n", cmdChioas, cmdGen, subCmdCode, strings.Join(egs, " "))
-	_, _ = fmt.Fprintln(out, `Flags:`)
-	fs.VisitAll(func(f *flag.Flag) {
-		_, _ = fmt.Fprintf(out, "    -%s\n", f.Name)
-		_, _ = fmt.Fprintf(out, "        %s\n", f.Usage)
-	})
-	if msg != "" {
-		os.Exit(2)
-	} else {
-		os.Exit(0)
-	}
 }

@@ -16,38 +16,16 @@ import (
 	"unicode"
 )
 
-var (
-	lf   = []byte{'\n'}
-	crlf = []byte{'\r', '\n'}
-)
-
 func newCodeWriter(w io.Writer, opts Options) *codeWriter {
-	if !opts.Format {
-		return &codeWriter{
-			opts:    opts,
-			w:       w,
-			useCRLF: opts.UseCRLF,
-		}
-	}
-	buf := &bytes.Buffer{}
 	return &codeWriter{
-		opts:      opts,
-		w:         buf,
-		formatted: true,
-		buf:       buf,
-		origW:     w,
-		useCRLF:   false,
+		writer: newWriter(w, opts.Format, opts.UseCRLF),
+		opts:   opts,
 	}
 }
 
 type codeWriter struct {
-	opts      Options
-	w         io.Writer
-	formatted bool
-	buf       *bytes.Buffer
-	origW     io.Writer
-	useCRLF   bool
-	err       error
+	*writer
+	opts Options
 }
 
 func (w *codeWriter) format() error {
@@ -95,63 +73,12 @@ func (w *codeWriter) writeCollectionFieldStart(indent int, name string, vtype st
 	w.writeLine(indent, name+": "+w.opts.alias()+vtype+"{", false)
 }
 
-func (w *codeWriter) writeLine(indent int, line string, extra bool) {
-	if w.err == nil {
-		if w.writeIndent(indent) {
-			_, w.err = w.w.Write([]byte(line))
-			w.writeLf(extra)
-		}
-	}
-}
-
 func (w *codeWriter) writeKey(indent int, k string) {
 	w.writeLine(indent, strconv.Quote(k)+": {", false)
 }
 
 func (w *codeWriter) writeSchemaRef(indent int, ref string) {
 	w.writeLine(indent, "SchemaRef: "+strconv.Quote(refs.Normalize(tags.Schemas, ref))+",", false)
-}
-
-var (
-	tabs = [...][]byte{
-		0:  {},
-		1:  {'\t'},
-		2:  {'\t', '\t'},
-		3:  {'\t', '\t', '\t'},
-		4:  {'\t', '\t', '\t', '\t'},
-		5:  {'\t', '\t', '\t', '\t', '\t'},
-		6:  {'\t', '\t', '\t', '\t', '\t', '\t'},
-		7:  {'\t', '\t', '\t', '\t', '\t', '\t', '\t'},
-		8:  {'\t', '\t', '\t', '\t', '\t', '\t', '\t', '\t'},
-		9:  {'\t', '\t', '\t', '\t', '\t', '\t', '\t', '\t', '\t'},
-		10: {'\t', '\t', '\t', '\t', '\t', '\t', '\t', '\t', '\t', '\t'},
-	}
-	maxT = len(tabs) - 1
-)
-
-func (w *codeWriter) writeIndent(indent int) bool {
-	if indent > 0 {
-		for indent >= maxT && w.err == nil {
-			_, w.err = w.w.Write(tabs[maxT])
-			indent -= maxT
-		}
-		if w.err == nil && indent > 0 {
-			_, w.err = w.w.Write(tabs[indent])
-		}
-	}
-	return w.err == nil
-}
-
-func (w *codeWriter) writeLf(extra bool) {
-	if w.err == nil {
-		if w.useCRLF && !w.formatted {
-			if _, w.err = w.w.Write(crlf); w.err == nil && extra {
-				_, w.err = w.w.Write(crlf)
-			}
-		} else if _, w.err = w.w.Write(lf); w.err == nil && extra {
-			_, w.err = w.w.Write(lf)
-		}
-	}
 }
 
 func (w *codeWriter) writeStart(indent int, s string) {

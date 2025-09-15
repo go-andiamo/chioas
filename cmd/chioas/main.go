@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"github.com/go-andiamo/chioas"
 	"gopkg.in/yaml.v3"
@@ -50,6 +51,8 @@ func generate(args []string) {
 		generateCode(args[1:])
 	case subCmdStubs:
 		generateStubs(args[1:])
+	case subCmdStructs:
+		generateStructs(args[1:])
 	case flagHelp:
 		usageGen("")
 	default:
@@ -135,6 +138,30 @@ func usageGen(msg string) {
 	_, _ = fmt.Fprintln(out, "Description: "+subCmdStubsDesc)
 	_, _ = fmt.Fprintln(out, "Usage:")
 	_, _ = fmt.Fprintln(out, "    "+cmdChioas+" "+cmdGen+" "+subCmdStubs+" "+flagHelp)
+	_, _ = fmt.Fprintln(out, "")
+	_, _ = fmt.Fprintln(out, "Description: "+subCmdStructsDesc)
+	_, _ = fmt.Fprintln(out, "Usage:")
+	_, _ = fmt.Fprintln(out, "    "+cmdChioas+" "+cmdGen+" "+subCmdStructs+" "+flagHelp)
+	if msg != "" {
+		os.Exit(2)
+	} else {
+		os.Exit(0)
+	}
+}
+
+func usageGenDetailed(msg string, fs *flag.FlagSet, egs []string, subCmd, desc string) {
+	out := os.Stdout
+	if msg != "" {
+		out = os.Stderr
+		_, _ = fmt.Fprintf(out, "error: %s\n\n", msg)
+	}
+	_, _ = fmt.Fprintln(out, "Description: "+desc)
+	_, _ = fmt.Fprintf(out, "Usage:\n  %s %s %s %s\n\n", cmdChioas, cmdGen, subCmd, strings.Join(egs, " "))
+	_, _ = fmt.Fprintln(out, `Flags:`)
+	fs.VisitAll(func(f *flag.Flag) {
+		_, _ = fmt.Fprintf(out, "    -%s\n", f.Name)
+		_, _ = fmt.Fprintf(out, "        %s\n", f.Usage)
+	})
 	if msg != "" {
 		os.Exit(2)
 	} else {
@@ -166,6 +193,6 @@ func fail(code int, err error) {
 	_ = json.NewEncoder(os.Stderr).Encode(map[string]any{
 		"error": err.Error(),
 	})
-	_, _ = fmt.Fprintln(os.Stderr, "Error:", err)
+	_, _ = fmt.Fprintln(os.Stderr, "Error: ", err.Error())
 	os.Exit(code)
 }
