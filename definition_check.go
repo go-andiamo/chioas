@@ -1,9 +1,11 @@
 package chioas
 
 import (
+	"errors"
 	"fmt"
 	"github.com/go-andiamo/chioas/internal/refs"
 	"github.com/go-andiamo/chioas/internal/tags"
+	"slices"
 	"strings"
 )
 
@@ -192,15 +194,7 @@ func (r *Request) checkRefs(path string, method string, def *Definition) (result
 			Item:   r,
 		})
 	}
-	if r.Schema != nil {
-		result = append(result, checkHasSchemaRefWithSchema(r.SchemaRef, path, method, "", r)...)
-		switch schema := r.Schema.(type) {
-		case *Schema:
-			result = append(result, schema.checkRefs(path, method, def, nil)...)
-		case Schema:
-			result = append(result, schema.checkRefs(path, method, def, nil)...)
-		}
-	}
+	result = append(result, checkVaryingSchema(r.Schema, r, r.SchemaRef, path, method, def)...)
 	result = append(result, r.Examples.checkRefs(path, method, def)...)
 	result = append(result, r.AlternativeContentTypes.checkRefs(path, method, def)...)
 	return result
@@ -233,17 +227,23 @@ func (r Response) checkRefs(path string, method string, def *Definition) (result
 			Item:   r,
 		})
 	}
-	if r.Schema != nil {
-		result = append(result, checkHasSchemaRefWithSchema(r.SchemaRef, path, method, "", r)...)
-		switch schema := r.Schema.(type) {
-		case *Schema:
-			result = append(result, schema.checkRefs(path, method, def, nil)...)
-		case Schema:
+	result = append(result, checkVaryingSchema(r.Schema, r, r.SchemaRef, path, method, def)...)
+	result = append(result, r.Examples.checkRefs(path, method, def)...)
+	result = append(result, r.AlternativeContentTypes.checkRefs(path, method, def)...)
+	return result
+}
+
+func checkVaryingSchema(s any, item any, schemaRef string, path string, method string, def *Definition) (result []error) {
+	switch schema := s.(type) {
+	case Schema:
+		result = append(result, checkHasSchemaRefWithSchema(schemaRef, path, method, "", item)...)
+		result = append(result, schema.checkRefs(path, method, def, nil)...)
+	case *Schema:
+		if schema != nil {
+			result = append(result, checkHasSchemaRefWithSchema(schemaRef, path, method, "", item)...)
 			result = append(result, schema.checkRefs(path, method, def, nil)...)
 		}
 	}
-	result = append(result, r.Examples.checkRefs(path, method, def)...)
-	result = append(result, r.AlternativeContentTypes.checkRefs(path, method, def)...)
 	return result
 }
 
@@ -334,6 +334,29 @@ func (qp QueryParams) checkRefs(path string, method string, def *Definition) (re
 	return result
 }
 
+func recurseSchemaRefs(ref string, def *Definition, seen map[string]bool) (err error) {
+	if def.Components != nil {
+		i := slices.IndexFunc(def.Components.Schemas, func(s Schema) bool {
+			return s.Name == ref
+		})
+		if i != -1 {
+			if s := def.Components.Schemas[i]; s.SchemaRef != "" {
+				if ref2, _, ok, _ := isInternalRef(s.SchemaRef, tags.Schemas); ok {
+					if seen[ref2] {
+						err = errors.New("cyclic ref")
+					} else {
+						seen[ref2] = true
+						err = recurseSchemaRefs(ref2, def, seen)
+					}
+				}
+			}
+		} else {
+			err = fmt.Errorf("$ref '%s%s/%s' not found", refs.ComponentsPrefix, tags.Schemas, ref)
+		}
+	}
+	return err
+}
+
 func (s *Schema) checkRefs(path string, method string, def *Definition, seen map[string]bool) (result []error) {
 	if seen == nil {
 		seen = make(map[string]bool)
@@ -351,6 +374,7 @@ func (s *Schema) checkRefs(path string, method string, def *Definition, seen map
 				Item:   s,
 			})
 		} else {
+			err = recurseSchemaRefs(ref, def, map[string]bool{ref: true})
 			seen[cRef] = true
 			defer delete(seen, cRef)
 		}

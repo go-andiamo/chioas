@@ -37,7 +37,7 @@ The generation is broken down into three sub-commands:
 
 Generate chioas definition code (e.g. `var definition = chioas.Definition{...}`) from existing OAS yaml/json
 
-    chioas gen code -in <filename> -outdir <dir> [-outf <filename>] [-pkg <name>] [-var <name>] [-import-alias <name>|.] [-omit-zero] [-hoist-paths] [-hoist-components] [-public-vars] [-http-consts] [-path </api/foo>] [-no-fmt] [-overwrite]
+    chioas gen code -in <filename> -outdir <dir> [-outf <filename>] [-pkg <name>] [-var <name>] [-import-alias <name>|.] [-omit-zero] [-hoist-paths] [-hoist-components] [-public-vars] [-http-consts] [-inline-handlers] [-path </api/foo>] [-no-fmt] [-overwrite]
 
 Flags:
 - `-help`
@@ -58,6 +58,9 @@ Flags:
 - `-in`
 
   input definition file (.yaml|.json) or '-' for stdin (required)
+- `-inline-handlers`
+
+  generate stub inline handler funcs within the definition (optional, default: false)
 - `-no-fmt`
 
   suppress go formatting of generated code (optional, default: false)
@@ -90,7 +93,7 @@ Flags:
 
 Generate handler func stubs  (e.g. `func GetRoot(w http.ResponseWriter, r *http.Request) {...}`) from existing OAS yaml/json
 
-    chioas gen stubs -in <filename> -outdir <dir> [-outf <filename>] [-pkg <name>] [-public-funcs] [-path-params] [-receiver <receiver-prefix>] [-naming <0|1|2>] [-godoc] [-no-fmt] [-overwrite]
+    chioas gen stubs -in <filename> -outdir <dir> [-outf <filename>] [-pkg <name>] [-public-funcs] [-path-params] [-receiver <receiver-prefix>] [-naming <0|1|2>] [-path </api/foo>] [-godoc] [-no-fmt] [-overwrite]
 
 Flags:
 - `-help`
@@ -123,6 +126,9 @@ Flags:
 - `-overwrite`
 
   allow overwriting existing file (optional, default: false)
+- `-path`
+
+  api path to generate stubs for (optional) - e.g. "/api/pets"
 - `-path-params`
 
   include path params in handler funcs (optional, default: false)

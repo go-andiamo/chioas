@@ -145,9 +145,12 @@ func generateMethodStub(path string, method string, def chioas.Method, sw *stubs
 					if cAt := strings.Index(name, ":"); cAt != -1 {
 						name = name[:cAt]
 					}
+					paramName := name
+					name = toPascal(name)
+					name = strings.ToLower(name[0:1]) + name[1:]
 					vNames = append(vNames, name)
 					uScores = append(uScores, "_")
-					sw.writeLine(1, name+` := chi.URLParam(r, "`+name+`")`, false)
+					sw.writeLine(1, name+` := chi.URLParam(r, "`+paramName+`")`, false)
 				}
 			}
 			if len(vNames) > 0 {

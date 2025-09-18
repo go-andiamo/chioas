@@ -133,16 +133,17 @@ func TestGenerateSchemaStructs_Components(t *testing.T) {
 			},
 		},
 	}
-	options := SchemaStructOptions{
-		OASTags:       true,
-		GoDoc:         true,
-		PublicStructs: true,
-	}
-	var buf bytes.Buffer
-	err := GenerateSchemaStructs(def, &buf, options)
-	require.NoError(t, err)
-	fmt.Println(buf.String())
-	const expect = `package api
+	t.Run("public", func(t *testing.T) {
+		options := SchemaStructOptions{
+			OASTags:       true,
+			GoDoc:         true,
+			PublicStructs: true,
+		}
+		var buf bytes.Buffer
+		err := GenerateSchemaStructs(def, &buf, options)
+		require.NoError(t, err)
+		fmt.Println(buf.String())
+		const expect = `package api
 
 // RequestReq1 request #/components/requestBodies/req1
 type RequestReq1 struct {
@@ -172,12 +173,55 @@ type SchemaFoo struct {
 }
 
 `
-	require.Equal(t, strings.ReplaceAll(expect, "~", "`"), buf.String())
+		require.Equal(t, strings.ReplaceAll(expect, "~", "`"), buf.String())
 
-	buf.Reset()
-	err = GenerateSchemaStructs(&def, &buf, options)
-	require.NoError(t, err)
-	require.Equal(t, strings.ReplaceAll(expect, "~", "`"), buf.String())
+		buf.Reset()
+		err = GenerateSchemaStructs(&def, &buf, options)
+		require.NoError(t, err)
+		require.Equal(t, strings.ReplaceAll(expect, "~", "`"), buf.String())
+	})
+	t.Run("private", func(t *testing.T) {
+		options := SchemaStructOptions{
+			OASTags:       true,
+			GoDoc:         true,
+			PublicStructs: false,
+		}
+		var buf bytes.Buffer
+		err := GenerateSchemaStructs(def, &buf, options)
+		require.NoError(t, err)
+		fmt.Println(buf.String())
+		const expect = `package api
+
+// requestReq1 request #/components/requestBodies/req1
+type requestReq1 struct {
+	Prop1 string ~json:"prop1" oas:"required,type:string"~
+}
+
+// requestReq2 request #/components/requestBodies/req2
+type requestReq2 schemaFoo
+
+// responseRes1 response #/components/responses/res1
+type responseRes1 struct {
+	Prop1 string ~json:"prop1" oas:"required,type:string"~
+}
+
+// responseRes2 response #/components/responses/res2
+type responseRes2 schemaFoo
+
+// schemaBar #/components/schemas/bar
+type schemaBar struct {
+	Pty1 *string ~json:"pty1" oas:"type:string"~
+}
+
+// schemaFoo #/components/schemas/foo
+type schemaFoo struct {
+	Sub1 *string ~json:"sub1" oas:"type:string"~
+	Sub2 *schemaBar ~json:"sub2" oas:"type:object"~
+}
+
+`
+		require.Equal(t, strings.ReplaceAll(expect, "~", "`"), buf.String())
+	})
 }
 
 func TestGenerateSchemaStructs_Definition(t *testing.T) {
@@ -1235,6 +1279,39 @@ type schema struct {
 			options: SchemaStructOptions{GoDoc: true},
 			expect: `// schema response GET /api/foos
 type schema struct {
+}
+
+`,
+		},
+		{
+			// object property with sub-properties
+			schema: chioas.Schema{
+				Type:               "object",
+				RequiredProperties: []string{"prop1"},
+				Properties: chioas.Properties{
+					{
+						Name: "prop1",
+						Type: "object",
+						Properties: chioas.Properties{
+							{
+								Name:     "sub2",
+								Type:     "string",
+								Required: true,
+							},
+							{
+								Name:     "sub1",
+								Type:     "string",
+								Required: true,
+							},
+						},
+					},
+				},
+			},
+			expect: `type schema struct {
+	Prop1 struct {
+		Sub1 string ~json:"sub1"~
+		Sub2 string ~json:"sub2"~
+	} ~json:"prop1"~
 }
 
 `,

@@ -63,6 +63,38 @@ var definition = chioas.Definition{
 		require.Equal(t, expect, buf.String())
 		goFmtTest(t, buf.Bytes())
 	})
+	t.Run("with methods - with inline handlers", func(t *testing.T) {
+		def := chioas.Definition{
+			Methods: chioas.Methods{
+				http.MethodGet: {},
+			},
+		}
+		var buf bytes.Buffer
+		err := GenerateCode(def, &buf, Options{OmitZeroValues: true, InlineHandlers: true})
+		require.NoError(t, err)
+		const expect = `package api
+
+import (
+	"net/http"
+
+	"github.com/go-andiamo/chioas"
+)
+
+var definition = chioas.Definition{
+	Methods: chioas.Methods{
+		"GET": {
+			Handler: func(w http.ResponseWriter, r *http.Request) {
+				// TODO implement me
+				panic("implement me!")
+			},
+		},
+	},
+}
+
+`
+		require.Equal(t, expect, buf.String())
+		goFmtTest(t, buf.Bytes())
+	})
 	t.Run("with paths (non hoisted)", func(t *testing.T) {
 		def := chioas.Definition{
 			Paths: chioas.Paths{
