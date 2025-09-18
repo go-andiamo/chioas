@@ -27,6 +27,7 @@ func generateCode(args []string) {
 	hoistComponents := fs.Bool("hoist-components", false, `hoist top-level vars for named components (optional, default: false)`)
 	publicVars := fs.Bool("public-vars", false, `export top-level vars (optional, default: false)`)
 	useHTTPConsts := fs.Bool("http-consts", false, `use http.MethodGet, http.Status (optional, default: false)`)
+	inlineHandlers := fs.Bool("inline-handlers", false, `generate stub inline handler funcs within the definition (optional, default: false)`)
 	path := fs.String("path", "", `api path to generate code for (optional) - e.g. "/api/pets"`)
 	noFmt := fs.Bool("no-fmt", false, `suppress go formatting of generated code (optional, default: false)`)
 	overwrite := fs.Bool("overwrite", false, `allow overwriting existing file (optional, default: false)`)
@@ -43,6 +44,7 @@ func generateCode(args []string) {
 		"[-hoist-components]",
 		"[-public-vars]",
 		"[-http-consts]",
+		"[-inline-handlers]",
 		"[-path </api/foo>]",
 		"[-no-fmt]",
 		"[-overwrite]",
@@ -53,10 +55,10 @@ func generateCode(args []string) {
 		fail(2, err)
 	}
 	if *help {
-		usageGenDetailed("", fs, egs, subCmdCode, subCmdCodeDesc)
+		usageDetailed("", fs, egs, cmdGen, subCmdCode, subCmdCodeDesc)
 	}
 	if *in == "" {
-		usageGenDetailed("missing -in", fs, egs, subCmdCode, subCmdCodeDesc)
+		usageDetailed("missing -in", fs, egs, cmdGen, subCmdCode, subCmdCodeDesc)
 	}
 	def, err := readDefinition(*in)
 	if err != nil {
@@ -71,27 +73,11 @@ func generateCode(args []string) {
 		HoistComponents: *hoistComponents,
 		PublicVars:      *publicVars,
 		UseHttpConsts:   *useHTTPConsts,
+		InlineHandlers:  *inlineHandlers,
 		Format:          !*noFmt,
 	}
 	if *path != "" {
-		s, _ := splitter.NewSplitter('/', splitter.CurlyBrackets)
-		parts, err := s.Split(*path, splitter.IgnoreEmptyFirst, splitter.IgnoreEmptyLast)
-		if err != nil {
-			fail(1, fmt.Errorf("invalid path: %w", err))
-		}
-		var pathDef *chioas.Path
-		paths := def.Paths
-		for i, p := range parts {
-			if i == len(parts)-1 {
-				if pv, ok := paths["/"+p]; ok {
-					pathDef = &pv
-				}
-			} else if sub, ok := paths["/"+p]; ok {
-				paths = sub.Paths
-			} else {
-				break
-			}
-		}
+		pathDef := getPath(*path, def)
 		if pathDef == nil {
 			fail(1, fmt.Errorf("unknown path: %q", *path))
 		}
@@ -101,6 +87,27 @@ func generateCode(args []string) {
 	} else if err = generateDefinitionCode(def, options, *outDir, *outFn, *overwrite); err != nil {
 		fail(1, fmt.Errorf("generate code: %w", err))
 	}
+}
+
+func getPath(path string, def *chioas.Definition) (pathDef *chioas.Path) {
+	s, _ := splitter.NewSplitter('/', splitter.CurlyBrackets)
+	parts, err := s.Split(path, splitter.IgnoreEmptyFirst, splitter.IgnoreEmptyLast)
+	if err != nil {
+		fail(1, fmt.Errorf("invalid path: %w", err))
+	}
+	paths := def.Paths
+	for i, p := range parts {
+		if i == len(parts)-1 {
+			if pv, ok := paths["/"+p]; ok {
+				pathDef = &pv
+			}
+		} else if sub, ok := paths["/"+p]; ok {
+			paths = sub.Paths
+		} else {
+			break
+		}
+	}
+	return pathDef
 }
 
 func generateDefinitionCode(def *chioas.Definition, options codegen.Options, outDir string, outFn string, overwrite bool) (err error) {

@@ -509,8 +509,18 @@ func generateMethods(indent int, methods chioas.Methods, cw *codeWriter) {
 
 func generateMethod(indent int, method string, def chioas.Method, cw *codeWriter) {
 	cw.writeLine(indent, cw.opts.translateMethod(method)+": {", false)
+	if cw.opts.InlineHandlers {
+		generateMethodHandler(indent, cw)
+	}
 	generateMethodInner(indent, def, cw)
 	cw.writeLine(indent, "},", false)
+}
+
+func generateMethodHandler(indent int, cw *codeWriter) {
+	cw.writeLine(indent+1, "Handler: func"+string(handlerSignature), false)
+	cw.writeLine(indent+2, `// TODO implement me`, false)
+	cw.writeLine(indent+2, `panic("implement me!")`, false)
+	cw.writeLine(indent+1, "},", false)
 }
 
 func generateMethodInner(indent int, def chioas.Method, cw *codeWriter) {

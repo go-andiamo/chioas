@@ -222,7 +222,7 @@ func TestDefinition_WithRefCheck(t *testing.T) {
 				},
 			},
 			expectErr:    true,
-			expectErrMsg: `$ref '#/components/schemas/foo' invalid`,
+			expectErrMsg: `$ref '#/components/schemas/foo' not found`,
 		},
 		{
 			def: &Definition{
@@ -278,7 +278,7 @@ func TestDefinition_WithRefCheck(t *testing.T) {
 				},
 			},
 			expectErr:    true,
-			expectErrMsg: `$ref '#/components/responses/foo' invalid`,
+			expectErrMsg: `$ref '#/components/responses/foo' not found`,
 		},
 		{
 			def: &Definition{
@@ -330,7 +330,7 @@ func TestDefinition_WithRefCheck(t *testing.T) {
 				},
 			},
 			expectErr:    true,
-			expectErrMsg: `$ref '#/components/requestBodies/foo' invalid`,
+			expectErrMsg: `$ref '#/components/requestBodies/foo' not found`,
 		},
 		{
 			def: &Definition{
@@ -384,7 +384,7 @@ func TestDefinition_WithRefCheck(t *testing.T) {
 				},
 			},
 			expectErr:    true,
-			expectErrMsg: `$ref '#/components/parameters/foo' invalid`,
+			expectErrMsg: `$ref '#/components/parameters/foo' not found`,
 		},
 		{
 			def: &Definition{

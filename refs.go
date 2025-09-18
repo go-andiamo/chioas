@@ -104,7 +104,7 @@ func (d *Definition) RefCheck(area, ref string) error {
 		})
 	}
 	if !ok {
-		return fmt.Errorf("$ref '%s%s/%s' invalid", refs.ComponentsPrefix, area, ref)
+		return fmt.Errorf("$ref '%s%s/%s' not found", refs.ComponentsPrefix, area, ref)
 	}
 	return nil
 }

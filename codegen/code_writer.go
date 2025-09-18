@@ -49,7 +49,7 @@ func (w *codeWriter) writePrologue() {
 		}
 		w.writeLine(0, "package "+pkg, true)
 		w.writeLine(0, "import (", false)
-		if w.opts.UseHttpConsts {
+		if w.opts.UseHttpConsts || w.opts.InlineHandlers {
 			w.writeLine(0, "\t\"net/http\"", true)
 		}
 		if w.opts.ImportAlias != "" {

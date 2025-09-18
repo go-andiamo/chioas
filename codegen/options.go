@@ -25,6 +25,7 @@ type Options struct {
 	HoistComponents bool   // make top-level vars for named components (Schemas/Parameters/Responses/Requests/Examples)
 	PublicVars      bool   // top-level vars are public (for paths & components)
 	UseHttpConsts   bool   // if set, "GET" becomes http.MethodGet, 400 becomes http.StatusBadRequest etc.
+	InlineHandlers  bool   // if set, generates stub inline handler funcs within the definition code
 	// Format if set, formats output in canonical gofmt style (and checks syntax)
 	//
 	// Note: using this option means the output will be buffered before writing to the final writer

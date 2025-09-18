@@ -26,6 +26,7 @@ func generateStubs(args []string) {
         0: default naming strategy
         1: try to use OAS operationId
         2: try to use existing handler or x-handler`)
+	path := fs.String("path", "", `api path to generate stubs for (optional) - e.g. "/api/pets"`)
 	godoc := fs.Bool("godoc", false, `include godoc comment for each handler func (optional, default: false)`)
 	noFmt := fs.Bool("no-fmt", false, `suppress go formatting of generated code (optional, default: false)`)
 	overwrite := fs.Bool("overwrite", false, `allow overwriting existing file (optional, default: false)`)
@@ -39,6 +40,7 @@ func generateStubs(args []string) {
 		"[-path-params]",
 		"[-receiver <receiver-prefix>]",
 		"[-naming <0|1|2>]",
+		"[-path </api/foo>]",
 		"[-godoc]",
 		"[-no-fmt]",
 		"[-overwrite]",
@@ -49,10 +51,10 @@ func generateStubs(args []string) {
 		fail(2, err)
 	}
 	if *help {
-		usageGenDetailed("", fs, egs, subCmdStubs, subCmdStubsDesc)
+		usageDetailed("", fs, egs, cmdGen, subCmdStubs, subCmdStubsDesc)
 	}
 	if *in == "" {
-		usageGenDetailed("missing -in", fs, egs, subCmdStubs, subCmdStubsDesc)
+		usageDetailed("missing -in", fs, egs, cmdGen, subCmdStubs, subCmdStubsDesc)
 	}
 	def, err := readDefinition(*in)
 	if err != nil {
@@ -69,13 +71,32 @@ func generateStubs(args []string) {
 		Format:      !*noFmt,
 	}
 
-	err = generateDefinitionStubs(def, options, *outDir, *outFn, *overwrite)
+	if *path != "" {
+		pathDef := getPath(*path, def)
+		if pathDef == nil {
+			fail(1, fmt.Errorf("unknown path: %q", *path))
+		}
+		err = generatePathStubs(pathDef, options, *outDir, *outFn, *overwrite)
+	} else {
+		err = generateDefinitionStubs(def, options, *outDir, *outFn, *overwrite)
+	}
 	if err != nil {
 		fail(1, fmt.Errorf("generate stubs: %w", err))
 	}
 }
 
 func generateDefinitionStubs(def *chioas.Definition, options codegen.HandlerStubOptions, outDir string, outFn string, overwrite bool) (err error) {
+	var f io.WriteCloser
+	if f, err = createFile(outFn, outDir, overwrite, "handlers.go"); err == nil {
+		defer func() {
+			_ = f.Close()
+		}()
+		err = codegen.GenerateHandlerStubs(def, f, options)
+	}
+	return err
+}
+
+func generatePathStubs(def *chioas.Path, options codegen.HandlerStubOptions, outDir string, outFn string, overwrite bool) (err error) {
 	var f io.WriteCloser
 	if f, err = createFile(outFn, outDir, overwrite, "handlers.go"); err == nil {
 		defer func() {

@@ -100,6 +100,24 @@ func TestDefinition_CheckRefs(t *testing.T) {
 			},
 			expectedErrs: 1,
 		},
+		{
+			// cyclic schemas
+			definition: &Definition{
+				Components: &Components{
+					Schemas: Schemas{
+						{
+							Name:      "foo",
+							SchemaRef: refs.ComponentsPrefix + tags.Schemas + "/bar",
+						},
+						{
+							Name:      "bar",
+							SchemaRef: "foo",
+						},
+					},
+				},
+			},
+			expectedErrs: 2,
+		},
 	}
 	for i, tc := range testCases {
 		t.Run(fmt.Sprintf("[%d]", i+1), func(t *testing.T) {

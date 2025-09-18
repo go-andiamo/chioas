@@ -403,6 +403,11 @@ func (w *structsWriter) writeTypeAlias(info *pathInfo, aType string) {
 		if !info.explicitName {
 			name = w.deduper.take(toPascal(name))
 		}
+		if w.opts.PublicStructs {
+			name = strings.ToUpper(name[:1]) + name[1:]
+		} else {
+			name = strings.ToLower(name[:1]) + name[1:]
+		}
 		if w.writeStructGoDoc(name, info) {
 			if _, w.err = w.w.Write(bType); w.err == nil {
 				if _, w.err = w.w.Write([]byte(name + " " + aType)); w.err == nil {

@@ -18,6 +18,7 @@ const (
 	cliVersion  = "1.0.0"
 	cmdChioas   = "chioas"
 	cmdGen      = "gen"
+	cmdCheck    = "check"
 	flagHelp    = "-help"
 	flagVersion = "-version"
 )
@@ -29,6 +30,8 @@ func main() {
 	switch os.Args[1] {
 	case cmdGen:
 		generate(os.Args[2:])
+	case cmdCheck:
+		check(os.Args[2:])
 	case flagVersion, "-" + flagVersion, "version", "-v", "--v":
 		fmt.Println("CLI version: " + cliVersion)
 		if info, ok := debug.ReadBuildInfo(); ok {
@@ -57,6 +60,21 @@ func generate(args []string) {
 		usageGen("")
 	default:
 		usageGen(fmt.Sprintf("unknown subcommand %q", args[0]))
+	}
+}
+
+func check(args []string) {
+	if len(args) == 0 {
+		usage("")
+		return
+	}
+	switch args[0] {
+	case subCmdRefs:
+		checkRefs(args[1:])
+	case flagHelp:
+		usageCheck("")
+	default:
+		usageCheck(fmt.Sprintf("unknown subcommand %q", args[0]))
 	}
 }
 
@@ -125,6 +143,22 @@ func sniff(b []byte) string {
 	return "yaml"
 }
 
+func usageCheck(msg string) {
+	out := os.Stdout
+	if msg != "" {
+		out = os.Stderr
+		_, _ = fmt.Fprintf(out, "error: %s\n\n", msg)
+	}
+	_, _ = fmt.Fprintln(out, "Description: "+subCmdRefsDesc)
+	_, _ = fmt.Fprintln(out, "Usage:")
+	_, _ = fmt.Fprintln(out, "    "+cmdChioas+" "+cmdCheck+" "+subCmdRefs+" "+flagHelp)
+	if msg != "" {
+		os.Exit(2)
+	} else {
+		os.Exit(0)
+	}
+}
+
 func usageGen(msg string) {
 	out := os.Stdout
 	if msg != "" {
@@ -149,14 +183,14 @@ func usageGen(msg string) {
 	}
 }
 
-func usageGenDetailed(msg string, fs *flag.FlagSet, egs []string, subCmd, desc string) {
+func usageDetailed(msg string, fs *flag.FlagSet, egs []string, cmd, subCmd, desc string) {
 	out := os.Stdout
 	if msg != "" {
 		out = os.Stderr
 		_, _ = fmt.Fprintf(out, "error: %s\n\n", msg)
 	}
 	_, _ = fmt.Fprintln(out, "Description: "+desc)
-	_, _ = fmt.Fprintf(out, "Usage:\n  %s %s %s %s\n\n", cmdChioas, cmdGen, subCmd, strings.Join(egs, " "))
+	_, _ = fmt.Fprintf(out, "Usage:\n  %s %s %s %s\n\n", cmdChioas, cmd, subCmd, strings.Join(egs, " "))
 	_, _ = fmt.Fprintln(out, `Flags:`)
 	fs.VisitAll(func(f *flag.Flag) {
 		_, _ = fmt.Fprintf(out, "    -%s\n", f.Name)
@@ -178,6 +212,8 @@ func usage(msg string) {
 	_, _ = fmt.Fprintln(out, "Usage:")
 	_, _ = fmt.Fprintln(out, "    "+cmdChioas+" "+cmdGen+" "+flagHelp)
 	_, _ = fmt.Fprintln(out, "        Show help for generate commands")
+	_, _ = fmt.Fprintln(out, "    "+cmdChioas+" "+cmdCheck+" "+flagHelp)
+	_, _ = fmt.Fprintln(out, "        Show help for check commands")
 	_, _ = fmt.Fprintln(out, "    "+cmdChioas+" "+flagVersion)
 	_, _ = fmt.Fprintln(out, "        Show the current CLI version")
 	_, _ = fmt.Fprintln(out, "    "+cmdChioas+" "+flagHelp)
