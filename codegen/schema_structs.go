@@ -7,7 +7,6 @@ import (
 	"github.com/go-andiamo/chioas/internal/refs"
 	"github.com/go-andiamo/chioas/internal/tags"
 	"github.com/go-andiamo/chioas/internal/values"
-	"golang.org/x/exp/maps"
 	"io"
 	"net/http"
 	"slices"
@@ -194,10 +193,7 @@ func generateDefinitionStructs(def chioas.Definition, sw *structsWriter) {
 			}
 		}
 	}
-	sms := maps.Keys(def.Methods)
-	sort.Slice(sms, func(i, j int) bool {
-		return compareMethods(sms[i], sms[j])
-	})
+	sms := sortedMethods(def.Methods)
 	for _, m := range sms {
 		method := def.Methods[m]
 		mi := copyInfo(nil, "", "root", m, 0)
@@ -207,10 +203,7 @@ func generateDefinitionStructs(def chioas.Definition, sw *structsWriter) {
 }
 
 func generatePathStructs(info *pathInfo, def chioas.Path, sw *structsWriter) {
-	sms := maps.Keys(def.Methods)
-	sort.Slice(sms, func(i, j int) bool {
-		return compareMethods(sms[i], sms[j])
-	})
+	sms := sortedMethods(def.Methods)
 	for _, m := range sms {
 		method := def.Methods[m]
 		mi := copyInfo(info, "", "", m, 0)
@@ -231,8 +224,7 @@ func generateMethodStructs(info *pathInfo, def chioas.Method, sw *structsWriter)
 		generateRequestStructs(ir, def.Request, sw)
 	}
 	if !sw.opts.NoResponses {
-		ks := maps.Keys(def.Responses)
-		sort.Ints(ks)
+		ks := sortedKeys(def.Responses)
 		for _, status := range ks {
 			response := def.Responses[status]
 			ir := copyInfo(info, toPascal(info.name+" "+statusCodeName(status)+" Response"), "", "", infoTypeResponse)
@@ -287,8 +279,7 @@ func generateResponseStructs(info *pathInfo, def *chioas.Response, sw *structsWr
 
 func generatePathsStructs(info *pathInfo, def chioas.Paths, sw *structsWriter) {
 	info = copyInfo(info, "", "", "", 0)
-	ks := maps.Keys(def)
-	sort.Strings(ks)
+	ks := sortedKeys(def)
 	for _, k := range ks {
 		path := def[k]
 		pi := copyInfo(info, "", info.path+k, "", 0)
@@ -303,8 +294,7 @@ func generateComponentsStructs(def chioas.Components, sw *structsWriter) {
 		}
 	}
 	if !sw.opts.NoRequests {
-		ks := maps.Keys(def.Requests)
-		sort.Strings(ks)
+		ks := sortedKeys(def.Requests)
 		for _, k := range ks {
 			r := def.Requests[k]
 			name := sw.deduper.take(toPascal("Request " + k))
@@ -318,8 +308,7 @@ func generateComponentsStructs(def chioas.Components, sw *structsWriter) {
 		}
 	}
 	if !sw.opts.NoResponses {
-		ks := maps.Keys(def.Responses)
-		sort.Strings(ks)
+		ks := sortedKeys(def.Responses)
 		for _, k := range ks {
 			r := def.Responses[k]
 			name := sw.deduper.take(toPascal("Response " + k))
@@ -760,8 +749,7 @@ func (w *structsWriter) addOasTag(tb *bytes.Buffer, pty chioas.Property, aType s
 			desc = desc[1 : len(desc)-1]
 			tokens = append(tokens, "description:"+desc)
 		}
-		xks := maps.Keys(pty.Extensions)
-		sort.Strings(xks)
+		xks := sortedKeys(pty.Extensions)
 		for _, k := range xks {
 			v := pty.Extensions[k]
 			switch vt := v.(type) {

@@ -1,12 +1,13 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"github.com/go-andiamo/chioas"
 	"github.com/go-andiamo/chioas/codegen"
+	"github.com/go-andiamo/flagpole"
 	"github.com/go-andiamo/splitter"
 	"io"
+	"os"
 )
 
 const (
@@ -14,77 +15,63 @@ const (
 	subCmdCodeDesc = `Generate chioas definition code (e.g. "var definition = chioas.Definition{...}") from existing OAS yaml/json`
 )
 
-func generateCode(args []string) {
-	fs := flag.NewFlagSet("gen code", flag.ContinueOnError)
-	in := fs.String("in", "", `input definition file (.yaml|.json) or '-' for stdin (required)`)
-	outDir := fs.String("outdir", "", `output directory for generated code (optional, defaults to current dir)`)
-	outFn := fs.String("outf", "", `output filename for generated code (optional, default: definition.go)`)
-	pkg := fs.String("pkg", "", `Go package name for generated code (optional, default: api)`)
-	varName := fs.String("var", "", `name for the top-level variable (optional, default: definition or Definition with -public-vars)`)
-	importAlias := fs.String("import-alias", "", `import alias for chioas (optional)`)
-	omitZero := fs.Bool("omit-zero", false, `omit zero-valued fields (optional, default: false)`)
-	hoistPaths := fs.Bool("hoist-paths", false, `hoist top-level vars for paths (optional, default: false)`)
-	hoistComponents := fs.Bool("hoist-components", false, `hoist top-level vars for named components (optional, default: false)`)
-	publicVars := fs.Bool("public-vars", false, `export top-level vars (optional, default: false)`)
-	useHTTPConsts := fs.Bool("http-consts", false, `use http.MethodGet, http.Status (optional, default: false)`)
-	inlineHandlers := fs.Bool("inline-handlers", false, `generate stub inline handler funcs within the definition (optional, default: false)`)
-	path := fs.String("path", "", `api path to generate code for (optional) - e.g. "/api/pets"`)
-	noFmt := fs.Bool("no-fmt", false, `suppress go formatting of generated code (optional, default: false)`)
-	overwrite := fs.Bool("overwrite", false, `allow overwriting existing file (optional, default: false)`)
-	help := fs.Bool("help", false, `show help`)
-	egs := []string{
-		"-in <filename>",
-		"-outdir <dir>",
-		"[-outf <filename>]",
-		"[-pkg <name>]",
-		"[-var <name>]",
-		"[-import-alias <name>|.]",
-		"[-omit-zero]",
-		"[-hoist-paths]",
-		"[-hoist-components]",
-		"[-public-vars]",
-		"[-http-consts]",
-		"[-inline-handlers]",
-		"[-path </api/foo>]",
-		"[-no-fmt]",
-		"[-overwrite]",
-	}
-	fs.SetOutput(io.Discard)
+type genCodeFlags struct {
+	CommonFlags
+	OutDir          *string `name:"outdir"           alias:"od" usage:"output directory for generated code"                           default:""              example:"[-outdir <dir>]"`
+	OutFn           *string `name:"outf"             alias:"of" usage:"output filename for generated code (default: \"definition.go\")" default:"definition.go" example:"[-outf <filename>]"`
+	Pkg             *string `name:"pkg"              alias:"pk" usage:"package for generated code (default: \"api\")"                 default:"api"           example:"[-pkg <name>]"`
+	VarName         *string `name:"var"              alias:"v"  usage:"name for the top-level variable (default: definition | Definition" default:""          example:"[-var <name>]"`
+	ImportAlias     *string `name:"import-alias"     alias:"ia" usage:"import alias for chioas (optional)"                            default:""              example:"[-import-alias <name>|.]"`
+	OmitZero        *bool   `name:"omit-zero"        alias:"oz" usage:"omit zero-valued fields (default: false)"                      default:"false"         example:"[-omit-zero]"`
+	HoistPaths      *bool   `name:"hoist-paths"      alias:"hp" usage:"hoist top-level vars for paths (default: false)"               default:"false"         example:"[-hoist-paths]"`
+	HoistComponents *bool   `name:"hoist-components" alias:"hc" usage:"hoist top-level vars for named components (default: false)"    default:"false"         example:"[-hoist-components]"`
+	PublicVars      *bool   `name:"public-vars"      alias:"pv" usage:"export top-level vars (default: false)"                        default:"false"         example:"[-public-vars]"`
+	HTTPConsts      *bool   `name:"http-consts"      alias:"ht" usage:"use http.MethodGet, http.Status etc. (default: false)"         default:"false"         example:"[-http-consts]"`
+	InlineHandlers  *bool   `name:"inline-handlers"  alias:"ih" usage:"generate stub inline handler funcs within definition (default: false)" default:"false" example:"[-inline-handlers]"`
+	Path            *string `name:"path"                        usage:"api path to generate stubs for (optional) - e.g. \"/api/pets\""                        example:"[-path </api/foo>]"`
+	CommonSupplementaryFlags
+}
 
-	if err := fs.Parse(args); err != nil {
-		fail(2, err)
+var genCodeFlagsParser = flagpole.MustNewParser[genCodeFlags](flagpole.StopOnHelp(true), flagpole.DefaultedOptionals(true), flagpole.IgnoreUnknownFlags(true))
+
+func generateCode(args []string) {
+	flags, err := genCodeFlagsParser.Parse(args)
+	if err != nil || (flags.Help != nil && *flags.Help) {
+		out := os.Stdout
+		code := 0
+		if err != nil {
+			out = os.Stderr
+			code = 2
+		}
+		genCodeFlagsParser.Usage(out, err, cmdGen, subCmdCode)
+		os.Exit(code)
 	}
-	if *help {
-		usageDetailed("", fs, egs, cmdGen, subCmdCode, subCmdCodeDesc)
-	}
-	if *in == "" {
-		usageDetailed("missing -in", fs, egs, cmdGen, subCmdCode, subCmdCodeDesc)
-	}
-	def, err := readDefinition(*in)
+
+	def, err := readDefinition(flags.In)
 	if err != nil {
 		fail(1, fmt.Errorf("read definition: %w", err))
 	}
 	options := codegen.Options{
-		Package:         *pkg,
-		VarName:         *varName,
-		ImportAlias:     *importAlias,
-		OmitZeroValues:  *omitZero,
-		HoistPaths:      *hoistPaths,
-		HoistComponents: *hoistComponents,
-		PublicVars:      *publicVars,
-		UseHttpConsts:   *useHTTPConsts,
-		InlineHandlers:  *inlineHandlers,
-		Format:          !*noFmt,
+		Package:         *flags.Pkg,
+		VarName:         *flags.VarName,
+		ImportAlias:     *flags.ImportAlias,
+		OmitZeroValues:  *flags.OmitZero,
+		HoistPaths:      *flags.HoistPaths,
+		HoistComponents: *flags.HoistComponents,
+		PublicVars:      *flags.PublicVars,
+		UseHttpConsts:   *flags.HTTPConsts,
+		InlineHandlers:  *flags.InlineHandlers,
+		Format:          !*flags.NoFormat,
 	}
-	if *path != "" {
-		pathDef := getPath(*path, def)
+	if flags.Path != nil {
+		pathDef := getPath(*flags.Path, def)
 		if pathDef == nil {
-			fail(1, fmt.Errorf("unknown path: %q", *path))
+			fail(1, fmt.Errorf("unknown path: %q", *flags.Path))
 		}
-		if err = generatePathCode(pathDef, options, *outDir, *outFn, *overwrite); err != nil {
+		if err = generatePathCode(pathDef, options, *flags.OutDir, *flags.OutFn, *flags.Overwrite); err != nil {
 			fail(1, fmt.Errorf("generate code: %w", err))
 		}
-	} else if err = generateDefinitionCode(def, options, *outDir, *outFn, *overwrite); err != nil {
+	} else if err = generateDefinitionCode(def, options, *flags.OutDir, *flags.OutFn, *flags.Overwrite); err != nil {
 		fail(1, fmt.Errorf("generate code: %w", err))
 	}
 }

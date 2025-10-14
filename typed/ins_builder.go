@@ -1,6 +1,8 @@
 package typed
 
 import (
+	"context"
+	"encoding"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -8,6 +10,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"io"
 	"net/http"
+	"net/url"
 	"reflect"
 	"strings"
 )
@@ -49,17 +52,18 @@ func newInsBuilder(mf reflect.Value, path string, method string, parentBuilder *
 func (inb *insBuilder) makeBuilders(mft reflect.Type) error {
 	pathParam := 0
 	seenBody := 0
-	for i := 0; i < inb.len; i++ {
+	var err error
+	for i := 0; i < inb.len && err == nil; i++ {
 		arg := mft.In(i)
 		inb.argTypes[i] = arg
 		ok := false
 		var countBody int
 		argTypeStr := arg.String()
-		if ok, countBody = inb.makeBuilderCommon(argTypeStr, i); ok {
+		if ok, countBody = inb.makeBuilderCommon(arg, i); ok {
 			seenBody += countBody
 		} else if ok, countBody = inb.makeBuilderFromArgBuilders(arg, i); ok {
 			seenBody += countBody
-		} else {
+		} else if ok, err = inb.makeTypedBuilder(arg, i); !ok && err == nil {
 			switch arg.Kind() {
 			case reflect.String:
 				inb.valueBuilders[i] = newPathParamBuilder(pathParam)
@@ -88,13 +92,302 @@ func (inb *insBuilder) makeBuilders(mft reflect.Type) error {
 				}
 			}
 		}
-		if !ok {
-			return fmt.Errorf("cannot determine arg %d", i)
+		if !ok && err == nil {
+			err = fmt.Errorf("cannot determine arg %d", i)
 		} else if seenBody > 1 {
-			return errors.New("multiple args could be from request.Body")
+			err = errors.New("multiple args could be from request.Body")
 		}
 	}
-	return nil
+	return err
+}
+
+var (
+	typeNamedQueryParam = reflect.TypeOf((*NamedQueryParam)(nil)).Elem()
+	typeNamedPathParam  = reflect.TypeOf((*NamedPathParam)(nil)).Elem()
+	typeNamedHeader     = reflect.TypeOf((*NamedHeader)(nil)).Elem()
+	typeUnmarshalerText = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
+	typeNamedCookie     = reflect.TypeOf((*NamedCookie)(nil)).Elem()
+	typeHttpCookie      = reflect.TypeOf(http.Cookie{})
+)
+
+func (inb *insBuilder) makeTypedBuilder(arg reflect.Type, i int) (ok bool, err error) {
+	var isPtr bool
+	var isSlice bool
+	t := arg
+	switch t.Kind() {
+	case reflect.Ptr:
+		t = t.Elem()
+		isPtr = true
+	case reflect.Slice:
+		t = t.Elem()
+		isSlice = true
+	}
+	pt := reflect.PointerTo(t)
+	if ok = pt.Implements(typeNamedQueryParam); ok {
+		umt := pt.Implements(typeUnmarshalerText)
+		if t.Kind() != reflect.String && !umt {
+			return false, errors.New("named query params must be of underlying type string or implement encoding.TextUnmarshaler")
+		}
+		name := reflect.New(t).Interface().(NamedQueryParam).QueryParamName()
+		switch {
+		case isPtr:
+			inb.valueBuilders[i] = inb.makeNamedQueryParamPtr(name, umt)
+		case isSlice:
+			inb.valueBuilders[i] = inb.makeNamedQueryParamSlice(name, umt)
+		default:
+			inb.valueBuilders[i] = inb.makeNamedQueryParam(name, umt)
+		}
+	} else if ok = pt.Implements(typeNamedPathParam); ok {
+		umt := pt.Implements(typeUnmarshalerText)
+		if t.Kind() != reflect.String && !umt {
+			return false, errors.New("named path params must be of underlying type string or implement encoding.TextUnmarshaler")
+		}
+		name := reflect.New(t).Interface().(NamedPathParam).PathParamName()
+		switch {
+		case isPtr:
+			inb.valueBuilders[i] = inb.makeNamedPathParamPtr(name, umt)
+		case isSlice:
+			inb.valueBuilders[i] = inb.makeNamedPathParamSlice(name, umt)
+		default:
+			inb.valueBuilders[i] = inb.makeNamedPathParam(name, umt)
+		}
+	} else if ok = pt.Implements(typeNamedHeader); ok {
+		if t.Kind() != reflect.String {
+			return false, errors.New("named header must be of underlying type string")
+		}
+		name := reflect.New(t).Interface().(NamedHeader).HeaderName()
+		switch {
+		case isPtr:
+			inb.valueBuilders[i] = inb.makeNamedHeaderPtr(name)
+		case isSlice:
+			inb.valueBuilders[i] = inb.makeNamedHeaderSlice(name)
+		default:
+			inb.valueBuilders[i] = inb.makeNamedHeader(name)
+		}
+	} else if ok = pt.Implements(typeNamedCookie); ok {
+		if !isPtr || !t.ConvertibleTo(typeHttpCookie) {
+			return false, errors.New("named cookie must be of underlying type *http.Cookie")
+		}
+		name := reflect.New(t).Interface().(NamedCookie).CookieName()
+		inb.valueBuilders[i] = func(argType reflect.Type, writer http.ResponseWriter, request *http.Request, params []urit.PathVar) (reflect.Value, error) {
+			for _, c := range request.Cookies() {
+				if c.Name == name {
+					return reflect.ValueOf(c).Convert(argType), nil
+				}
+			}
+			return reflect.New(argType).Elem(), nil
+		}
+	}
+	return ok, err
+}
+
+type ParamError struct {
+	Msg  string
+	Name string
+	Err  error
+}
+
+func (e *ParamError) Error() string {
+	return fmt.Sprintf(e.Msg+": %q", e.Name)
+}
+func (e *ParamError) Unwrap() error {
+	return e.Err
+}
+func wrapParamErr(err error, name string, msg string) error {
+	if err == nil {
+		return nil
+	}
+	return &ParamError{
+		Msg:  msg,
+		Name: name,
+		Err:  err,
+	}
+}
+
+func (inb *insBuilder) makeNamedQueryParam(name string, unmarshalText bool) inValueBuilder {
+	if unmarshalText {
+		return func(argType reflect.Type, writer http.ResponseWriter, request *http.Request, params []urit.PathVar) (rv reflect.Value, err error) {
+			rv = reflect.New(argType)
+			err = wrapParamErr(rv.Interface().(encoding.TextUnmarshaler).UnmarshalText([]byte(request.URL.Query().Get(name))), name, "invalid query param value")
+			return rv.Elem(), err
+		}
+	}
+	return func(argType reflect.Type, writer http.ResponseWriter, request *http.Request, params []urit.PathVar) (reflect.Value, error) {
+		value := request.URL.Query().Get(name)
+		return reflect.ValueOf(value).Convert(argType), nil
+	}
+}
+
+func (inb *insBuilder) makeNamedQueryParamPtr(name string, unmarshalText bool) inValueBuilder {
+	if unmarshalText {
+		return func(argType reflect.Type, writer http.ResponseWriter, request *http.Request, params []urit.PathVar) (rv reflect.Value, err error) {
+			rv = reflect.New(argType).Elem()
+			if values, ok := request.URL.Query()[name]; ok && len(values) > 0 {
+				value := values[0]
+				av := reflect.New(argType.Elem())
+				if err = wrapParamErr(av.Interface().(encoding.TextUnmarshaler).UnmarshalText([]byte(value)), name, "invalid query param value"); err == nil {
+					rv.Set(av)
+				}
+			}
+			return rv, err
+		}
+	}
+	return func(argType reflect.Type, writer http.ResponseWriter, request *http.Request, params []urit.PathVar) (reflect.Value, error) {
+		if values, ok := request.URL.Query()[name]; ok && len(values) > 0 {
+			value := values[0]
+			return reflect.ValueOf(&value).Convert(argType), nil
+		}
+		return reflect.New(argType).Elem(), nil
+	}
+}
+
+func (inb *insBuilder) makeNamedQueryParamSlice(name string, unmarshalText bool) inValueBuilder {
+	if unmarshalText {
+		return func(argType reflect.Type, writer http.ResponseWriter, request *http.Request, params []urit.PathVar) (rv reflect.Value, err error) {
+			rv = reflect.MakeSlice(argType, 0, 0)
+			if values, ok := request.URL.Query()[name]; ok {
+				et := argType.Elem()
+				for _, value := range values {
+					av := reflect.New(et)
+					if err = wrapParamErr(av.Interface().(encoding.TextUnmarshaler).UnmarshalText([]byte(value)), name, "invalid query param value"); err == nil {
+						rv = reflect.Append(rv, av.Elem())
+					} else {
+						break
+					}
+				}
+			}
+			return rv, err
+		}
+	}
+	return func(argType reflect.Type, writer http.ResponseWriter, request *http.Request, params []urit.PathVar) (reflect.Value, error) {
+		sl := reflect.MakeSlice(argType, 0, 0)
+		if values, ok := request.URL.Query()[name]; ok {
+			et := argType.Elem()
+			for _, value := range values {
+				sl = reflect.Append(sl, reflect.ValueOf(value).Convert(et))
+			}
+		}
+		return sl, nil
+	}
+}
+
+func (inb *insBuilder) makeNamedPathParam(name string, unmarshalText bool) inValueBuilder {
+	if unmarshalText {
+		return func(argType reflect.Type, writer http.ResponseWriter, request *http.Request, params []urit.PathVar) (rv reflect.Value, err error) {
+			rv = reflect.New(argType)
+			for _, pp := range params {
+				if pp.Name == name {
+					value := pp.Value.(string)
+					err = wrapParamErr(rv.Interface().(encoding.TextUnmarshaler).UnmarshalText([]byte(value)), name, "invalid path param value")
+					break
+				}
+			}
+			return rv.Elem(), err
+		}
+	}
+	return func(argType reflect.Type, writer http.ResponseWriter, request *http.Request, params []urit.PathVar) (reflect.Value, error) {
+		result := reflect.New(argType).Elem()
+		for _, pp := range params {
+			if pp.Name == name {
+				value := pp.Value.(string)
+				result = reflect.ValueOf(value).Convert(argType)
+				break
+			}
+		}
+		return result, nil
+	}
+}
+
+func (inb *insBuilder) makeNamedPathParamPtr(name string, unmarshalText bool) inValueBuilder {
+	if unmarshalText {
+		return func(argType reflect.Type, writer http.ResponseWriter, request *http.Request, params []urit.PathVar) (rv reflect.Value, err error) {
+			rv = reflect.New(argType).Elem()
+			for _, pp := range params {
+				if pp.Name == name {
+					value := pp.Value.(string)
+					av := reflect.New(argType.Elem())
+					if err = wrapParamErr(av.Interface().(encoding.TextUnmarshaler).UnmarshalText([]byte(value)), name, "invalid path param value"); err == nil {
+						rv.Set(av)
+					}
+					break
+				}
+			}
+			return rv, err
+		}
+	}
+	return func(argType reflect.Type, writer http.ResponseWriter, request *http.Request, params []urit.PathVar) (reflect.Value, error) {
+		result := reflect.New(argType).Elem()
+		for _, pp := range params {
+			if pp.Name == name {
+				value := pp.Value.(string)
+				result = reflect.ValueOf(&value).Convert(argType)
+				break
+			}
+		}
+		return result, nil
+	}
+}
+
+func (inb *insBuilder) makeNamedPathParamSlice(name string, unmarshalText bool) inValueBuilder {
+	if unmarshalText {
+		return func(argType reflect.Type, writer http.ResponseWriter, request *http.Request, params []urit.PathVar) (rv reflect.Value, err error) {
+			rv = reflect.MakeSlice(argType, 0, 0)
+			et := argType.Elem()
+			for _, pp := range params {
+				if pp.Name == name {
+					value := pp.Value.(string)
+					av := reflect.New(et)
+					if err = wrapParamErr(av.Interface().(encoding.TextUnmarshaler).UnmarshalText([]byte(value)), name, "invalid path param value"); err == nil {
+						rv = reflect.Append(rv, av.Elem())
+					} else {
+						break
+					}
+				}
+			}
+			return rv, err
+		}
+	}
+	return func(argType reflect.Type, writer http.ResponseWriter, request *http.Request, params []urit.PathVar) (reflect.Value, error) {
+		sl := reflect.MakeSlice(argType, 0, len(params))
+		et := argType.Elem()
+		for _, pp := range params {
+			if pp.Name == name {
+				value := pp.Value.(string)
+				sl = reflect.Append(sl, reflect.ValueOf(value).Convert(et))
+			}
+		}
+		return sl, nil
+	}
+}
+
+func (inb *insBuilder) makeNamedHeader(name string) inValueBuilder {
+	return func(argType reflect.Type, writer http.ResponseWriter, request *http.Request, params []urit.PathVar) (reflect.Value, error) {
+		value := request.Header.Get(name)
+		return reflect.ValueOf(value).Convert(argType), nil
+	}
+}
+
+func (inb *insBuilder) makeNamedHeaderPtr(name string) inValueBuilder {
+	return func(argType reflect.Type, writer http.ResponseWriter, request *http.Request, params []urit.PathVar) (reflect.Value, error) {
+		if values := request.Header.Values(name); len(values) > 0 {
+			value := values[0]
+			return reflect.ValueOf(&value).Convert(argType), nil
+		}
+		return reflect.New(argType).Elem(), nil
+	}
+}
+
+func (inb *insBuilder) makeNamedHeaderSlice(name string) inValueBuilder {
+	return func(argType reflect.Type, writer http.ResponseWriter, request *http.Request, params []urit.PathVar) (reflect.Value, error) {
+		sl := reflect.MakeSlice(argType, 0, 0)
+		if values, ok := request.Header[name]; ok {
+			et := argType.Elem()
+			for _, value := range values {
+				sl = reflect.Append(sl, reflect.ValueOf(value).Convert(et))
+			}
+		}
+		return sl, nil
+	}
 }
 
 func isExcPackage(argType string) bool {
@@ -106,50 +399,72 @@ func isExcPackage(argType string) bool {
 		strings.HasPrefix(argType, "url.") || strings.HasPrefix(argType, "*url.")
 }
 
-func (inb *insBuilder) makeBuilderCommon(argType string, i int) (ok bool, countBody int) {
+var (
+	typeResponseWriter = reflect.TypeFor[http.ResponseWriter]()
+	typeRequest        = reflect.TypeFor[*http.Request]()
+	typeContext        = reflect.TypeFor[context.Context]()
+	typeChiContextPtr  = reflect.TypeFor[*chi.Context]()
+	typeChiContext     = reflect.TypeFor[chi.Context]()
+	typeHeader         = reflect.TypeFor[http.Header]()
+	typeCookies        = reflect.TypeFor[[]*http.Cookie]()
+	typeUrl            = reflect.TypeFor[*url.URL]()
+	typeHeaders        = reflect.TypeFor[Headers]()
+	typeMapHeaders     = reflect.TypeFor[map[string][]string]()
+	typePathParams     = reflect.TypeFor[PathParams]()
+	typeQueryParams    = reflect.TypeFor[QueryParams]()
+	typeRawQuery       = reflect.TypeFor[RawQuery]()
+	typeRawMessage     = reflect.TypeFor[json.RawMessage]()
+	typePostForm       = reflect.TypeFor[PostForm]()
+	typeBasicAuth      = reflect.TypeFor[BasicAuth]()
+	typeBasicAuthPtr   = reflect.TypeFor[*BasicAuth]()
+	typeBodySliceUint8 = reflect.TypeFor[[]uint8]()
+	typeBodySliceByte  = reflect.TypeFor[[]byte]()
+)
+
+func (inb *insBuilder) makeBuilderCommon(arg reflect.Type, i int) (ok bool, countBody int) {
 	ok = true
-	switch argType {
-	case "http.ResponseWriter":
+	switch arg {
+	case typeResponseWriter:
 		inb.valueBuilders[i] = commonBuilderHttpResponseWriter
-	case "*http.Request":
+	case typeRequest:
 		inb.valueBuilders[i] = commonBuilderHttpRequest
-	case "context.Context":
+	case typeContext:
 		inb.valueBuilders[i] = commonBuilderContext
-	case "*chi.Context":
+	case typeChiContextPtr:
 		inb.valueBuilders[i] = commonBuilderChiContextPtr
-	case "chi.Context":
+	case typeChiContext:
 		inb.valueBuilders[i] = commonBuilderChiContext
-	case "http.Header":
+	case typeHeader:
 		inb.valueBuilders[i] = commonBuilderHttpHeader
-	case "[]*http.Cookie":
+	case typeCookies:
 		inb.valueBuilders[i] = commonBuilderCookies
-	case "*url.URL":
+	case typeUrl:
 		inb.valueBuilders[i] = commonBuilderUrl
-	case "typed.Headers":
+	case typeHeaders:
 		inb.valueBuilders[i] = commonBuilderTypedHeaders
-	case "map[string][]string":
+	case typeMapHeaders:
 		inb.valueBuilders[i] = commonBuilderMapHeaders
-	case "typed.PathParams":
+	case typePathParams:
 		inb.valueBuilders[i] = commonBuilderTypedPathParams
-	case "typed.QueryParams":
+	case typeQueryParams:
 		inb.valueBuilders[i] = commonBuilderQueryParams
-	case "typed.RawQuery":
+	case typeRawQuery:
 		inb.valueBuilders[i] = commonBuilderRawQuery
-	case "json.RawMessage":
+	case typeRawMessage:
 		inb.valueBuilders[i] = commonBuilderJsonRawMessage
 		countBody = 1
-	case "typed.PostForm":
+	case typePostForm:
 		if inb.method == http.MethodPost || inb.method == http.MethodPut || inb.method == http.MethodPatch {
 			inb.valueBuilders[i] = commonBuilderPostForm
 			countBody = 1
 		} else {
 			inb.valueBuilders[i] = commonBuilderPostFormEmpty
 		}
-	case "typed.BasicAuth":
+	case typeBasicAuth:
 		inb.valueBuilders[i] = commonBuilderBasicAuth
-	case "*typed.BasicAuth":
+	case typeBasicAuthPtr:
 		inb.valueBuilders[i] = commonBuilderBasicAuthPtr
-	case "[]uint8", "[]byte":
+	case typeBodySliceUint8, typeBodySliceByte:
 		inb.valueBuilders[i] = commonBuilderByteBody
 		countBody = 1
 	default:
@@ -364,11 +679,9 @@ func (inb *insBuilder) build(writer http.ResponseWriter, request *http.Request) 
 		}
 	} else {
 		// fallback path params - if context is not Chi (usually during direct testing)
-		matchParams, ok := inb.pathTemplate.MatchesRequest(request)
-		if !ok {
-			return nil, errors.New("unable to extract path params")
+		if matchParams, ok := inb.pathTemplate.MatchesRequest(request); ok {
+			params = matchParams.GetAll()
 		}
-		params = matchParams.GetAll()
 	}
 	result := make([]reflect.Value, 0, inb.len)
 	for i, valueBuilder := range inb.valueBuilders {

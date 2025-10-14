@@ -7,10 +7,8 @@ import (
 	"github.com/go-andiamo/chioas/internal/refs"
 	"github.com/go-andiamo/chioas/internal/tags"
 	"go/format"
-	"golang.org/x/exp/maps"
 	"io"
 	"reflect"
-	"sort"
 	"strconv"
 	"strings"
 	"unicode"
@@ -265,8 +263,7 @@ func (w *codeWriter) writeExtendedValue(indent int, value any) {
 func (w *codeWriter) writeExtensions(indent int, extensions chioas.Extensions) {
 	if w.err == nil && len(extensions) > 0 {
 		w.writeLine(indent, typeExtensions+": "+w.opts.alias()+typeExtensions+"{", false)
-		ks := maps.Keys(extensions)
-		sort.Strings(ks)
+		ks := sortedKeys(extensions)
 		for _, k := range ks {
 			w.writeStart(indent+1, strconv.Quote(k)+": ")
 			w.writeValue(indent+1, extensions[k])

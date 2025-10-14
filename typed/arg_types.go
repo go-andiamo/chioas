@@ -91,3 +91,95 @@ type BasicAuth struct {
 	Password string
 	Ok       bool
 }
+
+// NamedQueryParam is an interface that enables a type to be used as a typed handler arg to receive a named query param
+//
+// Note: The underlying type must be a string or implement encoding.TextUnmarshaler
+//
+// Example:
+//
+//	// declare type and name...
+//	type MyQueryParam string
+//	func (MyQueryParam) QueryParamName() string {
+//	    return "my" // tells chioas typed the query param name
+//	}
+//
+// and then use that type as a handler arg...
+//
+//	func requestHandler(myQp MyQueryParam)
+//
+// or if the query param is optional...
+//
+//	func requestHandler(myQp *MyQueryParam)
+//
+// or if the query param has multiple values...
+//
+//	func requestHandler(myQps []MyQueryParam)
+type NamedQueryParam interface {
+	QueryParamName() string
+}
+
+// NamedPathParam is an interface that enables a type to be used as a typed handler arg to receive a named path param
+//
+// Note: The underlying type must be a string or implement encoding.TextUnmarshaler
+//
+// Example:
+//
+//	// declare type and name...
+//	type PathParamID string
+//	func (PathParamID) PathParamName() string {
+//	    return "id" // tells chioas typed the path param name
+//	}
+//
+// and then use that type as a handler arg...
+//
+//	func requestHandler(id PathParamID)
+//
+// or if the path param has multiple values...
+//
+//	func requestHandler(ids []PathParamID)
+type NamedPathParam interface {
+	PathParamName() string
+}
+
+// NamedHeader is an interface that enables a type to be used as a typed handler arg to receive a named header
+//
+// Note: The underlying type must be a string
+//
+// Example:
+//
+//	// declare type and name...
+//	type Accept string
+//	func (Accept) HeaderName() string {
+//	    return "Accept" // tells chioas typed the header name
+//	}
+//
+// and then use that type as a handler arg...
+//
+//	func requestHandler(accept Accept)
+//
+// or if the header is optional...
+//
+//	func requestHandler(accept *Accept)
+type NamedHeader interface {
+	HeaderName() string
+}
+
+// NamedCookie is an interface that enables a type to be used as a typed handler arg to receive a named cookie
+//
+// Note: The underlying type must be http.Cookie and usage must be a pointer
+//
+// Example:
+//
+//	// declare type and name...
+//	type CSession http.Cookie
+//	func (CSession) CookieName() string {
+//	    return "session" // tells chioas typed the cookie name
+//	}
+//
+// and then use that type as a handler arg...
+//
+//	func requestHandler(sess *CSession)
+type NamedCookie interface {
+	CookieName() string
+}

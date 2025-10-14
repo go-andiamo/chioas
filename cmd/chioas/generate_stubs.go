@@ -1,11 +1,12 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"github.com/go-andiamo/chioas"
 	"github.com/go-andiamo/chioas/codegen"
+	"github.com/go-andiamo/flagpole"
 	"io"
+	"os"
 )
 
 const (
@@ -13,72 +14,57 @@ const (
 	subCmdStubsDesc = `Generate handler func stubs  (e.g. "func GetRoot(w http.ResponseWriter, r *http.Request) {...}") from existing OAS yaml/json`
 )
 
-func generateStubs(args []string) {
-	fs := flag.NewFlagSet("gen stubs", flag.ContinueOnError)
-	in := fs.String("in", "", `input definition file (.yaml|.json) or '-' for stdin (required)`)
-	outDir := fs.String("outdir", "", `output directory for generated code (optional, defaults to current dir)`)
-	outFn := fs.String("outf", "", `output filename for generated code (optional, default: handlers.go)`)
-	pkg := fs.String("pkg", "", `Go package name for generated code (optional, default: api)`)
-	publicFuncs := fs.Bool("public-funcs", false, `make handler funcs public (optional, default: false)`)
-	pathParams := fs.Bool("path-params", false, `include path params in handler funcs (optional, default: false)`)
-	receiver := fs.String("receiver", "", `make handler funcs with receiver - e.g. "(a *MyApi)" (optional, default: no receiver)`)
-	naming := fs.Int("naming", 0, `handler func naming strategy (optional, default: 0)
-        0: default naming strategy
-        1: try to use OAS operationId
-        2: try to use existing handler or x-handler`)
-	path := fs.String("path", "", `api path to generate stubs for (optional) - e.g. "/api/pets"`)
-	godoc := fs.Bool("godoc", false, `include godoc comment for each handler func (optional, default: false)`)
-	noFmt := fs.Bool("no-fmt", false, `suppress go formatting of generated code (optional, default: false)`)
-	overwrite := fs.Bool("overwrite", false, `allow overwriting existing file (optional, default: false)`)
-	help := fs.Bool("help", false, `show help`)
-	egs := []string{
-		"-in <filename>",
-		"-outdir <dir>",
-		"[-outf <filename>]",
-		"[-pkg <name>]",
-		"[-public-funcs]",
-		"[-path-params]",
-		"[-receiver <receiver-prefix>]",
-		"[-naming <0|1|2>]",
-		"[-path </api/foo>]",
-		"[-godoc]",
-		"[-no-fmt]",
-		"[-overwrite]",
-	}
-	fs.SetOutput(io.Discard)
+type genStubsFlags struct {
+	CommonFlags
+	OutDir      *string `name:"outdir"       alias:"od" usage:"output directory for generated code"                           default:""            example:"[-outdir <dir>]"`
+	OutFn       *string `name:"outf"         alias:"of" usage:"output filename for generated code (default: \"handlers.go\")" default:"handlers.go" example:"[-outf <filename>]"`
+	Pkg         *string `name:"pkg"          alias:"pk" usage:"package for generated code (default: \"api\")"                 default:"api"         example:"[-pkg <name>]"`
+	PublicFuncs *bool   `name:"public-funcs" alias:"pf" usage:"make handler funcs public (default: false)"                    default:"false"       example:"[-public-funcs]"`
+	PathParams  *bool   `name:"path-params"  alias:"pp" usage:"include path params in handler funcs (default: false)"         default:"false"       example:"[-path-params]"`
+	Receiver    *string `name:"receiver"     alias:"r"  usage:"make handler funcs with receiver - e.g. \"(a *MyApi)\" (default: no receiver)" default:"" example:"[-receiver <receiver-prefix>]"`
+	Naming      *int    `name:"naming"       alias:"n"  usage:"handler func naming strategy (default: 0)\n        0: default naming strategy\n        1: try to use OAS operationId\n        2: try to use existing handler or x-handler" default:"0" example:"[-naming <0|1|2>]"`
+	Path        *string `name:"path"                    usage:"api path to generate stubs for (optional) - e.g. \"/api/pets\""                      example:"[-path </api/foo>]"`
+	GoDoc       *bool   `name:"godoc"        alias:"gd" usage:"include godoc comment for each handler (default: false)"       default:"false"       example:"[-godoc]"`
+	CommonSupplementaryFlags
+}
 
-	if err := fs.Parse(args); err != nil {
-		fail(2, err)
+var genStubsFlagsParser = flagpole.MustNewParser[genStubsFlags](flagpole.StopOnHelp(true), flagpole.DefaultedOptionals(true), flagpole.IgnoreUnknownFlags(true))
+
+func generateStubs(args []string) {
+	flags, err := genStubsFlagsParser.Parse(args)
+	if err != nil || (flags.Help != nil && *flags.Help) {
+		out := os.Stdout
+		code := 0
+		if err != nil {
+			out = os.Stderr
+			code = 2
+		}
+		genStubsFlagsParser.Usage(out, err, cmdGen, subCmdStubs)
+		os.Exit(code)
 	}
-	if *help {
-		usageDetailed("", fs, egs, cmdGen, subCmdStubs, subCmdStubsDesc)
-	}
-	if *in == "" {
-		usageDetailed("missing -in", fs, egs, cmdGen, subCmdStubs, subCmdStubsDesc)
-	}
-	def, err := readDefinition(*in)
+
+	def, err := readDefinition(flags.In)
 	if err != nil {
 		fail(1, fmt.Errorf("read definition: %w", err))
 	}
-	stubNamer := &stubNaming{strategy: *naming}
+	stubNamer := &stubNaming{strategy: *flags.Naming}
 	options := codegen.HandlerStubOptions{
-		Package:     *pkg,
-		PublicFuncs: *publicFuncs,
-		Receiver:    *receiver,
-		PathParams:  *pathParams,
+		Package:     *flags.Pkg,
+		PublicFuncs: *flags.PublicFuncs,
+		Receiver:    *flags.Receiver,
+		PathParams:  *flags.PathParams,
 		StubNaming:  stubNamer,
-		GoDoc:       *godoc,
-		Format:      !*noFmt,
+		GoDoc:       *flags.GoDoc,
+		Format:      !*flags.NoFormat,
 	}
-
-	if *path != "" {
-		pathDef := getPath(*path, def)
+	if flags.Path != nil {
+		pathDef := getPath(*flags.Path, def)
 		if pathDef == nil {
-			fail(1, fmt.Errorf("unknown path: %q", *path))
+			fail(1, fmt.Errorf("unknown path: %q", *flags.Path))
 		}
-		err = generatePathStubs(pathDef, options, *outDir, *outFn, *overwrite)
+		err = generatePathStubs(pathDef, options, *flags.OutDir, *flags.OutFn, *flags.Overwrite)
 	} else {
-		err = generateDefinitionStubs(def, options, *outDir, *outFn, *overwrite)
+		err = generateDefinitionStubs(def, options, *flags.OutDir, *flags.OutFn, *flags.Overwrite)
 	}
 	if err != nil {
 		fail(1, fmt.Errorf("generate stubs: %w", err))

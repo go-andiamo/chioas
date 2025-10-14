@@ -1,15 +1,16 @@
 package codegen
 
 import (
+	"cmp"
 	"fmt"
 	"github.com/go-andiamo/chioas"
 	"github.com/go-andiamo/chioas/internal/refs"
 	"github.com/go-andiamo/chioas/internal/tags"
-	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slices"
 	"io"
+	"slices"
 	"sort"
 	"strconv"
+	"strings"
 )
 
 type ItemType interface {
@@ -101,8 +102,7 @@ func generateDefinition(def chioas.Definition, ptr bool, cw *codeWriter) {
 	generateInfo(1, def.Info, cw)
 	if len(def.Servers) > 0 {
 		cw.writeLine(1, "Servers: "+cw.opts.alias()+typeServers+"{", false)
-		ks := maps.Keys(def.Servers)
-		sort.Strings(ks)
+		ks := sortedKeys(def.Servers)
 		for _, k := range ks {
 			cw.writeKey(2, k)
 			s := def.Servers[k]
@@ -139,8 +139,7 @@ func generateDefinition(def chioas.Definition, ptr bool, cw *codeWriter) {
 		generatePaths(1, def.Paths, cw)
 	} else {
 		cw.writeCollectionFieldStart(1, typePaths, typePaths)
-		paths = maps.Keys(def.Paths)
-		sort.Strings(paths)
+		paths = sortedKeys(def.Paths)
 		deduper := newNameDeDuper()
 		for _, k := range paths {
 			useName := k
@@ -219,8 +218,8 @@ func generateComponentsVars(def *chioas.Components, cw *codeWriter, topVar bool,
 	if len(def.Schemas) > 0 {
 		cw.writeCollectionFieldStart(2, typeSchemas, typeSchemas)
 		schemas = append(schemas, def.Schemas...)
-		slices.SortStableFunc(schemas, func(a, b chioas.Schema) bool {
-			return a.Name < b.Name
+		slices.SortStableFunc(schemas, func(a, b chioas.Schema) int {
+			return strings.Compare(a.Name, b.Name)
 		})
 		for _, s := range schemas {
 			cw.writeLine(3, deDupe(varSchema, s.Name)+",", false)
@@ -230,8 +229,7 @@ func generateComponentsVars(def *chioas.Components, cw *codeWriter, topVar bool,
 	var requests []string
 	if len(def.Requests) > 0 {
 		cw.writeCollectionFieldStart(2, "Requests", typeCommonRequests)
-		requests = maps.Keys(def.Requests)
-		sort.Strings(requests)
+		requests = sortedKeys(def.Requests)
 		for _, k := range requests {
 			cw.writeLine(3, strconv.Quote(k)+": "+deDupe(varRequest, k)+",", false)
 		}
@@ -240,8 +238,7 @@ func generateComponentsVars(def *chioas.Components, cw *codeWriter, topVar bool,
 	var responses []string
 	if len(def.Responses) > 0 {
 		cw.writeCollectionFieldStart(2, "Responses", typeCommonResponses)
-		responses = maps.Keys(def.Responses)
-		sort.Strings(responses)
+		responses = sortedKeys(def.Responses)
 		for _, k := range responses {
 			cw.writeLine(3, strconv.Quote(k)+": "+deDupe(varResponse, k)+",", false)
 		}
@@ -251,8 +248,8 @@ func generateComponentsVars(def *chioas.Components, cw *codeWriter, topVar bool,
 	if len(def.Examples) > 0 {
 		cw.writeCollectionFieldStart(2, typeExamples, typeExamples)
 		examples = append(examples, def.Examples...)
-		slices.SortStableFunc(examples, func(a, b chioas.Example) bool {
-			return a.Name < b.Name
+		slices.SortStableFunc(examples, func(a, b chioas.Example) int {
+			return strings.Compare(a.Name, b.Name)
 		})
 		for _, eg := range examples {
 			cw.writeLine(3, deDupe(varExample, eg.Name)+",", false)
@@ -262,8 +259,7 @@ func generateComponentsVars(def *chioas.Components, cw *codeWriter, topVar bool,
 	var params []string
 	if len(def.Parameters) > 0 {
 		cw.writeCollectionFieldStart(2, "Parameters", typeCommonParameters)
-		params = maps.Keys(def.Parameters)
-		sort.Strings(params)
+		params = sortedKeys(def.Parameters)
 		for _, k := range params {
 			cw.writeLine(3, strconv.Quote(k)+": "+deDupe(varParameter, k)+",", false)
 		}
@@ -273,8 +269,8 @@ func generateComponentsVars(def *chioas.Components, cw *codeWriter, topVar bool,
 	if len(def.SecuritySchemes) > 0 {
 		cw.writeCollectionFieldStart(2, typeSecuritySchemes, typeSecuritySchemes)
 		secSchemes = append(secSchemes, def.SecuritySchemes...)
-		slices.SortStableFunc(secSchemes, func(a, b chioas.SecurityScheme) bool {
-			return a.Name < b.Name
+		slices.SortStableFunc(secSchemes, func(a, b chioas.SecurityScheme) int {
+			return strings.Compare(a.Name, b.Name)
 		})
 		for _, s := range secSchemes {
 			cw.writeLine(3, deDupe(varSecurityScheme, s.Name)+",", false)
@@ -341,8 +337,8 @@ func generateComponentsInner(indent int, def *chioas.Components, cw *codeWriter)
 	if len(def.Schemas) > 0 {
 		cw.writeCollectionFieldStart(indent+1, typeSchemas, typeSchemas)
 		ss := append(chioas.Schemas{}, def.Schemas...)
-		slices.SortStableFunc(ss, func(a, b chioas.Schema) bool {
-			return a.Name < b.Name
+		slices.SortStableFunc(ss, func(a, b chioas.Schema) int {
+			return strings.Compare(a.Name, b.Name)
 		})
 		for _, s := range ss {
 			cw.writeLine(indent+2, "{", false)
@@ -353,8 +349,7 @@ func generateComponentsInner(indent int, def *chioas.Components, cw *codeWriter)
 	}
 	if len(def.Requests) > 0 {
 		cw.writeCollectionFieldStart(indent+1, "Requests", typeCommonRequests)
-		ks := maps.Keys(def.Requests)
-		sort.Strings(ks)
+		ks := sortedKeys(def.Requests)
 		for _, k := range ks {
 			cw.writeKey(indent+2, k)
 			r := def.Requests[k]
@@ -365,8 +360,7 @@ func generateComponentsInner(indent int, def *chioas.Components, cw *codeWriter)
 	}
 	if len(def.Responses) > 0 {
 		cw.writeCollectionFieldStart(indent+1, "Responses", typeCommonResponses)
-		ks := maps.Keys(def.Responses)
-		sort.Strings(ks)
+		ks := sortedKeys(def.Responses)
 		for _, k := range ks {
 			cw.writeKey(indent+2, k)
 			generateResponse(indent+2, def.Responses[k], cw)
@@ -377,8 +371,8 @@ func generateComponentsInner(indent int, def *chioas.Components, cw *codeWriter)
 	if len(def.Examples) > 0 {
 		cw.writeCollectionFieldStart(indent+1, typeExamples, typeExamples)
 		egs := append(chioas.Examples{}, def.Examples...)
-		slices.SortStableFunc(egs, func(a, b chioas.Example) bool {
-			return a.Name < b.Name
+		slices.SortStableFunc(egs, func(a, b chioas.Example) int {
+			return strings.Compare(a.Name, b.Name)
 		})
 		for _, eg := range egs {
 			cw.writeLine(indent+2, "{", false)
@@ -389,8 +383,7 @@ func generateComponentsInner(indent int, def *chioas.Components, cw *codeWriter)
 	}
 	if len(def.Parameters) > 0 {
 		cw.writeCollectionFieldStart(indent+1, "Parameters", typeCommonParameters)
-		ks := maps.Keys(def.Parameters)
-		sort.Strings(ks)
+		ks := sortedKeys(def.Parameters)
 		for _, k := range ks {
 			cw.writeKey(indent+2, k)
 			generateCommonParam(indent+2, def.Parameters[k], cw)
@@ -401,8 +394,8 @@ func generateComponentsInner(indent int, def *chioas.Components, cw *codeWriter)
 	if len(def.SecuritySchemes) > 0 {
 		cw.writeCollectionFieldStart(indent+1, typeSecuritySchemes, typeSecuritySchemes)
 		ss := append(chioas.SecuritySchemes{}, def.SecuritySchemes...)
-		slices.SortStableFunc(ss, func(a, b chioas.SecurityScheme) bool {
-			return a.Name < b.Name
+		slices.SortStableFunc(ss, func(a, b chioas.SecurityScheme) int {
+			return strings.Compare(a.Name, b.Name)
 		})
 		for _, s := range ss {
 			cw.writeLine(indent+2, "{", false)
@@ -460,8 +453,7 @@ func generatePath(indent int, def chioas.Path, cw *codeWriter) {
 	writeZeroField(cw, indent+1, "Tag", def.Tag)
 	if len(def.PathParams) > 0 {
 		cw.writeLine(indent+1, "PathParams: "+cw.opts.alias()+typePathParams+"{", false)
-		ks := maps.Keys(def.PathParams)
-		sort.Strings(ks)
+		ks := sortedKeys(def.PathParams)
 		for _, k := range ks {
 			cw.writeKey(indent+2, k)
 			generatePathParam(indent+2, def.PathParams[k], cw)
@@ -484,8 +476,7 @@ func generatePaths(indent int, paths chioas.Paths, cw *codeWriter) {
 }
 
 func generatePathsInner(indent int, paths chioas.Paths, cw *codeWriter) {
-	ks := maps.Keys(paths)
-	sort.Strings(ks)
+	ks := sortedKeys(paths)
 	for _, k := range ks {
 		cw.writeKey(indent+1, k)
 		generatePath(indent+1, paths[k], cw)
@@ -496,10 +487,7 @@ func generatePathsInner(indent int, paths chioas.Paths, cw *codeWriter) {
 func generateMethods(indent int, methods chioas.Methods, cw *codeWriter) {
 	if len(methods) > 0 {
 		cw.writeCollectionFieldStart(indent, typeMethods, typeMethods)
-		sms := maps.Keys(methods)
-		sort.Slice(sms, func(i, j int) bool {
-			return compareMethods(sms[i], sms[j])
-		})
+		sms := sortedMethods(methods)
 		for _, m := range sms {
 			generateMethod(indent+1, m, methods[m], cw)
 		}
@@ -548,8 +536,7 @@ func generateMethodInner(indent int, def chioas.Method, cw *codeWriter) {
 	}
 	if len(def.Responses) > 0 {
 		cw.writeLine(indent+1, "Responses: "+cw.opts.alias()+typeResponses+"{", false)
-		ks := maps.Keys(def.Responses)
-		slices.Sort(ks)
+		ks := sortedKeys(def.Responses)
 		for _, k := range ks {
 			cw.writeLine(indent+2, cw.opts.translateStatus(k)+": {", false)
 			generateResponse(indent+2, def.Responses[k], cw)
@@ -616,8 +603,7 @@ func generateResponse(indent int, def chioas.Response, cw *codeWriter) {
 func generateAlternativeContentTypes(indent int, cts chioas.ContentTypes, cw *codeWriter) {
 	if len(cts) > 0 {
 		cw.writeLine(indent+1, "AlternativeContentTypes: "+cw.opts.alias()+typeContentTypes+"{", false)
-		ks := maps.Keys(cts)
-		sort.Strings(ks)
+		ks := sortedKeys(cts)
 		for _, k := range ks {
 			cw.writeKey(indent+2, k)
 			generateContentType(indent+2, cts[k], cw)
@@ -814,8 +800,7 @@ func generateSchema(indent int, def *chioas.Schema, cw *codeWriter) {
 func generateDiscriminator(indent int, def *chioas.Discriminator, cw *codeWriter) {
 	writeZeroField(cw, indent+1, "PropertyName", def.PropertyName)
 	cw.writeLine(indent+1, "Mapping: map[string]string{", false)
-	ks := maps.Keys(def.Mapping)
-	sort.Strings(ks)
+	ks := sortedKeys(def.Mapping)
 	for _, k := range ks {
 		cw.writeLine(indent+2, strconv.Quote(k)+": "+strconv.Quote(refs.Normalize(tags.Schemas, def.Mapping[k]))+",", false)
 	}
@@ -939,6 +924,26 @@ func compareMethods(ma, mb string) bool {
 		return true
 	}
 	return a < b
+}
+
+func sortedMethods(methods chioas.Methods) []string {
+	result := make([]string, 0, len(methods))
+	for k := range methods {
+		result = append(result, k)
+	}
+	sort.Slice(result, func(i, j int) bool {
+		return compareMethods(result[i], result[j])
+	})
+	return result
+}
+
+func sortedKeys[M ~map[K]V, K cmp.Ordered, V any](m M) []K {
+	result := make([]K, 0, len(m))
+	for k := range m {
+		result = append(result, k)
+	}
+	slices.Sort(result)
+	return result
 }
 
 const (

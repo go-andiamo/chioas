@@ -1,12 +1,13 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"github.com/go-andiamo/chioas"
 	"github.com/go-andiamo/chioas/codegen"
 	"github.com/go-andiamo/chioas/internal/refs"
+	"github.com/go-andiamo/flagpole"
 	"io"
+	"os"
 )
 
 const (
@@ -14,78 +15,65 @@ const (
 	subCmdStructsDesc = `Generate schema/request/response structs from existing OAS yaml/json`
 )
 
-func generateStructs(args []string) {
-	fs := flag.NewFlagSet("gen structs", flag.ContinueOnError)
-	in := fs.String("in", "", `input definition file (.yaml|.json) or '-' for stdin (required)`)
-	outDir := fs.String("outdir", "", `output directory for generated code (optional, defaults to current dir)`)
-	outFn := fs.String("outf", "", `output filename for generated code (optional, default: structs.go)`)
-	pkg := fs.String("pkg", "", `Go package name for generated code (optional, default: api)`)
-	publicStructs := fs.Bool("public-structs", false, `make structs public (optional, default: false)`)
-	noRequests := fs.Bool("no-requests", false, `suppress schemas for requests (optional, default: false)`)
-	noResponses := fs.Bool("no-responses", false, `suppress schemas for responses (optional, default: false)`)
-	oasTags := fs.Bool("oas-tags", false, `oas tags for struct fields (optional, default: false)`)
-	keep := fs.Bool("keep", false, `keep references to components as separate structs (optional, default: false)`)
-	path := fs.String("path", "", `api path to generate structs for (optional) - e.g. "/api/pets"`)
-	godoc := fs.Bool("godoc", false, `include godoc comment for each struct (optional, default: false)`)
-	noFmt := fs.Bool("no-fmt", false, `suppress go formatting of generated code (optional, default: false)`)
-	overwrite := fs.Bool("overwrite", false, `allow overwriting existing file (optional, default: false)`)
-	help := fs.Bool("help", false, `show help`)
-	egs := []string{
-		"-in <filename>",
-		"-outdir <dir>",
-		"[-outf <filename>]",
-		"[-pkg <name>]",
-		"[-public-structs]",
-		"[-no-requests]",
-		"[-noResponses]",
-		"[-oasTags]",
-		"[-keep]",
-		"[-godoc]",
-		"[-no-fmt]",
-		"[-overwrite]",
-	}
-	fs.SetOutput(io.Discard)
+type genStructsFlags struct {
+	CommonFlags
+	OutDir        *string `name:"outdir"           alias:"od" usage:"output directory for generated code"                           default:""            example:"[-outdir <dir>]"`
+	OutFn         *string `name:"outf"             alias:"of" usage:"output filename for generated code (default: \"structs.go\")"  default:"structs.go"  example:"[-outf <filename>]"`
+	Pkg           *string `name:"pkg"              alias:"pk" usage:"package for generated code (default: \"api\")"                 default:"api"         example:"[-pkg <name>]"`
+	PublicStructs *bool   `name:"public-structs"   alias:"ps" usage:"make structs public (default: false)"                          default:"false"       example:"[-public-structs]"`
+	NoRequests    *bool   `name:"no-requests"                 usage:"suppress schemas for requests (default: false)"                default:"false"       example:"[-no-requests]"`
+	NoResponses   *bool   `name:"no-responses"                usage:"suppress schemas for responses (default: false)"               default:"false"       example:"[-no-responses]"`
+	OASTags       *bool   `name:"oas-tags"         alias:"oas" usage:"oas tags for struct fields (default: false)"                  default:"false"       example:"[-oas-tags]"`
+	Keep          *bool   `name:"keep"             alias:"k"  usage:"keep references to components as separate structs (default: false)" default:"false"  example:"[-keep]"`
+	Path          *string `name:"path"                        usage:"api path to generate stubs for (optional) - e.g. \"/api/pets\""                      example:"[-path </api/foo>]"`
+	GoDoc         *bool   `name:"godoc"            alias:"gd" usage:"include godoc comment for each struct (default: false)"        default:"false"       example:"[-godoc]"`
+	CommonSupplementaryFlags
+}
 
-	if err := fs.Parse(args); err != nil {
-		fail(2, err)
+var genStructsFlagsParser = flagpole.MustNewParser[genStructsFlags](flagpole.StopOnHelp(true), flagpole.DefaultedOptionals(true), flagpole.IgnoreUnknownFlags(true))
+
+func generateStructs(args []string) {
+	flags, err := genStructsFlagsParser.Parse(args)
+	if err != nil || (flags.Help != nil && *flags.Help) {
+		out := os.Stdout
+		code := 0
+		if err != nil {
+			out = os.Stderr
+			code = 2
+		}
+		genStructsFlagsParser.Usage(out, err, cmdGen, subCmdStructs)
+		os.Exit(code)
 	}
-	if *help {
-		usageDetailed("", fs, egs, cmdGen, subCmdStructs, subCmdStructsDesc)
-	}
-	if *in == "" {
-		usageDetailed("missing -in", fs, egs, cmdGen, subCmdStructs, subCmdStructsDesc)
-	}
-	def, err := readDefinition(*in)
+
+	def, err := readDefinition(flags.In)
 	if err != nil {
 		fail(1, fmt.Errorf("read definition: %w", err))
 	}
-
 	options := codegen.SchemaStructOptions{
-		Package:                 *pkg,
-		PublicStructs:           *publicStructs,
-		NoRequests:              *noRequests,
-		NoResponses:             *noResponses,
-		OASTags:                 *oasTags,
-		GoDoc:                   *godoc,
-		KeepComponentProperties: *keep,
-		Format:                  !*noFmt,
+		Package:                 *flags.Pkg,
+		PublicStructs:           *flags.PublicStructs,
+		NoRequests:              *flags.NoRequests,
+		NoResponses:             *flags.NoResponses,
+		OASTags:                 *flags.OASTags,
+		GoDoc:                   *flags.GoDoc,
+		KeepComponentProperties: *flags.Keep,
+		Format:                  !*flags.NoFormat,
 	}
-
-	if *path != "" {
-		if *path == refs.ComponentsPrefix {
+	if flags.Path != nil {
+		if *flags.Path == refs.ComponentsPrefix {
 			if def.Components == nil {
-				fail(1, fmt.Errorf("definition does not have components: %q", *path))
+				fail(1, fmt.Errorf("definition does not have components: %q", *flags.Path))
 			}
-			err = generateComponentsStructs(def.Components, options, *outDir, *outFn, *overwrite)
+			err = generateComponentsStructs(def.Components, options, *flags.OutDir, *flags.OutFn, *flags.Overwrite)
 		} else {
-			pathDef := getPath(*path, def)
+			pathDef := getPath(*flags.Path, def)
 			if pathDef == nil {
-				fail(1, fmt.Errorf("unknown path: %q", *path))
+				fail(1, fmt.Errorf("unknown path: %q", *flags.Path))
 			}
-			err = generatePathStructs(pathDef, options, *outDir, *outFn, *overwrite)
+			err = generatePathStructs(pathDef, options, *flags.OutDir, *flags.OutFn, *flags.Overwrite)
 		}
 	} else {
-		err = generateDefinitionStructs(def, options, *outDir, *outFn, *overwrite)
+		err = generateDefinitionStructs(def, options, *flags.OutDir, *flags.OutFn, *flags.Overwrite)
 	}
 	if err != nil {
 		fail(1, fmt.Errorf("generate structs: %w", err))

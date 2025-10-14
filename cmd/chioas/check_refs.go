@@ -1,10 +1,9 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"github.com/go-andiamo/chioas"
-	"io"
+	"github.com/go-andiamo/flagpole"
 	"os"
 )
 
@@ -13,25 +12,26 @@ const (
 	subCmdRefsDesc = "Check OAS yaml/json $refs"
 )
 
-func checkRefs(args []string) {
-	fs := flag.NewFlagSet("gen code", flag.ContinueOnError)
-	in := fs.String("in", "", `input definition file (.yaml|.json) or '-' for stdin (required)`)
-	help := fs.Bool("help", false, `show help`)
-	egs := []string{
-		"-in <filename>",
-	}
-	fs.SetOutput(io.Discard)
+type checkRefsFlags struct {
+	CommonFlags
+}
 
-	if err := fs.Parse(args); err != nil {
-		fail(2, err)
+var checkRefsFlagsParser = flagpole.MustNewParser[checkRefsFlags](flagpole.StopOnHelp(true), flagpole.DefaultedOptionals(true), flagpole.IgnoreUnknownFlags(true))
+
+func checkRefs(args []string) {
+	flags, err := checkRefsFlagsParser.Parse(args)
+	if err != nil || (flags.Help != nil && *flags.Help) {
+		out := os.Stdout
+		code := 0
+		if err != nil {
+			out = os.Stderr
+			code = 2
+		}
+		checkRefsFlagsParser.Usage(out, err, cmdCheck, subCmdRefs)
+		os.Exit(code)
 	}
-	if *help {
-		usageDetailed("", fs, egs, cmdCheck, subCmdRefs, subCmdRefsDesc)
-	}
-	if *in == "" {
-		usageDetailed("missing -in", fs, egs, cmdCheck, subCmdRefs, subCmdRefsDesc)
-	}
-	def, err := readDefinition(*in)
+
+	def, err := readDefinition(flags.In)
 	if err != nil {
 		fail(1, fmt.Errorf("read definition: %w", err))
 	}

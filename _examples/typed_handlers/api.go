@@ -5,6 +5,7 @@ import (
 	"github.com/go-andiamo/chioas/typed"
 	"github.com/go-chi/chi/v5"
 	"net/http"
+	"strings"
 )
 
 type api struct {
@@ -36,7 +37,16 @@ var dummyPeopleStore = []Person{
 }
 
 // GetPeople is the typed handler for GET /people - note the typed return args
-func (a *api) GetPeople() ([]Person, error) {
+func (a *api) GetPeople(search SearchParam) ([]Person, error) {
+	if search != "" {
+		result := make([]Person, 0, len(dummyPeopleStore))
+		for _, p := range dummyPeopleStore {
+			if strings.Contains(p.Name, string(search)) {
+				result = append(result, p)
+			}
+		}
+		return result, nil
+	}
 	return dummyPeopleStore, nil
 }
 
@@ -49,7 +59,7 @@ func (a *api) AddPerson(person *Person) (Person, error) {
 
 // GetPerson is the typed handler for GET /person/{personId}
 //
-// Note the arg type PersonId - which is extracted from the path params by the PersonIdArgBuilder
+// Note the arg type PersonId - which is extracted from the path params by the named path param implementation
 func (a *api) GetPerson(personId PersonId) (Person, error) {
 	if personId >= 0 && int(personId) < len(dummyPeopleStore) {
 		return dummyPeopleStore[personId], nil

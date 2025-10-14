@@ -9,11 +9,13 @@ import (
 	"github.com/go-andiamo/urit"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -27,12 +29,12 @@ func TestInsBuilder_Build(t *testing.T) {
 	fn := func(req *http.Request, w http.ResponseWriter, pathParams ...string) {}
 	path := "/foo/{fooid}/bar/{barid}"
 	inb, err := newInsBuilder(reflect.ValueOf(fn), path, "", &builder{unmarshaler: defaultUnmarshaler})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodGet, "/foo/1/bar/2", nil)
+	req := httptest.NewRequest(http.MethodGet, "/foo/1/bar/2", nil)
 	args, err := inb.build(w, req)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, 4, len(args))
 	assert.Equal(t, req, args[0].Interface())
 	assert.Equal(t, w, args[1].Interface())
@@ -53,7 +55,7 @@ func TestInsBuilder_Build_ErrorsWithVaradicBuilderError(t *testing.T) {
 		},
 	}
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodGet, "/", strings.NewReader(`{"name":1}`))
+	req := httptest.NewRequest(http.MethodGet, "/", strings.NewReader(`{"name":1}`))
 	_, err := inb.build(w, req)
 	assert.Error(t, err)
 }
@@ -62,10 +64,10 @@ func TestInsBuilder_Build_ErrorsWithBadRequest(t *testing.T) {
 	fn := func(req testRequest) {}
 	path := "/"
 	inb, err := newInsBuilder(reflect.ValueOf(fn), path, "", &builder{unmarshaler: defaultUnmarshaler})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodGet, "/", strings.NewReader(`{"name":1}`))
+	req := httptest.NewRequest(http.MethodGet, "/", strings.NewReader(`{"name":1}`))
 	_, err = inb.build(w, req)
 	assert.Error(t, err)
 	assert.Equal(t, "json: cannot unmarshal number into Go struct field testRequest.name of type string", err.Error())
@@ -75,12 +77,12 @@ func TestInsBuilder_Build_ErrorsWithBadPath(t *testing.T) {
 	fn := func(req *http.Request, w http.ResponseWriter, pathParams ...string) {}
 	path := "/foo/{fooid}/bar/{barid}"
 	inb, err := newInsBuilder(reflect.ValueOf(fn), path, "", &builder{unmarshaler: defaultUnmarshaler})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	_, err = inb.build(w, req)
-	assert.Error(t, err)
+	require.NoError(t, err)
 }
 
 func TestInsBuilder_MakeBuilders(t *testing.T) {
@@ -281,6 +283,42 @@ func TestInsBuilder_MakeBuilders(t *testing.T) {
 			expectBuilders: 1,
 			checkTypes:     []any{commonBuilderBasicAuthPtr},
 		},
+		{
+			fn:             func(my myNamedQP) {},
+			expectBuilders: 1,
+		},
+		{
+			fn:        func(myBad myBadNamedQP) {},
+			expectErr: "named query params must be of underlying type string or implement encoding.TextUnmarshaler",
+		},
+		{
+			fn:             func(my myNamedPP) {},
+			expectBuilders: 1,
+		},
+		{
+			fn:        func(myBad myBadNamedPP) {},
+			expectErr: "named path params must be of underlying type string or implement encoding.TextUnmarshaler",
+		},
+		{
+			fn:             func(my myNamedHdr) {},
+			expectBuilders: 1,
+		},
+		{
+			fn:        func(myBad myBadNamedHdr) {},
+			expectErr: "named header must be of underlying type string",
+		},
+		{
+			fn:             func(my *mySessionCookie) {},
+			expectBuilders: 1,
+		},
+		{
+			fn:        func(my mySessionCookie) {},
+			expectErr: "named cookie must be of underlying type *http.Cookie",
+		},
+		{
+			fn:        func(my *myBadCookie) {},
+			expectErr: "named cookie must be of underlying type *http.Cookie",
+		},
 	}
 	for i, tc := range testCases {
 		t.Run(fmt.Sprintf("[%d]", i+1), func(t *testing.T) {
@@ -293,7 +331,7 @@ func TestInsBuilder_MakeBuilders(t *testing.T) {
 				assert.Error(t, err)
 				assert.Equal(t, tc.expectErr, err.Error())
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, tc.expectBuilders, inb.len)
 				assert.Equal(t, tc.expectBuilders, len(inb.valueBuilders))
 				assert.Equal(t, tc.expectVaradic, inb.isVaradic)
@@ -320,14 +358,14 @@ func TestInsBuilder_MakeBuilders_WithAdditionals(t *testing.T) {
 
 	additional := &testAdditional{}
 	inb, err := newInsBuilder(mf, "/", "", &builder{unmarshaler: defaultUnmarshaler, argBuilders: []ArgBuilder{additional}})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, 2, inb.len)
 	assert.True(t, additional.applicableCalled)
 
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodPost, "/", nil)
+	req := httptest.NewRequest(http.MethodPost, "/", nil)
 	args, err := inb.build(w, req)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, 1, len(args))
 	_ = mf.Call(args)
 	assert.True(t, additional.buildValueCalled)
@@ -335,9 +373,9 @@ func TestInsBuilder_MakeBuilders_WithAdditionals(t *testing.T) {
 
 	additional.buildValueCalled = false
 	w = httptest.NewRecorder()
-	req, _ = http.NewRequest(http.MethodGet, "/", nil)
+	req = httptest.NewRequest(http.MethodGet, "/", nil)
 	args, err = inb.build(w, req)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, 1, len(args))
 	_ = mf.Call(args)
 	assert.True(t, additional.buildValueCalled)
@@ -363,43 +401,43 @@ var dummyType = reflect.TypeOf("")
 
 func TestCommonBuilderHttpResponseWriter(t *testing.T) {
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	v, err := commonBuilderHttpResponseWriter(dummyType, w, req, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, w, v.Interface())
 }
 
 func TestCommonBuilderHttpRequest(t *testing.T) {
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	v, err := commonBuilderHttpRequest(dummyType, w, req, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, req, v.Interface())
 }
 
 func TestCommonBuilderContext(t *testing.T) {
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	v, err := commonBuilderContext(dummyType, w, req, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, req.Context(), v.Interface())
 }
 
 func TestCommonBuilderChiContextPtr(t *testing.T) {
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	v, err := commonBuilderChiContextPtr(dummyType, w, req, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Nil(t, v.Interface())
 
 	w = httptest.NewRecorder()
-	req, _ = http.NewRequest(http.MethodGet, "/foo", nil)
+	req = httptest.NewRequest(http.MethodGet, "/foo", nil)
 	router := chi.NewRouter()
 	router.Get("/foo", func(writer http.ResponseWriter, request *http.Request) {
 		v, err = commonBuilderChiContextPtr(dummyType, writer, request, nil)
 	})
 	router.ServeHTTP(w, req)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, v.Interface())
 	ctx, ok := v.Interface().(*chi.Context)
 	assert.True(t, ok)
@@ -409,19 +447,19 @@ func TestCommonBuilderChiContextPtr(t *testing.T) {
 
 func TestCommonBuilderChiContext(t *testing.T) {
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	v, err := commonBuilderChiContext(dummyType, w, req, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, chi.Context{}, v.Interface())
 
 	w = httptest.NewRecorder()
-	req, _ = http.NewRequest(http.MethodGet, "/foo", nil)
+	req = httptest.NewRequest(http.MethodGet, "/foo", nil)
 	router := chi.NewRouter()
 	router.Get("/foo", func(writer http.ResponseWriter, request *http.Request) {
 		v, err = commonBuilderChiContext(dummyType, writer, request, nil)
 	})
 	router.ServeHTTP(w, req)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, v.Interface())
 	ctx, ok := v.Interface().(chi.Context)
 	assert.True(t, ok)
@@ -431,10 +469,10 @@ func TestCommonBuilderChiContext(t *testing.T) {
 
 func TestCommonBuilderHttpHeader(t *testing.T) {
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.Header.Set(hdrContentType, contentTypeJson)
 	v, err := commonBuilderHttpHeader(dummyType, w, req, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	expect := http.Header{
 		hdrContentType: []string{contentTypeJson},
 	}
@@ -443,20 +481,20 @@ func TestCommonBuilderHttpHeader(t *testing.T) {
 
 func TestCommonBuilderCookies(t *testing.T) {
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	v, err := commonBuilderCookies(dummyType, w, req, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	av, ok := v.Interface().([]*http.Cookie)
 	assert.True(t, ok)
 	assert.Equal(t, 0, len(av))
 
-	req, _ = http.NewRequest(http.MethodGet, "/", nil)
+	req = httptest.NewRequest(http.MethodGet, "/", nil)
 	req.AddCookie(&http.Cookie{
 		Name:  "foo",
 		Value: "bar",
 	})
 	v, err = commonBuilderCookies(dummyType, w, req, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	av, ok = v.Interface().([]*http.Cookie)
 	assert.True(t, ok)
 	assert.Equal(t, 1, len(av))
@@ -464,19 +502,19 @@ func TestCommonBuilderCookies(t *testing.T) {
 
 func TestCommonBuilderUrl(t *testing.T) {
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodGet, "/foo/bar?foo=bar", nil)
+	req := httptest.NewRequest(http.MethodGet, "/foo/bar?foo=bar", nil)
 	v, err := commonBuilderUrl(dummyType, w, req, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	av, ok := v.Interface().(*url.URL)
 	assert.True(t, ok)
 	assert.Equal(t, "/foo/bar", av.Path)
 	assert.Equal(t, "foo=bar", av.RawQuery)
 
 	w = httptest.NewRecorder()
-	req, _ = http.NewRequest(http.MethodGet, "/", nil)
+	req = httptest.NewRequest(http.MethodGet, "/", nil)
 	req.URL = nil
 	v, err = commonBuilderUrl(dummyType, w, req, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	av, ok = v.Interface().(*url.URL)
 	assert.True(t, ok)
 	assert.Nil(t, av)
@@ -484,10 +522,10 @@ func TestCommonBuilderUrl(t *testing.T) {
 
 func TestCommonBuilderTypedHeaders(t *testing.T) {
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.Header.Set(hdrContentType, contentTypeJson)
 	v, err := commonBuilderTypedHeaders(dummyType, w, req, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	expect := Headers{
 		hdrContentType: []string{contentTypeJson},
 	}
@@ -496,10 +534,10 @@ func TestCommonBuilderTypedHeaders(t *testing.T) {
 
 func TestCommonBuilderMapHeaders(t *testing.T) {
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.Header.Set(hdrContentType, contentTypeJson)
 	v, err := commonBuilderMapHeaders(dummyType, w, req, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	expect := map[string][]string{
 		hdrContentType: []string{contentTypeJson},
 	}
@@ -508,7 +546,7 @@ func TestCommonBuilderMapHeaders(t *testing.T) {
 
 func TestCommonBuilderTypedPathParams(t *testing.T) {
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	params := []urit.PathVar{
 		{
 			Name:  "foo",
@@ -524,7 +562,7 @@ func TestCommonBuilderTypedPathParams(t *testing.T) {
 		},
 	}
 	v, err := commonBuilderTypedPathParams(dummyType, w, req, params)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	expect := PathParams{
 		"foo": []string{"bar1", "bar2"},
 		"bar": []string{"1"},
@@ -534,23 +572,23 @@ func TestCommonBuilderTypedPathParams(t *testing.T) {
 
 func TestCommonBuilderQueryParams(t *testing.T) {
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	v, err := commonBuilderQueryParams(dummyType, w, req, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Empty(t, v.Interface())
 
 	w = httptest.NewRecorder()
-	req, _ = http.NewRequest(http.MethodGet, "/xxx?foo=bar&bar=1", nil)
+	req = httptest.NewRequest(http.MethodGet, "/xxx?foo=bar&bar=1", nil)
 	v, err = commonBuilderQueryParams(dummyType, w, req, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, v.Interface())
 	assert.Equal(t, QueryParams{"foo": []string{"bar"}, "bar": []string{"1"}}, v.Interface())
 
 	w = httptest.NewRecorder()
-	req, _ = http.NewRequest(http.MethodGet, "/", nil)
+	req = httptest.NewRequest(http.MethodGet, "/", nil)
 	req.URL = nil
 	v, err = commonBuilderQueryParams(dummyType, w, req, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	av, ok := v.Interface().(QueryParams)
 	assert.True(t, ok)
 	assert.Empty(t, av)
@@ -558,23 +596,23 @@ func TestCommonBuilderQueryParams(t *testing.T) {
 
 func TestCommonBuilderRawQuery(t *testing.T) {
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	v, err := commonBuilderRawQuery(dummyType, w, req, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Empty(t, v.Interface())
 
 	w = httptest.NewRecorder()
-	req, _ = http.NewRequest(http.MethodGet, "/xxx?foo=bar&bar=1", nil)
+	req = httptest.NewRequest(http.MethodGet, "/xxx?foo=bar&bar=1", nil)
 	v, err = commonBuilderRawQuery(dummyType, w, req, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, v.Interface())
 	assert.Equal(t, RawQuery("foo=bar&bar=1"), v.Interface())
 
 	w = httptest.NewRecorder()
-	req, _ = http.NewRequest(http.MethodGet, "/", nil)
+	req = httptest.NewRequest(http.MethodGet, "/", nil)
 	req.URL = nil
 	v, err = commonBuilderRawQuery(dummyType, w, req, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	av, ok := v.Interface().(RawQuery)
 	assert.True(t, ok)
 	assert.Empty(t, av)
@@ -584,27 +622,27 @@ func TestCommonBuilderJsonRawMessage(t *testing.T) {
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest(http.MethodGet, "/", nil)
 	v, err := commonBuilderJsonRawMessage(dummyType, w, req, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Empty(t, v.Interface())
 
 	w = httptest.NewRecorder()
-	req, _ = http.NewRequest(http.MethodPost, "/", strings.NewReader("foo"))
+	req = httptest.NewRequest(http.MethodPost, "/", strings.NewReader("foo"))
 	v, err = commonBuilderJsonRawMessage(dummyType, w, req, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, v.Interface())
 	assert.Equal(t, json.RawMessage{'f', 'o', 'o'}, v.Interface())
 
 	w = httptest.NewRecorder()
-	req, _ = http.NewRequest(http.MethodPost, "/", &testErrorReader{})
+	req = httptest.NewRequest(http.MethodPost, "/", &testErrorReader{})
 	_, err = commonBuilderJsonRawMessage(dummyType, w, req, nil)
 	assert.Error(t, err)
 }
 
 func TestCommonBuilderPostForm(t *testing.T) {
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	v, err := commonBuilderPostForm(dummyType, w, req, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Empty(t, v.Interface())
 
 	w = httptest.NewRecorder()
@@ -616,9 +654,9 @@ func TestCommonBuilderPostForm(t *testing.T) {
 
 func TestCommonBuilderPostFormEmpty(t *testing.T) {
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	v, err := commonBuilderPostFormEmpty(dummyType, w, req, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Empty(t, v.Interface())
 }
 
@@ -629,9 +667,9 @@ const (
 
 func TestCommonBuilderBasicAuth(t *testing.T) {
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	v, err := commonBuilderBasicAuth(dummyType, w, req, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	av, ok := v.Interface().(BasicAuth)
 	assert.True(t, ok)
 	assert.False(t, av.Ok)
@@ -640,7 +678,7 @@ func TestCommonBuilderBasicAuth(t *testing.T) {
 
 	req.Header.Set("Authorization", basicBad)
 	v, err = commonBuilderBasicAuth(dummyType, w, req, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	av, ok = v.Interface().(BasicAuth)
 	assert.True(t, ok)
 	assert.False(t, av.Ok)
@@ -649,7 +687,7 @@ func TestCommonBuilderBasicAuth(t *testing.T) {
 
 	req.Header.Set("Authorization", basicGood)
 	v, err = commonBuilderBasicAuth(dummyType, w, req, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	av, ok = v.Interface().(BasicAuth)
 	assert.True(t, ok)
 	assert.True(t, av.Ok)
@@ -659,19 +697,19 @@ func TestCommonBuilderBasicAuth(t *testing.T) {
 
 func TestCommonBuilderBasicAuthPtr(t *testing.T) {
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	v, err := commonBuilderBasicAuthPtr(dummyType, w, req, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Nil(t, v.Interface())
 
 	req.Header.Set("Authorization", "not basic")
 	v, err = commonBuilderBasicAuthPtr(dummyType, w, req, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Nil(t, v.Interface())
 
 	req.Header.Set("Authorization", basicBad)
 	v, err = commonBuilderBasicAuthPtr(dummyType, w, req, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	av, ok := v.Interface().(*BasicAuth)
 	assert.True(t, ok)
 	assert.False(t, av.Ok)
@@ -680,7 +718,7 @@ func TestCommonBuilderBasicAuthPtr(t *testing.T) {
 
 	req.Header.Set("Authorization", basicGood)
 	v, err = commonBuilderBasicAuthPtr(dummyType, w, req, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	av, ok = v.Interface().(*BasicAuth)
 	assert.True(t, ok)
 	assert.True(t, av.Ok)
@@ -692,28 +730,28 @@ func TestCommonBuilderByteBody(t *testing.T) {
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest(http.MethodGet, "/", nil)
 	v, err := commonBuilderByteBody(dummyType, w, req, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Empty(t, v.Interface())
 
 	w = httptest.NewRecorder()
-	req, _ = http.NewRequest(http.MethodPost, "/", strings.NewReader("foo"))
+	req = httptest.NewRequest(http.MethodPost, "/", strings.NewReader("foo"))
 	v, err = commonBuilderByteBody(dummyType, w, req, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, v.Interface())
 	assert.Equal(t, []byte{'f', 'o', 'o'}, v.Interface())
 
 	w = httptest.NewRecorder()
-	req, _ = http.NewRequest(http.MethodPost, "/", &testErrorReader{})
+	req = httptest.NewRequest(http.MethodPost, "/", &testErrorReader{})
 	_, err = commonBuilderByteBody(dummyType, w, req, nil)
 	assert.Error(t, err)
 }
 
 func TestNewPathParamBuilder(t *testing.T) {
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	fn := newPathParamBuilder(0)
 	v, err := fn(dummyType, w, req, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "", v.Interface())
 
 	params := []urit.PathVar{
@@ -724,26 +762,26 @@ func TestNewPathParamBuilder(t *testing.T) {
 	}
 
 	w = httptest.NewRecorder()
-	req, _ = http.NewRequest(http.MethodGet, "/", nil)
+	req = httptest.NewRequest(http.MethodGet, "/", nil)
 	fn = newPathParamBuilder(0)
 	v, err = fn(dummyType, w, req, params)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "bar", v.Interface())
 
 	w = httptest.NewRecorder()
-	req, _ = http.NewRequest(http.MethodGet, "/", nil)
+	req = httptest.NewRequest(http.MethodGet, "/", nil)
 	fn = newPathParamBuilder(1)
 	v, err = fn(dummyType, w, req, params)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "", v.Interface())
 }
 
 func TestNewPathParamsBuilder(t *testing.T) {
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	fn := newPathParamsBuilder(0)
 	v, err := fn(dummyType, w, req, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, []string{}, v.Interface())
 
 	params := []urit.PathVar{
@@ -762,17 +800,17 @@ func TestNewPathParamsBuilder(t *testing.T) {
 	}
 
 	w = httptest.NewRecorder()
-	req, _ = http.NewRequest(http.MethodGet, "/", nil)
+	req = httptest.NewRequest(http.MethodGet, "/", nil)
 	fn = newPathParamsBuilder(0)
 	v, err = fn(dummyType, w, req, params)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, []string{"1", "2", "3"}, v.Interface())
 
 	w = httptest.NewRecorder()
-	req, _ = http.NewRequest(http.MethodGet, "/", nil)
+	req = httptest.NewRequest(http.MethodGet, "/", nil)
 	fn = newPathParamsBuilder(1)
 	v, err = fn(dummyType, w, req, params)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, []string{"2", "3"}, v.Interface())
 }
 
@@ -783,17 +821,17 @@ func TestNewStructParamBuilder(t *testing.T) {
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest(http.MethodGet, "/", nil)
 	v, err := fn(dummyType, w, req, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, testRequest{}, v.Interface())
 
 	w = httptest.NewRecorder()
-	req, _ = http.NewRequest(http.MethodGet, "/", strings.NewReader(`{"name": "foo"}`))
+	req = httptest.NewRequest(http.MethodGet, "/", strings.NewReader(`{"name": "foo"}`))
 	v, err = fn(dummyType, w, req, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, testRequest{Name: "foo"}, v.Interface())
 
 	w = httptest.NewRecorder()
-	req, _ = http.NewRequest(http.MethodGet, "/", strings.NewReader(`{"name": 1}`))
+	req = httptest.NewRequest(http.MethodGet, "/", strings.NewReader(`{"name": 1}`))
 	_, err = fn(dummyType, w, req, nil)
 	assert.Error(t, err)
 }
@@ -805,23 +843,23 @@ func TestNewStructPtrParamBuilder(t *testing.T) {
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest(http.MethodGet, "/", nil)
 	v, err := fn(dummyType, w, req, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Nil(t, v.Interface())
 
 	w = httptest.NewRecorder()
-	req, _ = http.NewRequest(http.MethodGet, "/", strings.NewReader(`{"name": "foo"}`))
+	req = httptest.NewRequest(http.MethodGet, "/", strings.NewReader(`{"name": "foo"}`))
 	v, err = fn(dummyType, w, req, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, &testRequest{Name: "foo"}, v.Interface())
 
 	w = httptest.NewRecorder()
-	req, _ = http.NewRequest(http.MethodGet, "/", strings.NewReader(`null`))
+	req = httptest.NewRequest(http.MethodGet, "/", strings.NewReader(`null`))
 	v, err = fn(dummyType, w, req, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, &testRequest{}, v.Interface())
 
 	w = httptest.NewRecorder()
-	req, _ = http.NewRequest(http.MethodGet, "/", strings.NewReader(`{"name": 1}`))
+	req = httptest.NewRequest(http.MethodGet, "/", strings.NewReader(`{"name": 1}`))
 	_, err = fn(dummyType, w, req, nil)
 	assert.Error(t, err)
 }
@@ -833,23 +871,23 @@ func TestNewSliceParamBuilder(t *testing.T) {
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest(http.MethodGet, "/", nil)
 	v, err := fn(dummyType, w, req, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Nil(t, v.Interface())
 
 	w = httptest.NewRecorder()
-	req, _ = http.NewRequest(http.MethodGet, "/", strings.NewReader(`[{"name": "foo"}]`))
+	req = httptest.NewRequest(http.MethodGet, "/", strings.NewReader(`[{"name": "foo"}]`))
 	v, err = fn(dummyType, w, req, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, []testRequest{{Name: "foo"}}, v.Interface())
 
 	w = httptest.NewRecorder()
-	req, _ = http.NewRequest(http.MethodGet, "/", strings.NewReader(`null`))
+	req = httptest.NewRequest(http.MethodGet, "/", strings.NewReader(`null`))
 	v, err = fn(dummyType, w, req, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Nil(t, v.Interface())
 
 	w = httptest.NewRecorder()
-	req, _ = http.NewRequest(http.MethodGet, "/", strings.NewReader(`[{"name": 1}]`))
+	req = httptest.NewRequest(http.MethodGet, "/", strings.NewReader(`[{"name": 1}]`))
 	_, err = fn(dummyType, w, req, nil)
 	assert.Error(t, err)
 }
@@ -862,11 +900,11 @@ func TestChiRouteParams(t *testing.T) {
 	}
 	b := NewTypedMethodsHandlerBuilder()
 	hf, err := b.BuildHandler(path, http.MethodGet, chioas.Method{Handler: fn}, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// test with urit fallback...
 	w := httptest.NewRecorder()
-	r, _ := http.NewRequest(http.MethodGet, "/foo/1/bar/2/3", nil)
+	r := httptest.NewRequest(http.MethodGet, "/foo/1/bar/2/3", nil)
 	hf.ServeHTTP(w, r)
 	assert.Equal(t, 3, len(rcvdPathParams))
 
@@ -874,10 +912,516 @@ func TestChiRouteParams(t *testing.T) {
 	router := chi.NewRouter()
 	router.Get(path, hf)
 	w = httptest.NewRecorder()
-	r, _ = http.NewRequest(http.MethodGet, "/foo/1/bar/2/3", nil)
+	r = httptest.NewRequest(http.MethodGet, "/foo/1/bar/2/3", nil)
 	rcvdPathParams = PathParams{}
 	router.ServeHTTP(w, r)
 	assert.Equal(t, 3, len(rcvdPathParams))
+}
+
+func TestInsBuilder_Build_WithNamedQueryParam(t *testing.T) {
+	t.Run("non-pointer", func(t *testing.T) {
+		fn := func(my myNamedQP) {}
+		path := "/foo"
+		inb, err := newInsBuilder(reflect.ValueOf(fn), path, "", &builder{unmarshaler: defaultUnmarshaler})
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/foo?my=foobar", nil)
+		args, err := inb.build(w, req)
+		require.NoError(t, err)
+		assert.Equal(t, 1, len(args))
+		assert.Equal(t, myNamedQP("foobar"), args[0].Interface())
+	})
+	t.Run("non-pointer, non-string", func(t *testing.T) {
+		fn := func(my myNamedQPInt) {}
+		path := "/foo"
+		inb, err := newInsBuilder(reflect.ValueOf(fn), path, "", &builder{unmarshaler: defaultUnmarshaler})
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/foo?my=42", nil)
+		args, err := inb.build(w, req)
+		require.NoError(t, err)
+		assert.Equal(t, 1, len(args))
+		assert.Equal(t, myNamedQPInt(42), args[0].Interface())
+	})
+	t.Run("non-pointer, non-string - errors", func(t *testing.T) {
+		fn := func(my myNamedQPInt) {}
+		path := "/foo"
+		inb, err := newInsBuilder(reflect.ValueOf(fn), path, "", &builder{unmarshaler: defaultUnmarshaler})
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/foo?my=not-a-number", nil)
+		_, err = inb.build(w, req)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid query param value")
+		assert.Error(t, errors.Unwrap(err))
+	})
+	t.Run("pointer", func(t *testing.T) {
+		fn := func(my *myNamedQP) {}
+		path := "/foo"
+		inb, err := newInsBuilder(reflect.ValueOf(fn), path, "", &builder{unmarshaler: defaultUnmarshaler})
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/foo?my=foobar", nil)
+		args, err := inb.build(w, req)
+		require.NoError(t, err)
+		assert.Equal(t, 1, len(args))
+		assert.Equal(t, myNamedQP("foobar"), args[0].Elem().Interface())
+	})
+	t.Run("pointer, missing", func(t *testing.T) {
+		fn := func(my *myNamedQP) {}
+		path := "/foo"
+		inb, err := newInsBuilder(reflect.ValueOf(fn), path, "", &builder{unmarshaler: defaultUnmarshaler})
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/foo", nil)
+		args, err := inb.build(w, req)
+		require.NoError(t, err)
+		assert.Equal(t, 1, len(args))
+		assert.Nil(t, args[0].Interface())
+	})
+	t.Run("pointer, non-string", func(t *testing.T) {
+		fn := func(my *myNamedQPInt) {}
+		path := "/foo"
+		inb, err := newInsBuilder(reflect.ValueOf(fn), path, "", &builder{unmarshaler: defaultUnmarshaler})
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/foo?my=42", nil)
+		args, err := inb.build(w, req)
+		require.NoError(t, err)
+		assert.Equal(t, 1, len(args))
+		assert.Equal(t, myNamedQPInt(42), args[0].Elem().Interface())
+	})
+	t.Run("pointer, non-string, missing", func(t *testing.T) {
+		fn := func(my *myNamedQPInt) {}
+		path := "/foo"
+		inb, err := newInsBuilder(reflect.ValueOf(fn), path, "", &builder{unmarshaler: defaultUnmarshaler})
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/foo", nil)
+		args, err := inb.build(w, req)
+		require.NoError(t, err)
+		assert.Equal(t, 1, len(args))
+		assert.Nil(t, args[0].Interface())
+	})
+	t.Run("pointer, non-string - errors", func(t *testing.T) {
+		fn := func(my *myNamedQPInt) {}
+		path := "/foo"
+		inb, err := newInsBuilder(reflect.ValueOf(fn), path, "", &builder{unmarshaler: defaultUnmarshaler})
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/foo?my=not-a-number", nil)
+		_, err = inb.build(w, req)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid query param value")
+	})
+	t.Run("slice", func(t *testing.T) {
+		fn := func(my []myNamedQP) {}
+		path := "/foo"
+		inb, err := newInsBuilder(reflect.ValueOf(fn), path, "", &builder{unmarshaler: defaultUnmarshaler})
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/foo?my=my1&my=my2&my=my3", nil)
+		args, err := inb.build(w, req)
+		require.NoError(t, err)
+		assert.Equal(t, 1, len(args))
+		v := args[0].Interface().([]myNamedQP)
+		assert.Len(t, v, 3)
+		assert.Equal(t, []myNamedQP{"my1", "my2", "my3"}, v)
+	})
+	t.Run("slice, missing", func(t *testing.T) {
+		fn := func(my []myNamedQP) {}
+		path := "/foo"
+		inb, err := newInsBuilder(reflect.ValueOf(fn), path, "", &builder{unmarshaler: defaultUnmarshaler})
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/foo", nil)
+		args, err := inb.build(w, req)
+		require.NoError(t, err)
+		assert.Equal(t, 1, len(args))
+		v := args[0].Interface().([]myNamedQP)
+		assert.Len(t, v, 0)
+	})
+	t.Run("slice, non-string", func(t *testing.T) {
+		fn := func(my []myNamedQPInt) {}
+		path := "/foo"
+		inb, err := newInsBuilder(reflect.ValueOf(fn), path, "", &builder{unmarshaler: defaultUnmarshaler})
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/foo?my=1&my=2&my=3", nil)
+		args, err := inb.build(w, req)
+		require.NoError(t, err)
+		assert.Equal(t, 1, len(args))
+		v := args[0].Interface().([]myNamedQPInt)
+		assert.Len(t, v, 3)
+		assert.Equal(t, []myNamedQPInt{1, 2, 3}, v)
+	})
+	t.Run("slice, non-string - errors", func(t *testing.T) {
+		fn := func(my []myNamedQPInt) {}
+		path := "/foo"
+		inb, err := newInsBuilder(reflect.ValueOf(fn), path, "", &builder{unmarshaler: defaultUnmarshaler})
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/foo?my=1&my=not-a-number", nil)
+		_, err = inb.build(w, req)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid query param value")
+	})
+}
+
+func TestInsBuilder_Build_WithNamedPathParam(t *testing.T) {
+	t.Run("non-pointer", func(t *testing.T) {
+		fn := func(my myNamedPP) {}
+		path := "/foo/{id}"
+		inb, err := newInsBuilder(reflect.ValueOf(fn), path, "", &builder{unmarshaler: defaultUnmarshaler})
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/foo/foobar", nil)
+		args, err := inb.build(w, req)
+		require.NoError(t, err)
+		assert.Equal(t, 1, len(args))
+		assert.Equal(t, myNamedPP("foobar"), args[0].Interface())
+	})
+	t.Run("non-pointer, missing", func(t *testing.T) {
+		fn := func(my myNamedPP) {}
+		path := "/foo/{id}"
+		inb, err := newInsBuilder(reflect.ValueOf(fn), path, "", &builder{unmarshaler: defaultUnmarshaler})
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/foo/", nil)
+		args, err := inb.build(w, req)
+		require.NoError(t, err)
+		assert.Equal(t, 1, len(args))
+		assert.Equal(t, myNamedPP(""), args[0].Interface())
+	})
+	t.Run("non-pointer, non-string", func(t *testing.T) {
+		fn := func(my myNamedPPInt) {}
+		path := "/foo/{id}"
+		inb, err := newInsBuilder(reflect.ValueOf(fn), path, "", &builder{unmarshaler: defaultUnmarshaler})
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/foo/42", nil)
+		args, err := inb.build(w, req)
+		require.NoError(t, err)
+		assert.Equal(t, 1, len(args))
+		assert.Equal(t, myNamedPPInt(42), args[0].Interface())
+	})
+	t.Run("non-pointer, non-string - errors", func(t *testing.T) {
+		fn := func(my myNamedPPInt) {}
+		path := "/foo/{id}"
+		inb, err := newInsBuilder(reflect.ValueOf(fn), path, "", &builder{unmarshaler: defaultUnmarshaler})
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/foo/not-a-number", nil)
+		_, err = inb.build(w, req)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid path param value")
+	})
+	t.Run("pointer", func(t *testing.T) {
+		fn := func(my *myNamedPP) {}
+		path := "/foo/{id}"
+		inb, err := newInsBuilder(reflect.ValueOf(fn), path, "", &builder{unmarshaler: defaultUnmarshaler})
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/foo/foobar", nil)
+		args, err := inb.build(w, req)
+		require.NoError(t, err)
+		assert.Equal(t, 1, len(args))
+		assert.Equal(t, myNamedPP("foobar"), args[0].Elem().Interface())
+	})
+	t.Run("pointer, missing", func(t *testing.T) {
+		fn := func(my *myNamedPP) {}
+		path := "/foo/{id}"
+		inb, err := newInsBuilder(reflect.ValueOf(fn), path, "", &builder{unmarshaler: defaultUnmarshaler})
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/foo", nil)
+		args, err := inb.build(w, req)
+		require.NoError(t, err)
+		assert.Equal(t, 1, len(args))
+		assert.Nil(t, args[0].Interface())
+	})
+	t.Run("pointer, non-string", func(t *testing.T) {
+		fn := func(my *myNamedPPInt) {}
+		path := "/foo/{id}"
+		inb, err := newInsBuilder(reflect.ValueOf(fn), path, "", &builder{unmarshaler: defaultUnmarshaler})
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/foo/42", nil)
+		args, err := inb.build(w, req)
+		require.NoError(t, err)
+		assert.Equal(t, 1, len(args))
+		assert.Equal(t, myNamedPPInt(42), args[0].Elem().Interface())
+	})
+	t.Run("pointer, non-string - errors", func(t *testing.T) {
+		fn := func(my *myNamedPPInt) {}
+		path := "/foo/{id}"
+		inb, err := newInsBuilder(reflect.ValueOf(fn), path, "", &builder{unmarshaler: defaultUnmarshaler})
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/foo/not-a-number", nil)
+		_, err = inb.build(w, req)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid path param value")
+	})
+	t.Run("slice", func(t *testing.T) {
+		fn := func(my []myNamedPP) {}
+		path := "/foo/{id}/{id}"
+		inb, err := newInsBuilder(reflect.ValueOf(fn), path, "", &builder{unmarshaler: defaultUnmarshaler})
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/foo/foobar/foobar2", nil)
+		args, err := inb.build(w, req)
+		require.NoError(t, err)
+		assert.Equal(t, 1, len(args))
+		v := args[0].Interface().([]myNamedPP)
+		assert.Len(t, v, 2)
+		assert.Equal(t, []myNamedPP{"foobar", "foobar2"}, v)
+	})
+	t.Run("slice, non-string", func(t *testing.T) {
+		fn := func(my []myNamedPPInt) {}
+		path := "/foo/{id}/{id}"
+		inb, err := newInsBuilder(reflect.ValueOf(fn), path, "", &builder{unmarshaler: defaultUnmarshaler})
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/foo/42/43", nil)
+		args, err := inb.build(w, req)
+		require.NoError(t, err)
+		assert.Equal(t, 1, len(args))
+		v := args[0].Interface().([]myNamedPPInt)
+		assert.Len(t, v, 2)
+		assert.Equal(t, []myNamedPPInt{42, 43}, v)
+	})
+	t.Run("slice, non-string - errors", func(t *testing.T) {
+		fn := func(my []myNamedPPInt) {}
+		path := "/foo/{id}/{id}"
+		inb, err := newInsBuilder(reflect.ValueOf(fn), path, "", &builder{unmarshaler: defaultUnmarshaler})
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/foo/42/not-a-number", nil)
+		_, err = inb.build(w, req)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid path param value")
+	})
+}
+
+func TestInsBuilder_Build_WithNamedHeader(t *testing.T) {
+	t.Run("non-pointer", func(t *testing.T) {
+		fn := func(my myNamedHdr) {}
+		path := "/foo"
+		inb, err := newInsBuilder(reflect.ValueOf(fn), path, "", &builder{unmarshaler: defaultUnmarshaler})
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/foo", nil)
+		req.Header.Set("Accept", "foobar")
+		args, err := inb.build(w, req)
+		require.NoError(t, err)
+		assert.Equal(t, 1, len(args))
+		assert.Equal(t, myNamedHdr("foobar"), args[0].Interface())
+	})
+	t.Run("non-pointer, missing", func(t *testing.T) {
+		fn := func(my myNamedHdr) {}
+		path := "/foo"
+		inb, err := newInsBuilder(reflect.ValueOf(fn), path, "", &builder{unmarshaler: defaultUnmarshaler})
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/foo", nil)
+		args, err := inb.build(w, req)
+		require.NoError(t, err)
+		assert.Equal(t, 1, len(args))
+		assert.Equal(t, myNamedHdr(""), args[0].Interface())
+	})
+	t.Run("pointer", func(t *testing.T) {
+		fn := func(my *myNamedHdr) {}
+		path := "/foo"
+		inb, err := newInsBuilder(reflect.ValueOf(fn), path, "", &builder{unmarshaler: defaultUnmarshaler})
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/foo", nil)
+		req.Header.Set("Accept", "foobar")
+		args, err := inb.build(w, req)
+		require.NoError(t, err)
+		assert.Equal(t, 1, len(args))
+		assert.Equal(t, myNamedHdr("foobar"), args[0].Elem().Interface())
+	})
+	t.Run("pointer, missing", func(t *testing.T) {
+		fn := func(my *myNamedHdr) {}
+		path := "/foo"
+		inb, err := newInsBuilder(reflect.ValueOf(fn), path, "", &builder{unmarshaler: defaultUnmarshaler})
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/foo", nil)
+		args, err := inb.build(w, req)
+		require.NoError(t, err)
+		assert.Equal(t, 1, len(args))
+		assert.Nil(t, args[0].Interface())
+	})
+	t.Run("slice", func(t *testing.T) {
+		fn := func(my []myNamedHdr) {}
+		path := "/foo"
+		inb, err := newInsBuilder(reflect.ValueOf(fn), path, "", &builder{unmarshaler: defaultUnmarshaler})
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/foo", nil)
+		req.Header.Set("Accept", "foobar")
+		args, err := inb.build(w, req)
+		require.NoError(t, err)
+		assert.Equal(t, 1, len(args))
+		v := args[0].Interface().([]myNamedHdr)
+		assert.Len(t, v, 1)
+		assert.Equal(t, []myNamedHdr{"foobar"}, v)
+	})
+	t.Run("slice, missing", func(t *testing.T) {
+		fn := func(my []myNamedHdr) {}
+		path := "/foo"
+		inb, err := newInsBuilder(reflect.ValueOf(fn), path, "", &builder{unmarshaler: defaultUnmarshaler})
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/foo", nil)
+		args, err := inb.build(w, req)
+		require.NoError(t, err)
+		assert.Equal(t, 1, len(args))
+		v := args[0].Interface().([]myNamedHdr)
+		assert.Len(t, v, 0)
+	})
+}
+
+func TestInsBuilder_Build_WithNamedCookie(t *testing.T) {
+	t.Run("valid", func(t *testing.T) {
+		fn := func(sess *mySessionCookie) {}
+		path := "/foo"
+		inb, err := newInsBuilder(reflect.ValueOf(fn), path, "", &builder{unmarshaler: defaultUnmarshaler})
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/foo", nil)
+		req.AddCookie(&http.Cookie{Name: "session", Value: "foo"})
+		args, err := inb.build(w, req)
+		require.NoError(t, err)
+		assert.Equal(t, 1, len(args))
+		v := args[0].Interface().(*mySessionCookie)
+		assert.Equal(t, "session", v.Name)
+		assert.Equal(t, "foo", v.Value)
+	})
+	t.Run("missing", func(t *testing.T) {
+		fn := func(sess *mySessionCookie) {}
+		path := "/foo"
+		inb, err := newInsBuilder(reflect.ValueOf(fn), path, "", &builder{unmarshaler: defaultUnmarshaler})
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/foo", nil)
+		args, err := inb.build(w, req)
+		require.NoError(t, err)
+		assert.Equal(t, 1, len(args))
+		assert.Nil(t, args[0].Interface())
+	})
+}
+
+type myNamedQP string
+
+func (myNamedQP) QueryParamName() string {
+	return "my"
+}
+
+type myNamedQPInt int64
+
+func (myNamedQPInt) QueryParamName() string {
+	return "my"
+}
+
+func (n *myNamedQPInt) UnmarshalText(text []byte) error {
+	if i, err := strconv.Atoi(string(text)); err == nil {
+		*n = myNamedQPInt(i)
+		return nil
+	} else {
+		return err
+	}
+}
+
+type myBadNamedQP int
+
+func (myBadNamedQP) QueryParamName() string {
+	return "my"
+}
+
+type myNamedPP string
+
+func (myNamedPP) PathParamName() string {
+	return "id"
+}
+
+type myNamedPPInt int64
+
+func (myNamedPPInt) PathParamName() string {
+	return "id"
+}
+
+func (n *myNamedPPInt) UnmarshalText(text []byte) error {
+	if i, err := strconv.Atoi(string(text)); err == nil {
+		*n = myNamedPPInt(i)
+		return nil
+	} else {
+		return err
+	}
+}
+
+type myBadNamedPP int
+
+func (myBadNamedPP) PathParamName() string {
+	return "id"
+}
+
+type myNamedHdr string
+
+func (myNamedHdr) HeaderName() string {
+	return "Accept"
+}
+
+type myBadNamedHdr int
+
+func (myBadNamedHdr) HeaderName() string {
+	return "Accept"
+}
+
+type mySessionCookie http.Cookie
+
+func (mySessionCookie) CookieName() string {
+	return "session"
+}
+
+type myBadCookie string
+
+func (myBadCookie) CookieName() string {
+	return "session"
 }
 
 type testRequest struct {
