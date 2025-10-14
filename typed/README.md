@@ -63,6 +63,75 @@ _Chioas Typed Handlers_ looks at the types of each handler arg to determine what
 3. To support for other arg types - provide an implementation of `typedArgBuilder` passed as an option to `typed.NewTypedMethodsHandlerBuilder(options ...any)`
 4. Any other arg types will cause an error when setting up routes (unless supported by note 3)  
 
+### Support for named query params, path params, headers and cookies
+
+_Chioas Typed Handlers_ also has built-in for support for arg types that implement specific interfaces that denote a named query param, path param, header or cookie.  The following table gives examples:
+
+<table>
+    <tr>
+        <th>Type declaration</th>
+        <th>Usage</th>
+    </tr>
+    <tr>
+        <th colspan="2"><em>Named query param</em></th>
+    </tr>
+    <tr>
+        <td>
+            <pre>type MyQueryParam string
+func (MyQueryParam) QueryParamName() string {
+    return "my"
+}</pre>
+</td>
+        <td><pre>func eg(my MyQueryParam)</pre>
+<em>or if query param is optional...</em>
+<pre>func eg(my *MyQueryParam)</pre>
+<em>or if query param has multiple values...</em>
+<pre>func eg(my []MyQueryParam)</pre></td>
+    </tr>
+    <tr>
+        <th colspan="2"><em>Named path param</em></th>
+    </tr>
+    <tr>
+        <td>
+            <pre>type IdParam string
+func (IdParam) PathParamName() string {
+    return "id"
+}</pre>
+</td>
+        <td><pre>func eg(id IdParam)</pre>
+<em>or if path param has multiple values...</em>
+<pre>func eg(ids []IdParam)</pre></td>
+    </tr>
+    <tr>
+        <th colspan="2"><em>Named header</em></th>
+    </tr>
+    <tr>
+        <td>
+            <pre>type Accept string
+func (Accept) HeaderName() string {
+    return "Accept"
+}</pre>
+</td>
+        <td><pre>func eg(accept Accept)</pre>
+<em>or if header is optional...</em>
+<pre>func eg(accept *Accept)</pre>
+</td>
+    </tr>
+    <tr>
+        <th colspan="2"><em>Named cookie</em></th>
+    </tr>
+    <tr>
+        <td>
+            <pre>type CSession http.Cookie
+func (CSession) CookieName() string {
+    return "session"
+}</pre>
+</td>
+        <td><pre>func eg(sess *CSession)</pre>
+        <em>Note: must be a pointer - as cookies are always optional</em>
+    </tr>
+</table>
+
 ## Handler Return Args
 Having called the handler, _Chioas Typed Handlers_ looks at the return arg types to determine what needs to be written to the [http.ResponseWriter](https://pkg.go.dev/net/http#ResponseWriter).
 (_Note: if there are no return args - then nothing is written to [http.ResponseWriter](https://pkg.go.dev/net/http#ResponseWriter)_)

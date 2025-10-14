@@ -3,9 +3,7 @@ package codegen
 import (
 	"github.com/go-andiamo/chioas"
 	"github.com/go-andiamo/splitter"
-	"golang.org/x/exp/maps"
 	"io"
-	"sort"
 	"strings"
 )
 
@@ -103,18 +101,14 @@ func generatePathStubs(path string, def chioas.Path, sw *stubsWriter) {
 }
 
 func generatePathsStubs(path string, def chioas.Paths, sw *stubsWriter) {
-	ks := maps.Keys(def)
-	sort.Strings(ks)
+	ks := sortedKeys(def)
 	for _, k := range ks {
 		generatePathStubs(path+k, def[k], sw)
 	}
 }
 
 func generateMethodsStub(path string, def chioas.Methods, sw *stubsWriter) {
-	sms := maps.Keys(def)
-	sort.Slice(sms, func(i, j int) bool {
-		return compareMethods(sms[i], sms[j])
-	})
+	sms := sortedMethods(def)
 	for _, m := range sms {
 		generateMethodStub(path, m, def[m], sw)
 	}

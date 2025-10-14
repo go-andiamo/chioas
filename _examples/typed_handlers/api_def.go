@@ -3,17 +3,16 @@ package main
 import (
 	"github.com/go-andiamo/chioas"
 	"github.com/go-andiamo/chioas/typed"
-	"github.com/go-andiamo/urit"
 	"net/http"
-	"reflect"
 	"strconv"
 )
 
 var def = chioas.Definition{
 	DocOptions: chioas.DocOptions{
 		ServeDocs: true,
+		UIStyle:   chioas.Rapidoc,
 	},
-	MethodHandlerBuilder: typed.NewTypedMethodsHandlerBuilder(&PersonIdArgBuilder{}),
+	MethodHandlerBuilder: typed.NewTypedMethodsHandlerBuilder(),
 	Methods: map[string]chioas.Method{
 		http.MethodGet: {
 			Handler: func() (map[string]any, error) {
@@ -34,6 +33,12 @@ var def = chioas.Definition{
 							SchemaRef: "Person",
 						},
 					},
+					QueryParams: chioas.QueryParams{
+						{
+							Name:        SearchParam("").QueryParamName(),
+							Description: "Search people by name",
+						},
+					},
 				},
 				http.MethodPost: {
 					Handler: (*api).AddPerson,
@@ -48,7 +53,15 @@ var def = chioas.Definition{
 				},
 			},
 			Paths: chioas.Paths{
-				"/{personId}": {
+				"/{" + PersonId(0).PathParamName() + "}": {
+					PathParams: chioas.PathParams{
+						PersonId(0).PathParamName(): {
+							Description: "ID of person",
+							Schema: &chioas.Schema{
+								Type: "integer",
+							},
+						},
+					},
 					Methods: chioas.Methods{
 						http.MethodGet: {
 							Handler: (*api).GetPerson,
@@ -77,30 +90,24 @@ var personSchema = (&chioas.Schema{
 	Name: "Bilbo",
 })
 
-type PersonId int
+type SearchParam string
 
-// PersonIdArgBuilder is an implementation of typed.ArgBuilder that extracts an arg type of PersonId from path params
-type PersonIdArgBuilder struct{}
-
-var _ typed.ArgBuilder = &PersonIdArgBuilder{}
-
-func (ab *PersonIdArgBuilder) IsApplicable(argType reflect.Type, method string, path string) (is bool, readsBody bool) {
-	return argType == reflect.TypeOf(PersonId(0)), false
+func (SearchParam) QueryParamName() string {
+	return "search"
 }
 
-func (ab *PersonIdArgBuilder) BuildValue(argType reflect.Type, request *http.Request, params []urit.PathVar) (reflect.Value, error) {
-	v := PersonId(-1)
-	var err error = typed.NewApiError(http.StatusInternalServerError, "path param 'personId' not present")
-	for _, pv := range params {
-		if pv.Name == "personId" {
-			var i int64
-			if i, err = strconv.ParseInt(pv.Value.(string), 10, 32); err == nil {
-				v = PersonId(i)
-			} else {
-				err = typed.WrapApiErrorMsg(http.StatusBadRequest, err, "personId is not a integer")
-			}
-			break
-		}
+type PersonId int
+
+func (PersonId) PathParamName() string {
+	return "personId"
+}
+
+// UnmarshalText by implementing this method, the named path param can be a non-string (and self validating)
+func (id *PersonId) UnmarshalText(text []byte) error {
+	if i, err := strconv.Atoi(string(text)); err == nil {
+		*id = PersonId(i)
+		return nil
+	} else {
+		return err
 	}
-	return reflect.ValueOf(v), err
 }

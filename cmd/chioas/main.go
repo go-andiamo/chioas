@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"github.com/go-andiamo/chioas"
 	"gopkg.in/yaml.v3"
@@ -22,6 +21,16 @@ const (
 	flagHelp    = "-help"
 	flagVersion = "-version"
 )
+
+type CommonFlags struct {
+	Help *bool  `name:"help" alias:"h" usage:"show help"`
+	In   string `name:"in"   alias:"i" required:"true" usage:"input definition file (.yaml|.json) or '-' for stdin" example:"-in <filename>"`
+}
+
+type CommonSupplementaryFlags struct {
+	NoFormat  *bool `name:"no-fmt"    alias:"nf" usage:"suppress go formatting of generated code (default: false)" default:"false" example:"[-no-fmt]"`
+	Overwrite *bool `name:"overwrite" alias:"ov" usage:"allow overwriting existing file (default: false)"          default:"false" example:"[-overwrite]"`
+}
 
 func main() {
 	if len(os.Args) < 2 {
@@ -176,26 +185,6 @@ func usageGen(msg string) {
 	_, _ = fmt.Fprintln(out, "Description: "+subCmdStructsDesc)
 	_, _ = fmt.Fprintln(out, "Usage:")
 	_, _ = fmt.Fprintln(out, "    "+cmdChioas+" "+cmdGen+" "+subCmdStructs+" "+flagHelp)
-	if msg != "" {
-		os.Exit(2)
-	} else {
-		os.Exit(0)
-	}
-}
-
-func usageDetailed(msg string, fs *flag.FlagSet, egs []string, cmd, subCmd, desc string) {
-	out := os.Stdout
-	if msg != "" {
-		out = os.Stderr
-		_, _ = fmt.Fprintf(out, "error: %s\n\n", msg)
-	}
-	_, _ = fmt.Fprintln(out, "Description: "+desc)
-	_, _ = fmt.Fprintf(out, "Usage:\n  %s %s %s %s\n\n", cmdChioas, cmd, subCmd, strings.Join(egs, " "))
-	_, _ = fmt.Fprintln(out, `Flags:`)
-	fs.VisitAll(func(f *flag.Flag) {
-		_, _ = fmt.Fprintf(out, "    -%s\n", f.Name)
-		_, _ = fmt.Fprintf(out, "        %s\n", f.Usage)
-	})
 	if msg != "" {
 		os.Exit(2)
 	} else {
