@@ -11,5 +11,5 @@ func TestFavIcons(t *testing.T) {
 		64: "test.png",
 	}
 	html := o.toHtml()
-	assert.Equal(t, template.HTML(`<link rel="icon" type="image/png" href="./test.png" sizes="64x64" />`), html)
+	assert.Equal(t, template.HTML(`<link rel="icon" type="image/png" href="test.png" sizes="64x64" />`), html)
 }
