@@ -155,8 +155,8 @@ func (s *Schema) writeYaml(withName bool, w yaml.Writer) {
 }
 
 func (s *Schema) writeOfYaml(w yaml.Writer) {
-	w.WriteTagValue(tags.Description, s.Description).
-		WriteItemStart(tags.Type, defValue(s.Type, values.TypeObject)).
+	w.WriteItemStart(tags.Description, s.Description).
+		WriteTagValue(tags.Type, defValue(s.Type, values.TypeObject)).
 		WriteTagValue(tags.Format, s.Format)
 	if reqs, has := s.getRequiredProperties(); has {
 		w.WriteTagStart(tags.Required)
