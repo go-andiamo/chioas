@@ -56,7 +56,8 @@ func TestOf_WriteYaml(t *testing.T) {
 				},
 			},
 			expect: `oneOf:
-  - type: object
+  - description: ""
+    type: object
 `,
 		},
 		{
@@ -81,7 +82,8 @@ func TestOf_WriteYaml(t *testing.T) {
 				},
 			},
 			expect: `oneOf:
-  - type: object
+  - description: ""
+    type: object
     required:
       - foo
     properties:
@@ -128,7 +130,8 @@ func TestOf_WriteYaml(t *testing.T) {
 			},
 			expect: `allOf:
   - $ref: "#/components/schemas/my-schema"
-  - type: object
+  - description: ""
+    type: object
     required:
       - foo
     properties:
@@ -163,7 +166,8 @@ func TestOf_WriteYaml(t *testing.T) {
 			},
 			expect: `anyOf:
   - $ref: "#/components/schemas/my-schema"
-  - type: object
+  - description: ""
+    type: object
     required:
       - foo
     properties:
@@ -184,7 +188,8 @@ func TestOf_WriteYaml(t *testing.T) {
 				},
 			},
 			expect: `oneOf:
-  - type: string
+  - description: ""
+    type: string
     enum:
       - a
       - b
@@ -213,7 +218,8 @@ func TestOf_WriteYaml(t *testing.T) {
 				},
 			},
 			expect: `oneOf:
-  - type: object
+  - description: ""
+    type: object
 `,
 		},
 	}
