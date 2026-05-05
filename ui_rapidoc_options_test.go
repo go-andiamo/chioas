@@ -85,5 +85,5 @@ func TestRapidocOptions_OverrideFavIcons(t *testing.T) {
 	icons := o.GetFavIcons()
 	assert.NotNil(t, icons)
 	html := icons.toHtml()
-	assert.Equal(t, template.HTML(`<link rel="icon" type="image/png" href="./test.png" sizes="64x64" />`), html)
+	assert.Equal(t, template.HTML(`<link rel="icon" type="image/png" href="test.png" sizes="64x64" />`), html)
 }
